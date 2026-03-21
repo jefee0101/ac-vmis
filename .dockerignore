@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+node_modules
+vendor
+storage/*.log
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing/*
+storage/app/public/*
+bootstrap/cache/*.php
+.DS_Store
+.idea
+.vscode
+tests
