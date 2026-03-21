@@ -1,0 +1,2298 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme inline {
+    --font-sans: Poppins, Instrument Sans, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+:root {
+    --motion-fast: 160ms;
+    --motion-base: 240ms;
+    --motion-slow: 360ms;
+    --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --blue-light-bg: #f7fbff;
+    --blue-light-surface: #ffffff;
+    --blue-light-surface-alt: #eaf4ff;
+    --blue-light-primary: #034485;
+    --blue-light-primary-strong: #0a65be;
+    --blue-light-border-strong: #1a4f8f;
+    --blue-light-overlay: rgba(3, 20, 40, 0.45);
+    --blue-light-skeleton: rgba(3, 68, 133, 0.28);
+    --blue-light-text: #1e2a3b;
+    --blue-light-text-muted: #5f7893;
+    --blue-dark-bg: #0b2f5f;
+    --blue-dark-surface: #0f3b73;
+    --blue-dark-surface-alt: #0d3566;
+    --blue-dark-hover: #145aa6;
+    --blue-dark-border: #1a4f8f;
+    --blue-dark-overlay: rgba(3, 20, 40, 0.6);
+    --blue-dark-skeleton: rgba(96, 165, 250, 0.25);
+    --blue-dark-text: #eff6ff;
+    --blue-dark-text-muted: #bfdbfe;
+    --blue-dark-accent: #93c5fd;
+    --blue-dark-accent-strong: #60a5fa;
+}
+
+html,
+body {
+    font-family: Poppins, ui-sans-serif, system-ui, sans-serif;
+}
+
+.route-fade-enter-active,
+.route-fade-leave-active {
+    transition: opacity var(--motion-base) var(--motion-ease), transform var(--motion-base) var(--motion-ease);
+}
+
+.route-fade-enter-from {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.route-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+.reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity var(--motion-slow) var(--motion-ease), transform var(--motion-slow) var(--motion-ease);
+}
+
+.reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    transition:
+        color var(--motion-fast) var(--motion-ease),
+        background-color var(--motion-fast) var(--motion-ease),
+        border-color var(--motion-fast) var(--motion-ease),
+        box-shadow var(--motion-fast) var(--motion-ease),
+        transform var(--motion-fast) var(--motion-ease),
+        opacity var(--motion-fast) var(--motion-ease);
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* Global theme modes (applied from localStorage via <html> class) */
+html.theme-dark,
+html.theme-dark body {
+    background: var(--blue-dark-bg);
+    color: var(--blue-dark-text);
+}
+
+html:not(.theme-dark),
+html:not(.theme-dark) body {
+    background: var(--blue-light-bg);
+    color: var(--blue-light-text);
+}
+
+html.theme-dark .admin-shell {
+    background: var(--blue-dark-bg) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .admin-shell .bg-white,
+html.theme-dark .admin-shell .bg-slate-50,
+html.theme-dark .admin-shell .bg-slate-100,
+html.theme-dark .admin-shell .bg-white\/90,
+html.theme-dark .admin-shell .bg-white\/95 {
+    background: var(--blue-dark-surface) !important;
+}
+
+html.theme-dark .admin-shell .border-slate-200,
+html.theme-dark .admin-shell .border-slate-300 {
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .admin-shell .text-slate-900,
+html.theme-dark .admin-shell .text-slate-800,
+html.theme-dark .admin-shell .text-slate-700 {
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .admin-shell .text-slate-600,
+html.theme-dark .admin-shell .text-slate-500,
+html.theme-dark .admin-shell .text-slate-400 {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .admin-shell [class*='text-[#034485]'],
+html.theme-dark .public-page [class*='text-[#034485]'],
+html.theme-dark .login-page [class*='text-[#034485]'],
+html.theme-dark .register-page [class*='text-[#034485]'] {
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .admin-shell .shadow-sm,
+html.theme-dark .admin-shell .shadow,
+html.theme-dark .admin-shell .shadow-lg,
+html.theme-dark .admin-shell .shadow-xl {
+    box-shadow: 0 10px 30px rgba(3, 20, 40, 0.45) !important;
+}
+
+html.theme-dark .admin-shell input,
+html.theme-dark .admin-shell select,
+html.theme-dark .admin-shell textarea {
+    background: var(--blue-dark-surface-alt) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .admin-shell input::placeholder,
+html.theme-dark .admin-shell textarea::placeholder {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .admin-shell aside nav button:hover {
+    background: var(--blue-dark-hover) !important;
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300.bg-white,
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300 {
+    background: var(--blue-dark-surface) !important;
+    color: var(--blue-dark-text) !important;
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300:hover,
+html.theme-dark .admin-shell .hover\:bg-slate-100:hover {
+    background: var(--blue-dark-hover) !important;
+}
+
+html.theme-dark .admin-shell .activity-log-item,
+html.theme-dark .admin-shell [data-activity-item] {
+    background: var(--blue-dark-surface) !important;
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .public-page,
+html.theme-dark .login-page,
+html.theme-dark .register-page {
+    background: linear-gradient(180deg, #0b2f5f 0%, #0f3b73 100%) !important;
+    color: #eff6ff !important;
+}
+
+html.theme-dark .public-page .site-header,
+html.theme-dark .login-page .login-header,
+html.theme-dark .register-page .register-header {
+    background: rgba(11, 47, 95, 0.9) !important;
+    border-bottom-color: rgba(26, 79, 143, 0.6) !important;
+}
+
+html.theme-dark .public-page .nav-shell,
+html.theme-dark .public-page .footer-shell,
+html.theme-dark .public-page .page-hero,
+html.theme-dark .login-page .login-nav,
+html.theme-dark .login-page .login-card,
+html.theme-dark .login-page .login-copy,
+html.theme-dark .register-page .register-nav,
+html.theme-dark .register-page .register-card,
+html.theme-dark .register-page .register-copy {
+    background: #0f3b73 !important;
+    border-color: rgba(26, 79, 143, 0.6) !important;
+    color: #eff6ff !important;
+}
+
+html.theme-dark .public-page h1,
+html.theme-dark .public-page h2,
+html.theme-dark .public-page h3,
+html.theme-dark .public-page h4,
+html.theme-dark .public-page p,
+html.theme-dark .public-page span,
+html.theme-dark .public-page a,
+html.theme-dark .public-page li,
+html.theme-dark .login-page h1,
+html.theme-dark .login-page h2,
+html.theme-dark .login-page h3,
+html.theme-dark .login-page p,
+html.theme-dark .login-page span,
+html.theme-dark .login-page a,
+html.theme-dark .register-page h1,
+html.theme-dark .register-page h2,
+html.theme-dark .register-page h3,
+html.theme-dark .register-page p,
+html.theme-dark .register-page span,
+html.theme-dark .register-page a {
+    color: #eff6ff !important;
+}
+
+/* Public/Auth/Status blue palette (light mode) */
+html:not(.theme-dark) .public-page,
+html:not(.theme-dark) .login-page,
+html:not(.theme-dark) .register-page {
+    background: linear-gradient(180deg, var(--blue-light-bg) 0%, var(--blue-light-surface-alt) 100%) !important;
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .public-page {
+    --brand-blue: var(--blue-light-primary) !important;
+    --brand-line: rgba(3, 68, 133, 0.4) !important;
+    --brand-line-soft: rgba(3, 68, 133, 0.25) !important;
+}
+
+html:not(.theme-dark) .public-page .logo-triangle {
+    background: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .public-page .site-header,
+html:not(.theme-dark) .login-page .login-header,
+html:not(.theme-dark) .register-page .register-header {
+    background: rgba(247, 251, 255, 0.92) !important;
+    border-bottom-color: var(--blue-light-border-strong) !important;
+}
+
+html:not(.theme-dark) .public-page .nav-shell,
+html:not(.theme-dark) .public-page .footer-shell,
+html:not(.theme-dark) .public-page .page-hero,
+html:not(.theme-dark) .login-page .login-nav,
+html:not(.theme-dark) .login-page .login-card,
+html:not(.theme-dark) .login-page .login-copy,
+html:not(.theme-dark) .register-page .register-nav,
+html:not(.theme-dark) .register-page .register-card,
+html:not(.theme-dark) .register-page .register-copy {
+    background: var(--blue-light-surface) !important;
+    border-color: var(--blue-light-border-strong) !important;
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .public-page .loading-strip,
+html:not(.theme-dark) .login-page .top-loading,
+html:not(.theme-dark) .register-page .top-loading {
+    background: linear-gradient(90deg, var(--blue-light-primary) 0%, var(--blue-light-primary-strong) 45%, #93c5fd 100%) !important;
+}
+
+html:not(.theme-dark) .public-page .kicker,
+html:not(.theme-dark) .login-page .kicker,
+html:not(.theme-dark) .register-page .kicker,
+html:not(.theme-dark) .login-page .copy-kicker,
+html:not(.theme-dark) .register-page .copy-kicker,
+html:not(.theme-dark) .login-page .login-copy p,
+html:not(.theme-dark) .register-page .register-copy p,
+html:not(.theme-dark) .login-page .footer-copy,
+html:not(.theme-dark) .register-page .footer-copy,
+html:not(.theme-dark) .login-page .footer-heading,
+html:not(.theme-dark) .register-page .footer-heading,
+html:not(.theme-dark) .login-page .footer-link,
+html:not(.theme-dark) .register-page .footer-link,
+html:not(.theme-dark) .public-page .footer-link,
+html:not(.theme-dark) .public-page .footer-copy,
+html:not(.theme-dark) .public-page .footer-heading,
+html:not(.theme-dark) .login-page .footer-bottom-row,
+html:not(.theme-dark) .register-page .footer-bottom-row,
+html:not(.theme-dark) .public-page .footer-bottom-row {
+    color: var(--blue-light-text-muted) !important;
+}
+
+html:not(.theme-dark) .public-page .brand,
+html:not(.theme-dark) .login-page .brand,
+html:not(.theme-dark) .register-page .brand,
+html:not(.theme-dark) .login-page .footer-brand,
+html:not(.theme-dark) .register-page .footer-brand {
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .login-page .login-copy h1,
+html:not(.theme-dark) .register-page .register-copy h1,
+html:not(.theme-dark) .login-page .login-card h2,
+html:not(.theme-dark) .register-page .register-card h2 {
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .login-page .text-slate-700,
+html:not(.theme-dark) .login-page .text-slate-800,
+html:not(.theme-dark) .login-page .text-slate-900,
+html:not(.theme-dark) .register-page .text-slate-700,
+html:not(.theme-dark) .register-page .text-slate-800,
+html:not(.theme-dark) .register-page .text-slate-900,
+html:not(.theme-dark) .login-page [class*='text-[#1f2937]'],
+html:not(.theme-dark) .register-page [class*='text-[#1f2937]'] {
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .login-page .text-slate-500,
+html:not(.theme-dark) .login-page .text-slate-600,
+html:not(.theme-dark) .register-page .text-slate-500,
+html:not(.theme-dark) .register-page .text-slate-600 {
+    color: var(--blue-light-text-muted) !important;
+}
+
+html:not(.theme-dark) .register-page .label {
+    color: var(--blue-light-text) !important;
+}
+
+html .register-page .avatar-preview {
+    margin-top: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 12px;
+    border: 1px solid transparent;
+}
+
+html .register-page .avatar-preview img {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    object-fit: cover;
+    border: 1px solid transparent;
+}
+
+html:not(.theme-dark) .register-page .avatar-preview {
+    background: var(--blue-light-surface) !important;
+    border-color: var(--blue-light-border-strong) !important;
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .register-page .avatar-preview img {
+    border-color: var(--blue-light-border-strong) !important;
+}
+
+html:not(.theme-dark) .register-page .step {
+    color: var(--blue-light-text-muted) !important;
+}
+
+html:not(.theme-dark) .register-page .step span {
+    border-color: rgba(3, 68, 133, 0.28) !important;
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .register-page .step.active {
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .register-page .step.active span {
+    border-color: var(--blue-light-primary) !important;
+    background: rgba(3, 68, 133, 0.12) !important;
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .register-page .step-line {
+    background: rgba(3, 68, 133, 0.24) !important;
+}
+
+html:not(.theme-dark) .register-page .step-line.active {
+    background: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .public-page .btn-fill,
+html:not(.theme-dark) .login-page .btn-fill,
+html:not(.theme-dark) .register-page .btn-fill,
+html:not(.theme-dark) .register-page .role-btn-fill,
+html:not(.theme-dark) .status-btn-fill {
+    background: var(--blue-light-primary) !important;
+    border-color: var(--blue-light-primary) !important;
+    color: #ffffff !important;
+}
+
+html:not(.theme-dark) .public-page .btn-fill:hover,
+html:not(.theme-dark) .login-page .btn-fill:hover,
+html:not(.theme-dark) .register-page .btn-fill:hover,
+html:not(.theme-dark) .register-page .role-btn-fill:hover,
+html:not(.theme-dark) .status-btn-fill:hover {
+    background: var(--blue-light-primary-strong) !important;
+}
+
+html:not(.theme-dark) .public-page .btn-outline,
+html:not(.theme-dark) .login-page .btn-outline,
+html:not(.theme-dark) .register-page .btn-outline,
+html:not(.theme-dark) .register-page .role-btn-outline,
+html:not(.theme-dark) .status-btn-outline {
+    background: var(--blue-light-surface) !important;
+    border-color: var(--blue-light-border-strong) !important;
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .public-page .btn-outline:hover,
+html:not(.theme-dark) .login-page .btn-outline:hover,
+html:not(.theme-dark) .register-page .btn-outline:hover,
+html:not(.theme-dark) .register-page .role-btn-outline:hover,
+html:not(.theme-dark) .status-btn-outline:hover {
+    background: var(--blue-light-surface-alt) !important;
+}
+
+html:not(.theme-dark) .login-page .field-input,
+html:not(.theme-dark) .register-page .field-input,
+html:not(.theme-dark) .register-page .field,
+html:not(.theme-dark) .register-page .field {
+    background: var(--blue-light-surface) !important;
+    border-color: var(--blue-light-border-strong) !important;
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .login-page .field-input:focus,
+html:not(.theme-dark) .register-page .field:focus {
+    border-color: var(--blue-light-primary-strong) !important;
+    box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.18) !important;
+}
+
+html:not(.theme-dark) .login-page .remember-row,
+html:not(.theme-dark) .login-page .register-note,
+html:not(.theme-dark) .register-page .login-note {
+    color: var(--blue-light-text-muted) !important;
+}
+
+html:not(.theme-dark) .login-page .register-link,
+html:not(.theme-dark) .register-page .login-link {
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .login-page .footer-link:hover,
+html:not(.theme-dark) .register-page .footer-link:hover,
+html:not(.theme-dark) .public-page .footer-link:hover {
+    color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .login-page .remember-checkbox {
+    accent-color: var(--blue-light-primary) !important;
+}
+
+html:not(.theme-dark) .status-card {
+    background: linear-gradient(180deg, var(--blue-light-surface) 0%, var(--blue-light-surface-alt) 100%) !important;
+    border-color: var(--blue-light-border-strong) !important;
+    color: var(--blue-light-text) !important;
+}
+
+html:not(.theme-dark) .status-kicker,
+html:not(.theme-dark) .status-text {
+    color: var(--blue-light-text-muted) !important;
+}
+
+html:not(.theme-dark) .status-card h2 {
+    color: var(--blue-light-text) !important;
+}
+
+/* Public/Auth/Status blue palette (dark mode) */
+html.theme-dark .login-page,
+html.theme-dark .register-page,
+html.theme-dark .public-page {
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .public-page .logo-triangle {
+    background: var(--blue-dark-accent-strong) !important;
+}
+
+html.theme-dark .login-page .login-card,
+html.theme-dark .login-page .login-copy,
+html.theme-dark .register-page .register-card,
+html.theme-dark .register-page .register-copy {
+    background: var(--blue-dark-surface) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .login-page .kicker,
+html.theme-dark .register-page .kicker,
+html.theme-dark .login-page .copy-kicker,
+html.theme-dark .register-page .copy-kicker,
+html.theme-dark .login-page .login-copy p,
+html.theme-dark .register-page .register-copy p,
+html.theme-dark .login-page .footer-copy,
+html.theme-dark .register-page .footer-copy,
+html.theme-dark .login-page .footer-heading,
+html.theme-dark .register-page .footer-heading,
+html.theme-dark .login-page .footer-link,
+html.theme-dark .register-page .footer-link,
+html.theme-dark .public-page .footer-link,
+html.theme-dark .public-page .footer-copy,
+html.theme-dark .public-page .footer-heading,
+html.theme-dark .login-page .footer-bottom-row,
+html.theme-dark .register-page .footer-bottom-row,
+html.theme-dark .public-page .footer-bottom-row {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .login-page .brand,
+html.theme-dark .register-page .brand,
+html.theme-dark .login-page .footer-brand,
+html.theme-dark .register-page .footer-brand {
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .login-page .login-copy h1,
+html.theme-dark .register-page .register-copy h1,
+html.theme-dark .login-page .login-card h2,
+html.theme-dark .register-page .register-card h2 {
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .login-page .text-slate-700,
+html.theme-dark .login-page .text-slate-800,
+html.theme-dark .login-page .text-slate-900,
+html.theme-dark .register-page .text-slate-700,
+html.theme-dark .register-page .text-slate-800,
+html.theme-dark .register-page .text-slate-900,
+html.theme-dark .login-page [class*='text-[#1f2937]'],
+html.theme-dark .register-page [class*='text-[#1f2937]'] {
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .login-page .text-slate-500,
+html.theme-dark .login-page .text-slate-600,
+html.theme-dark .register-page .text-slate-500,
+html.theme-dark .register-page .text-slate-600 {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .register-page .label {
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .register-page .avatar-preview {
+    background: var(--blue-dark-surface) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .register-page .avatar-preview img {
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .register-page .step {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .register-page .step span {
+    border-color: rgba(147, 197, 253, 0.28) !important;
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .register-page .step.active {
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .register-page .step.active span {
+    border-color: var(--blue-dark-accent-strong) !important;
+    background: rgba(147, 197, 253, 0.18) !important;
+    color: var(--blue-dark-accent-strong) !important;
+}
+
+html.theme-dark .register-page .step-line {
+    background: rgba(147, 197, 253, 0.2) !important;
+}
+
+html.theme-dark .register-page .step-line.active {
+    background: var(--blue-dark-accent-strong) !important;
+}
+
+html.theme-dark .public-page .btn-fill,
+html.theme-dark .login-page .btn-fill,
+html.theme-dark .register-page .btn-fill,
+html.theme-dark .register-page .role-btn-fill,
+html.theme-dark .status-btn-fill {
+    background: var(--blue-dark-accent-strong) !important;
+    border-color: var(--blue-dark-accent-strong) !important;
+    color: #0b2f5f !important;
+}
+
+html.theme-dark .public-page .btn-fill:hover,
+html.theme-dark .login-page .btn-fill:hover,
+html.theme-dark .register-page .btn-fill:hover,
+html.theme-dark .register-page .role-btn-fill:hover,
+html.theme-dark .status-btn-fill:hover {
+    background: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .public-page .btn-outline,
+html.theme-dark .login-page .btn-outline,
+html.theme-dark .register-page .btn-outline,
+html.theme-dark .register-page .role-btn-outline,
+html.theme-dark .status-btn-outline {
+    background: var(--blue-dark-surface) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .public-page .btn-outline:hover,
+html.theme-dark .login-page .btn-outline:hover,
+html.theme-dark .register-page .btn-outline:hover,
+html.theme-dark .register-page .role-btn-outline:hover,
+html.theme-dark .status-btn-outline:hover {
+    background: var(--blue-dark-surface-alt) !important;
+}
+
+html.theme-dark .login-page .field-input,
+html.theme-dark .register-page .field-input,
+html.theme-dark .register-page .field {
+    background: var(--blue-dark-surface-alt) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .login-page .field-input:focus,
+html.theme-dark .register-page .field:focus {
+    border-color: var(--blue-dark-accent-strong) !important;
+    box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.2) !important;
+}
+
+html.theme-dark .login-page .remember-row,
+html.theme-dark .login-page .register-note,
+html.theme-dark .register-page .login-note {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .login-page .register-link,
+html.theme-dark .register-page .login-link {
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .login-page .footer-link:hover,
+html.theme-dark .register-page .footer-link:hover,
+html.theme-dark .public-page .footer-link:hover {
+    color: var(--blue-dark-accent) !important;
+}
+
+html.theme-dark .login-page .remember-checkbox {
+    accent-color: var(--blue-dark-accent-strong) !important;
+}
+
+html.theme-dark .status-card {
+    background: linear-gradient(180deg, var(--blue-dark-surface) 0%, var(--blue-dark-surface-alt) 100%) !important;
+    border-color: var(--blue-dark-border) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .status-kicker,
+html.theme-dark .status-text {
+    color: var(--blue-dark-text-muted) !important;
+}
+
+html.theme-dark .status-card h2 {
+    color: var(--blue-dark-text) !important;
+}
+
+.coach-shell {
+    --coach-header-bg: var(--blue-light-primary);
+    --coach-header-border: rgba(3, 68, 133, 0.35);
+}
+
+.coach-shell__topbar,
+.coach-shell__sidebar-header {
+    background: var(--coach-header-bg) !important;
+    border-color: var(--coach-header-border) !important;
+}
+
+.coach-shell__brand {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.coach-shell__brand--collapsed {
+    align-items: center;
+    text-align: center;
+}
+
+.coach-shell__nav-toggle {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.coach-shell__nav-toggle:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.coach-shell__topbar .announcement-bell {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.coach-shell__topbar .announcement-bell:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.coach-shell__topbar .account-card-light,
+.coach-shell__topbar .account-card-dark {
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.admin-shell {
+    --admin-header-bg: var(--blue-light-primary);
+    --admin-header-border: rgba(3, 68, 133, 0.35);
+}
+
+.admin-shell__topbar,
+.admin-shell__sidebar-header {
+    background: var(--admin-header-bg) !important;
+    border-color: var(--admin-header-border) !important;
+}
+
+.admin-shell__kicker,
+.admin-shell__subtitle {
+    color: #dbeafe !important;
+}
+
+.admin-shell__title {
+    color: #ffffff !important;
+}
+
+.admin-shell__nav-toggle {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.admin-shell__nav-toggle:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.admin-shell__topbar .account-card-light,
+.admin-shell__topbar .account-card-dark {
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.admin-shell__loading-pill {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #e0f2fe !important;
+}
+
+.admin-shell__loading-pill svg {
+    color: #ffffff !important;
+}
+
+.student-shell {
+    --student-header-bg: var(--blue-light-primary);
+    --student-header-border: rgba(3, 68, 133, 0.35);
+}
+
+.student-shell__topbar {
+    background: var(--student-header-bg) !important;
+    border-color: var(--student-header-border) !important;
+}
+
+.student-shell__tabbar {
+    background: var(--student-header-bg) !important;
+    border-color: var(--student-header-border) !important;
+}
+
+.student-shell__brand-title {
+    color: #ffffff !important;
+}
+
+.student-shell__brand-subtitle {
+    color: #dbeafe !important;
+}
+
+.student-shell__nav-toggle {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.student-shell__nav-toggle:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.student-shell__topbar .announcement-bell {
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.student-shell__topbar .announcement-bell:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.student-shell__topbar .account-card-light,
+.student-shell__topbar .account-card-dark {
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.student-shell__tabbar .student-top-tab {
+    color: #dbeafe !important;
+}
+
+.student-shell__tabbar .student-top-tab:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+.student-shell__tabbar .student-top-tab--active {
+    background: rgba(255, 255, 255, 0.24) !important;
+    color: #ffffff !important;
+}
+
+/* Coach theme modes (scoped to coach shell) */
+html.theme-dark .coach-shell {
+    --coach-bg: #0b1020;
+    --coach-surface: #111827;
+    --coach-surface-alt: #0f172a;
+    --coach-border: #1f2937;
+    --coach-text: #f8fafc;
+    --coach-text-muted: #94a3b8;
+    --coach-accent: #3b82f6;
+    --coach-accent-strong: #60a5fa;
+    --coach-success: #34d399;
+    --coach-warning: #f59e0b;
+    --coach-danger: #f87171;
+}
+
+html.theme-dark .coach-shell {
+    --coach-bg: #0b2f5f;
+    --coach-surface: #0f3b73;
+    --coach-surface-alt: #0d3566;
+    --coach-border: #1a4f8f;
+    --coach-header-bg: #0f3b73;
+    --coach-header-border: #1a4f8f;
+    --coach-text: #eff6ff;
+    --coach-text-muted: #bfdbfe;
+    --coach-accent: #93c5fd;
+    --coach-accent-strong: #60a5fa;
+    --coach-success: #86efac;
+    --coach-warning: #fcd34d;
+    --coach-danger: #fda4af;
+}
+
+html.theme-dark .coach-shell,
+html.theme-dark .coach-shell {
+    background: var(--coach-bg) !important;
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .coach-shell__glow,
+html.theme-dark .coach-shell .coach-shell__glow {
+    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.28), transparent 45%) !important;
+}
+
+html.theme-dark .coach-shell .bg-white,
+html.theme-dark .coach-shell .bg-slate-50,
+html.theme-dark .coach-shell .bg-slate-100,
+html.theme-dark .coach-shell .bg-white\/90,
+html.theme-dark .coach-shell .bg-white\/95,
+html.theme-dark .coach-shell .bg-white,
+html.theme-dark .coach-shell .bg-slate-50,
+html.theme-dark .coach-shell .bg-slate-100,
+html.theme-dark .coach-shell .bg-white\/90,
+html.theme-dark .coach-shell .bg-white\/95 {
+    background: var(--coach-surface) !important;
+}
+
+html.theme-dark .coach-shell [class*='bg-gradient'],
+html.theme-dark .coach-shell [class*='bg-gradient'] {
+    background-image: none !important;
+    background-color: var(--coach-surface-alt) !important;
+}
+
+html.theme-dark .coach-shell .border-slate-200,
+html.theme-dark .coach-shell .border-slate-300,
+html.theme-dark .coach-shell .border-slate-200,
+html.theme-dark .coach-shell .border-slate-300 {
+    border-color: var(--coach-border) !important;
+}
+
+html.theme-dark .coach-shell .text-slate-900,
+html.theme-dark .coach-shell .text-slate-800,
+html.theme-dark .coach-shell .text-slate-700,
+html.theme-dark .coach-shell .text-slate-900,
+html.theme-dark .coach-shell .text-slate-800,
+html.theme-dark .coach-shell .text-slate-700 {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .text-slate-600,
+html.theme-dark .coach-shell .text-slate-500,
+html.theme-dark .coach-shell .text-slate-400,
+html.theme-dark .coach-shell .text-slate-300,
+html.theme-dark .coach-shell .text-slate-600,
+html.theme-dark .coach-shell .text-slate-500,
+html.theme-dark .coach-shell .text-slate-400,
+html.theme-dark .coach-shell .text-slate-300 {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .coach-shell [class*='text-[#034485]'],
+html.theme-dark .coach-shell [class*='text-[#034485]'] {
+    color: var(--coach-accent-strong) !important;
+}
+
+html.theme-dark .coach-shell .bg-\[\#034485\],
+html.theme-dark .coach-shell .bg-indigo-600,
+html.theme-dark .coach-shell .bg-blue-700,
+html.theme-dark .coach-shell .bg-blue-600,
+html.theme-dark .coach-shell .bg-\[\#034485\],
+html.theme-dark .coach-shell .bg-indigo-600,
+html.theme-dark .coach-shell .bg-blue-700,
+html.theme-dark .coach-shell .bg-blue-600 {
+    background-color: var(--coach-accent) !important;
+}
+
+html.theme-dark .coach-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .coach-shell .hover\:bg-blue-800:hover,
+html.theme-dark .coach-shell .hover\:bg-blue-700:hover,
+html.theme-dark .coach-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .coach-shell .hover\:bg-blue-800:hover,
+html.theme-dark .coach-shell .hover\:bg-blue-700:hover {
+    background-color: var(--coach-accent-strong) !important;
+}
+
+html.theme-dark .coach-shell .text-emerald-700,
+html.theme-dark .coach-shell .text-emerald-600,
+html.theme-dark .coach-shell .text-emerald-500,
+html.theme-dark .coach-shell .text-emerald-400,
+html.theme-dark .coach-shell .text-emerald-300,
+html.theme-dark .coach-shell .text-emerald-700,
+html.theme-dark .coach-shell .text-emerald-600,
+html.theme-dark .coach-shell .text-emerald-500,
+html.theme-dark .coach-shell .text-emerald-400,
+html.theme-dark .coach-shell .text-emerald-300 {
+    color: var(--coach-success) !important;
+}
+
+html.theme-dark .coach-shell .text-amber-700,
+html.theme-dark .coach-shell .text-amber-600,
+html.theme-dark .coach-shell .text-amber-500,
+html.theme-dark .coach-shell .text-amber-400,
+html.theme-dark .coach-shell .text-amber-300,
+html.theme-dark .coach-shell .text-amber-700,
+html.theme-dark .coach-shell .text-amber-600,
+html.theme-dark .coach-shell .text-amber-500,
+html.theme-dark .coach-shell .text-amber-400,
+html.theme-dark .coach-shell .text-amber-300 {
+    color: var(--coach-warning) !important;
+}
+
+html.theme-dark .coach-shell .text-rose-700,
+html.theme-dark .coach-shell .text-rose-600,
+html.theme-dark .coach-shell .text-rose-500,
+html.theme-dark .coach-shell .text-rose-400,
+html.theme-dark .coach-shell .text-rose-300,
+html.theme-dark .coach-shell .text-red-700,
+html.theme-dark .coach-shell .text-red-600,
+html.theme-dark .coach-shell .text-red-500,
+html.theme-dark .coach-shell .text-red-400,
+html.theme-dark .coach-shell .text-red-300,
+html.theme-dark .coach-shell .text-rose-700,
+html.theme-dark .coach-shell .text-rose-600,
+html.theme-dark .coach-shell .text-rose-500,
+html.theme-dark .coach-shell .text-rose-400,
+html.theme-dark .coach-shell .text-rose-300,
+html.theme-dark .coach-shell .text-red-700,
+html.theme-dark .coach-shell .text-red-600,
+html.theme-dark .coach-shell .text-red-500,
+html.theme-dark .coach-shell .text-red-400,
+html.theme-dark .coach-shell .text-red-300 {
+    color: var(--coach-danger) !important;
+}
+
+html.theme-dark .coach-shell .bg-emerald-100,
+html.theme-dark .coach-shell .bg-emerald-100 {
+    background: rgba(16, 185, 129, 0.18) !important;
+}
+
+html.theme-dark .coach-shell .bg-amber-100,
+html.theme-dark .coach-shell .bg-amber-100 {
+    background: rgba(245, 158, 11, 0.18) !important;
+}
+
+html.theme-dark .coach-shell .bg-rose-100,
+html.theme-dark .coach-shell .bg-red-100,
+html.theme-dark .coach-shell .bg-rose-100,
+html.theme-dark .coach-shell .bg-red-100 {
+    background: rgba(248, 113, 113, 0.18) !important;
+}
+
+html.theme-dark .coach-shell input,
+html.theme-dark .coach-shell select,
+html.theme-dark .coach-shell textarea,
+html.theme-dark .coach-shell input,
+html.theme-dark .coach-shell select,
+html.theme-dark .coach-shell textarea {
+    background: var(--coach-surface-alt) !important;
+    border-color: var(--coach-border) !important;
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell input::placeholder,
+html.theme-dark .coach-shell textarea::placeholder,
+html.theme-dark .coach-shell input::placeholder,
+html.theme-dark .coach-shell textarea::placeholder {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .coach-shell .coach-side-link,
+html.theme-dark .coach-shell .coach-side-link {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .coach-side-link:hover,
+html.theme-dark .coach-shell .coach-side-link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.theme-dark .coach-shell .coach-bottom-nav,
+html.theme-dark .coach-shell .coach-bottom-nav {
+    background: var(--coach-surface) !important;
+    border-top-color: var(--coach-border) !important;
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .coach-bottom-nav__item,
+html.theme-dark .coach-shell .coach-bottom-nav__item {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .coach-shell .coach-bottom-nav__item--active,
+html.theme-dark .coach-shell .coach-bottom-nav__item--active {
+    color: var(--coach-accent-strong) !important;
+    background: rgba(59, 130, 246, 0.2) !important;
+}
+
+html.theme-dark .coach-shell .border-gray-300,
+html.theme-dark .coach-shell .border-gray-300 {
+    border-color: var(--coach-border) !important;
+}
+
+html.theme-dark .coach-shell .text-gray-700,
+html.theme-dark .coach-shell .text-gray-700 {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .hover\:bg-gray-100:hover,
+html.theme-dark .coach-shell .hover\:bg-gray-100:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.theme-dark .coach-shell .announcement-bell,
+html.theme-dark .coach-shell .announcement-bell {
+    border-color: var(--coach-border) !important;
+    color: var(--coach-text) !important;
+    background: var(--coach-surface) !important;
+}
+
+html.theme-dark .coach-shell .announcement-bell:hover,
+html.theme-dark .coach-shell .announcement-bell:hover {
+    background: var(--coach-surface-alt) !important;
+}
+
+html.theme-dark .coach-shell .account-avatar,
+html.theme-dark .coach-shell .account-avatar {
+    border-color: var(--coach-border) !important;
+}
+
+html.theme-dark .coach-shell .account-card-light,
+html.theme-dark .coach-shell .account-card-light {
+    background: var(--coach-surface) !important;
+    border-color: var(--coach-border) !important;
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .menu-item,
+html.theme-dark .coach-shell .menu-item {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .menu-item:hover,
+html.theme-dark .coach-shell .menu-item:hover {
+    background: var(--coach-surface-alt) !important;
+}
+
+html.theme-dark .coach-shell .settings-page .settings-muted,
+html.theme-dark .coach-shell .settings-page .settings-kicker,
+html.theme-dark .coach-shell .settings-page .settings-label,
+html.theme-dark .coach-shell .settings-page .settings-icon,
+html.theme-dark .coach-shell .settings-page .settings-muted,
+html.theme-dark .coach-shell .settings-page .settings-kicker,
+html.theme-dark .coach-shell .settings-page .settings-label,
+html.theme-dark .coach-shell .settings-page .settings-icon {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .coach-shell .settings-page .section-title,
+html.theme-dark .coach-shell .settings-page .section-title {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .settings-page .text-slate-900,
+html.theme-dark .coach-shell .settings-page .text-slate-800,
+html.theme-dark .coach-shell .settings-page .text-slate-700,
+html.theme-dark .coach-shell .settings-page .text-slate-900,
+html.theme-dark .coach-shell .settings-page .text-slate-800,
+html.theme-dark .coach-shell .settings-page .text-slate-700 {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .settings-page .text-slate-600,
+html.theme-dark .coach-shell .settings-page .text-slate-500,
+html.theme-dark .coach-shell .settings-page .text-slate-400,
+html.theme-dark .coach-shell .settings-page .text-slate-600,
+html.theme-dark .coach-shell .settings-page .text-slate-500,
+html.theme-dark .coach-shell .settings-page .text-slate-400 {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .admin-shell .settings-page .settings-muted,
+html.theme-dark .admin-shell .settings-page .settings-kicker,
+html.theme-dark .admin-shell .settings-page .settings-label,
+html.theme-dark .admin-shell .settings-page .settings-icon,
+html.theme-dark .admin-shell .settings-page .settings-muted,
+html.theme-dark .admin-shell .settings-page .settings-kicker,
+html.theme-dark .admin-shell .settings-page .settings-label,
+html.theme-dark .admin-shell .settings-page .settings-icon {
+    color: var(--admin-text-muted) !important;
+}
+
+html.theme-dark .admin-shell .settings-page .section-title,
+html.theme-dark .admin-shell .settings-page .section-title {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .settings-page .text-slate-900,
+html.theme-dark .admin-shell .settings-page .text-slate-800,
+html.theme-dark .admin-shell .settings-page .text-slate-700,
+html.theme-dark .admin-shell .settings-page .text-slate-900,
+html.theme-dark .admin-shell .settings-page .text-slate-800,
+html.theme-dark .admin-shell .settings-page .text-slate-700 {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .settings-page .text-slate-600,
+html.theme-dark .admin-shell .settings-page .text-slate-500,
+html.theme-dark .admin-shell .settings-page .text-slate-400,
+html.theme-dark .admin-shell .settings-page .text-slate-600,
+html.theme-dark .admin-shell .settings-page .text-slate-500,
+html.theme-dark .admin-shell .settings-page .text-slate-400 {
+    color: var(--admin-text-muted) !important;
+}
+
+html.theme-dark .admin-shell .settings-page .toggle,
+html.theme-dark .admin-shell .settings-page .toggle {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .coach-shell .bg-blue-50\/60,
+html.theme-dark .coach-shell .bg-blue-50\/60 {
+    background: rgba(59, 130, 246, 0.16) !important;
+}
+
+html.theme-dark .coach-shell .bg-blue-50,
+html.theme-dark .coach-shell .bg-blue-50 {
+    background: rgba(59, 130, 246, 0.14) !important;
+}
+
+html.theme-dark .coach-shell .coach-side-link--active,
+html.theme-dark .coach-shell .coach-side-link--active {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: var(--coach-accent-strong) !important;
+}
+
+html.theme-dark .coach-shell .coach-page-header__title,
+html.theme-dark .coach-shell .coach-page-header__title {
+    color: var(--coach-text) !important;
+}
+
+html.theme-dark .coach-shell .coach-page-header__subtitle,
+html.theme-dark .coach-shell .coach-page-header__subtitle {
+    color: var(--coach-text-muted) !important;
+}
+
+html.theme-dark .coach-shell .shadow-sm,
+html.theme-dark .coach-shell .shadow,
+html.theme-dark .coach-shell .shadow-lg,
+html.theme-dark .coach-shell .shadow-xl,
+html.theme-dark .coach-shell .shadow-sm,
+html.theme-dark .coach-shell .shadow,
+html.theme-dark .coach-shell .shadow-lg,
+html.theme-dark .coach-shell .shadow-xl {
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.theme-dark .public-page [class*='card'],
+html.theme-dark .public-page [class*='panel'],
+html.theme-dark .public-page [class*='hero'],
+html.theme-dark .public-page [class*='strip'],
+html.theme-dark .public-page [class*='shell'],
+html.theme-dark .public-page [class*='footer'],
+html.theme-dark .login-page [class*='card'],
+html.theme-dark .login-page [class*='copy'],
+html.theme-dark .login-page [class*='nav'],
+html.theme-dark .register-page [class*='card'],
+html.theme-dark .register-page [class*='copy'],
+html.theme-dark .register-page [class*='nav'] {
+    background-color: #111111 !important;
+    border-color: rgba(120, 120, 120, 0.4) !important;
+}
+
+html.theme-dark .public-page button,
+html.theme-dark .login-page button,
+html.theme-dark .register-page button {
+    border-color: rgba(120, 120, 120, 0.55) !important;
+}
+
+html.theme-dark .public-page .btn-fill,
+html.theme-dark .login-page .btn-fill,
+html.theme-dark .register-page .role-btn-fill {
+    background: #1f1f1f !important;
+    color: #ffffff !important;
+}
+
+html.theme-dark .public-page .btn-outline,
+html.theme-dark .login-page .btn-outline,
+html.theme-dark .register-page .btn-outline,
+html.theme-dark .register-page .role-btn-outline {
+    background: #111111 !important;
+    color: #f2f2f2 !important;
+}
+
+html.theme-dark .public-page .header-link,
+html.theme-dark .public-page .footer-link,
+html.theme-dark .public-page .kicker,
+html.theme-dark .public-page .brand,
+html.theme-dark .login-page .kicker,
+html.theme-dark .login-page .brand,
+html.theme-dark .register-page .kicker,
+html.theme-dark .register-page .brand {
+    color: #f2f2f2 !important;
+}
+
+html.theme-dark .page,
+html.theme-dark .page .site-header,
+html.theme-dark .page .nav-shell,
+html.theme-dark .page .definition-hero,
+html.theme-dark .page [class*='card'],
+html.theme-dark .page [class*='panel'],
+html.theme-dark .page [class*='strip'],
+html.theme-dark .page [class*='hero'],
+html.theme-dark .page [class*='footer'],
+html.theme-dark .page [class*='copy'],
+html.theme-dark .status-card,
+html.theme-dark .site-footer,
+html.theme-dark .footer-shell,
+html.theme-dark .footer-grid {
+    background: #111111 !important;
+    color: #f2f2f2 !important;
+    border-color: rgba(120, 120, 120, 0.4) !important;
+}
+
+html.theme-dark .page .header-link:hover,
+html.theme-dark .page .footer-link:hover {
+    background: #1d1d1d !important;
+    color: #ffffff !important;
+}
+
+html.theme-dark .public-page input,
+html.theme-dark .public-page select,
+html.theme-dark .public-page textarea,
+html.theme-dark .login-page input,
+html.theme-dark .login-page select,
+html.theme-dark .login-page textarea,
+html.theme-dark .register-page input,
+html.theme-dark .register-page select,
+html.theme-dark .register-page textarea {
+    background: #0d0d0d !important;
+    border-color: #2f2f2f !important;
+    color: #f2f2f2 !important;
+}
+
+html.theme-dark,
+html.theme-dark body {
+    background: #034485;
+    color: #eff6ff;
+}
+
+html.theme-dark .admin-shell {
+    background: linear-gradient(180deg, #034485 0%, #0b5cae 100%) !important;
+}
+
+html.theme-dark .admin-shell .bg-white,
+html.theme-dark .admin-shell .bg-slate-50,
+html.theme-dark .admin-shell .bg-slate-100,
+html.theme-dark .admin-shell .bg-white\/90,
+html.theme-dark .admin-shell .bg-white\/95 {
+    background: #0a4f97 !important;
+}
+
+html.theme-dark .admin-shell .border-slate-200,
+html.theme-dark .admin-shell .border-slate-300 {
+    border-color: #2870b8 !important;
+}
+
+html.theme-dark .admin-shell .text-slate-900,
+html.theme-dark .admin-shell .text-slate-800,
+html.theme-dark .admin-shell .text-slate-700,
+html.theme-dark .admin-shell .text-slate-600,
+html.theme-dark .admin-shell .text-slate-500,
+html.theme-dark .admin-shell .text-slate-400,
+html.theme-dark .admin-shell [class*='text-[#034485]'] {
+    color: #eff6ff !important;
+}
+
+html.theme-dark .admin-shell input::placeholder,
+html.theme-dark .admin-shell textarea::placeholder {
+    color: #bedfff !important;
+}
+
+html.theme-dark .admin-shell aside nav button:hover {
+    background: #0f5ea9 !important;
+    border-color: #4b94d8 !important;
+}
+
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300.bg-white,
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300 {
+    background: #0a4f97 !important;
+    color: #eff6ff !important;
+    border-color: #2f79c2 !important;
+}
+
+html.theme-dark .admin-shell .rounded-md.border.border-slate-300:hover,
+html.theme-dark .admin-shell .hover\:bg-slate-100:hover {
+    background: #1063b3 !important;
+}
+
+html.theme-dark .admin-shell input,
+html.theme-dark .admin-shell select,
+html.theme-dark .admin-shell textarea {
+    background: #073e77 !important;
+    border-color: #2f79c2 !important;
+    color: #eff6ff !important;
+}
+
+html.theme-dark .admin-shell {
+    --admin-bg: #0b1020;
+    --admin-surface: #111827;
+    --admin-surface-alt: #0f172a;
+    --admin-border: #1f2937;
+    --admin-text: #f8fafc;
+    --admin-text-muted: #94a3b8;
+    --admin-accent: #3b82f6;
+    --admin-accent-strong: #60a5fa;
+    --admin-success: #34d399;
+    --admin-warning: #f59e0b;
+    --admin-danger: #f87171;
+}
+
+html.theme-dark .admin-shell {
+    --admin-bg: #0b2f5f;
+    --admin-surface: #0f3b73;
+    --admin-surface-alt: #0d3566;
+    --admin-border: #1a4f8f;
+    --admin-text: #eff6ff;
+    --admin-text-muted: #bfdbfe;
+    --admin-accent: #93c5fd;
+    --admin-accent-strong: #60a5fa;
+    --admin-success: #86efac;
+    --admin-warning: #fcd34d;
+    --admin-danger: #fda4af;
+}
+
+html.theme-dark .admin-shell,
+html.theme-dark .admin-shell {
+    background: var(--admin-bg) !important;
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .bg-white,
+html.theme-dark .admin-shell .bg-slate-50,
+html.theme-dark .admin-shell .bg-slate-100,
+html.theme-dark .admin-shell .bg-slate-200,
+html.theme-dark .admin-shell .bg-white\/90,
+html.theme-dark .admin-shell .bg-white\/95,
+html.theme-dark .admin-shell .bg-white,
+html.theme-dark .admin-shell .bg-slate-50,
+html.theme-dark .admin-shell .bg-slate-100,
+html.theme-dark .admin-shell .bg-slate-200,
+html.theme-dark .admin-shell .bg-white\/90,
+html.theme-dark .admin-shell .bg-white\/95 {
+    background: var(--admin-surface) !important;
+}
+
+html.theme-dark .admin-shell [class*='bg-gradient'],
+html.theme-dark .admin-shell [class*='bg-gradient'] {
+    background-image: none !important;
+    background-color: var(--admin-surface-alt) !important;
+}
+
+html.theme-dark .admin-shell .border-slate-200,
+html.theme-dark .admin-shell .border-slate-300,
+html.theme-dark .admin-shell .border-slate-400,
+html.theme-dark .admin-shell .border-slate-200,
+html.theme-dark .admin-shell .border-slate-300,
+html.theme-dark .admin-shell .border-slate-400 {
+    border-color: var(--admin-border) !important;
+}
+
+html.theme-dark .admin-shell .text-slate-900,
+html.theme-dark .admin-shell .text-slate-800,
+html.theme-dark .admin-shell .text-slate-700,
+html.theme-dark .admin-shell .text-slate-900,
+html.theme-dark .admin-shell .text-slate-800,
+html.theme-dark .admin-shell .text-slate-700 {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .text-slate-600,
+html.theme-dark .admin-shell .text-slate-500,
+html.theme-dark .admin-shell .text-slate-400,
+html.theme-dark .admin-shell .text-slate-300,
+html.theme-dark .admin-shell .text-slate-600,
+html.theme-dark .admin-shell .text-slate-500,
+html.theme-dark .admin-shell .text-slate-400,
+html.theme-dark .admin-shell .text-slate-300 {
+    color: var(--admin-text-muted) !important;
+}
+
+html.theme-dark .admin-shell [class*='text-[#034485]'],
+html.theme-dark .admin-shell [class*='text-[#034485]'] {
+    color: var(--admin-accent-strong) !important;
+}
+
+html.theme-dark .admin-shell .bg-\[\#034485\],
+html.theme-dark .admin-shell .bg-indigo-600,
+html.theme-dark .admin-shell .bg-blue-700,
+html.theme-dark .admin-shell .bg-blue-600,
+html.theme-dark .admin-shell .bg-\[\#034485\],
+html.theme-dark .admin-shell .bg-indigo-600,
+html.theme-dark .admin-shell .bg-blue-700,
+html.theme-dark .admin-shell .bg-blue-600 {
+    background-color: var(--admin-accent) !important;
+}
+
+html.theme-dark .admin-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .admin-shell .hover\:bg-blue-800:hover,
+html.theme-dark .admin-shell .hover\:bg-blue-700:hover,
+html.theme-dark .admin-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .admin-shell .hover\:bg-blue-800:hover,
+html.theme-dark .admin-shell .hover\:bg-blue-700:hover {
+    background-color: var(--admin-accent-strong) !important;
+}
+
+html.theme-dark .admin-shell .text-emerald-700,
+html.theme-dark .admin-shell .text-emerald-600,
+html.theme-dark .admin-shell .text-emerald-500,
+html.theme-dark .admin-shell .text-emerald-400,
+html.theme-dark .admin-shell .text-emerald-300,
+html.theme-dark .admin-shell .text-emerald-700,
+html.theme-dark .admin-shell .text-emerald-600,
+html.theme-dark .admin-shell .text-emerald-500,
+html.theme-dark .admin-shell .text-emerald-400,
+html.theme-dark .admin-shell .text-emerald-300 {
+    color: var(--admin-success) !important;
+}
+
+html.theme-dark .admin-shell .text-amber-700,
+html.theme-dark .admin-shell .text-amber-600,
+html.theme-dark .admin-shell .text-amber-500,
+html.theme-dark .admin-shell .text-amber-400,
+html.theme-dark .admin-shell .text-amber-300,
+html.theme-dark .admin-shell .text-amber-700,
+html.theme-dark .admin-shell .text-amber-600,
+html.theme-dark .admin-shell .text-amber-500,
+html.theme-dark .admin-shell .text-amber-400,
+html.theme-dark .admin-shell .text-amber-300 {
+    color: var(--admin-warning) !important;
+}
+
+html.theme-dark .admin-shell .text-rose-700,
+html.theme-dark .admin-shell .text-rose-600,
+html.theme-dark .admin-shell .text-rose-500,
+html.theme-dark .admin-shell .text-rose-400,
+html.theme-dark .admin-shell .text-rose-300,
+html.theme-dark .admin-shell .text-red-700,
+html.theme-dark .admin-shell .text-red-600,
+html.theme-dark .admin-shell .text-red-500,
+html.theme-dark .admin-shell .text-red-400,
+html.theme-dark .admin-shell .text-red-300,
+html.theme-dark .admin-shell .text-rose-700,
+html.theme-dark .admin-shell .text-rose-600,
+html.theme-dark .admin-shell .text-rose-500,
+html.theme-dark .admin-shell .text-rose-400,
+html.theme-dark .admin-shell .text-rose-300,
+html.theme-dark .admin-shell .text-red-700,
+html.theme-dark .admin-shell .text-red-600,
+html.theme-dark .admin-shell .text-red-500,
+html.theme-dark .admin-shell .text-red-400,
+html.theme-dark .admin-shell .text-red-300 {
+    color: var(--admin-danger) !important;
+}
+
+html.theme-dark .admin-shell .bg-emerald-100,
+html.theme-dark .admin-shell .bg-emerald-100 {
+    background: rgba(16, 185, 129, 0.18) !important;
+}
+
+html.theme-dark .admin-shell .bg-amber-100,
+html.theme-dark .admin-shell .bg-amber-100 {
+    background: rgba(245, 158, 11, 0.18) !important;
+}
+
+html.theme-dark .admin-shell .bg-rose-100,
+html.theme-dark .admin-shell .bg-red-100,
+html.theme-dark .admin-shell .bg-rose-100,
+html.theme-dark .admin-shell .bg-red-100 {
+    background: rgba(248, 113, 113, 0.18) !important;
+}
+
+html.theme-dark .admin-shell input,
+html.theme-dark .admin-shell select,
+html.theme-dark .admin-shell textarea,
+html.theme-dark .admin-shell input,
+html.theme-dark .admin-shell select,
+html.theme-dark .admin-shell textarea {
+    background: var(--admin-surface-alt) !important;
+    border-color: var(--admin-border) !important;
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell input::placeholder,
+html.theme-dark .admin-shell textarea::placeholder,
+html.theme-dark .admin-shell input::placeholder,
+html.theme-dark .admin-shell textarea::placeholder {
+    color: var(--admin-text-muted) !important;
+}
+
+html.theme-dark .admin-shell .quick-range-btn,
+html.theme-dark .admin-shell .quick-range-btn {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: var(--admin-text) !important;
+    border: 1px solid var(--admin-border) !important;
+}
+
+html.theme-dark .admin-shell .quick-range-btn:hover,
+html.theme-dark .admin-shell .quick-range-btn:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+
+html.theme-dark .admin-shell .account-card-light,
+html.theme-dark .admin-shell .account-card-light {
+    background: var(--admin-surface) !important;
+    border-color: var(--admin-border) !important;
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .menu-item,
+html.theme-dark .admin-shell .menu-item {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .menu-item:hover,
+html.theme-dark .admin-shell .menu-item:hover {
+    background: var(--admin-surface-alt) !important;
+}
+
+html.theme-dark .admin-shell .border-gray-300,
+html.theme-dark .admin-shell .border-gray-300 {
+    border-color: var(--admin-border) !important;
+}
+
+html.theme-dark .admin-shell .text-gray-700,
+html.theme-dark .admin-shell .text-gray-700 {
+    color: var(--admin-text) !important;
+}
+
+html.theme-dark .admin-shell .hover\:bg-gray-100:hover,
+html.theme-dark .admin-shell .hover\:bg-gray-100:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+html.theme-dark .admin-shell .announcement-bell,
+html.theme-dark .admin-shell .announcement-bell {
+    border-color: var(--admin-border) !important;
+    color: var(--admin-text) !important;
+    background: var(--admin-surface) !important;
+}
+
+html.theme-dark .admin-shell .announcement-bell:hover,
+html.theme-dark .admin-shell .announcement-bell:hover {
+    background: var(--admin-surface-alt) !important;
+}
+
+html.theme-dark .admin-shell .account-avatar,
+html.theme-dark .admin-shell .account-avatar {
+    border-color: var(--admin-border) !important;
+}
+
+html.theme-dark .public-page,
+html.theme-dark .login-page,
+html.theme-dark .register-page {
+    background: linear-gradient(180deg, #034485 0%, #0b5cae 100%) !important;
+    color: #eff6ff !important;
+}
+
+html.theme-dark .public-page .site-header,
+html.theme-dark .login-page .login-header,
+html.theme-dark .register-page .register-header {
+    background: rgba(3, 68, 133, 0.92) !important;
+    border-bottom-color: rgba(173, 216, 255, 0.4) !important;
+}
+
+html.theme-dark .public-page .nav-shell,
+html.theme-dark .public-page .footer-shell,
+html.theme-dark .public-page .page-hero,
+html.theme-dark .login-page .login-nav,
+html.theme-dark .login-page .login-card,
+html.theme-dark .login-page .login-copy,
+html.theme-dark .register-page .register-nav,
+html.theme-dark .register-page .register-card,
+html.theme-dark .register-page .register-copy {
+    background: #0a4f97 !important;
+    border-color: rgba(173, 216, 255, 0.4) !important;
+}
+
+html.theme-dark .public-page h1,
+html.theme-dark .public-page h2,
+html.theme-dark .public-page h3,
+html.theme-dark .public-page h4,
+html.theme-dark .public-page p,
+html.theme-dark .public-page span,
+html.theme-dark .public-page a,
+html.theme-dark .public-page li,
+html.theme-dark .login-page h1,
+html.theme-dark .login-page h2,
+html.theme-dark .login-page h3,
+html.theme-dark .login-page p,
+html.theme-dark .login-page span,
+html.theme-dark .login-page a,
+html.theme-dark .register-page h1,
+html.theme-dark .register-page h2,
+html.theme-dark .register-page h3,
+html.theme-dark .register-page p,
+html.theme-dark .register-page span,
+html.theme-dark .register-page a {
+    color: #eff6ff !important;
+}
+
+html.theme-dark .public-page [class*='card'],
+html.theme-dark .public-page [class*='panel'],
+html.theme-dark .public-page [class*='hero'],
+html.theme-dark .public-page [class*='strip'],
+html.theme-dark .public-page [class*='shell'],
+html.theme-dark .public-page [class*='footer'],
+html.theme-dark .login-page [class*='card'],
+html.theme-dark .login-page [class*='copy'],
+html.theme-dark .login-page [class*='nav'],
+html.theme-dark .register-page [class*='card'],
+html.theme-dark .register-page [class*='copy'],
+html.theme-dark .register-page [class*='nav'] {
+    background-color: #0a4f97 !important;
+    border-color: rgba(173, 216, 255, 0.4) !important;
+}
+
+html.theme-dark .public-page .btn-fill,
+html.theme-dark .login-page .btn-fill,
+html.theme-dark .register-page .role-btn-fill {
+    background: #76bcff !important;
+    border-color: #76bcff !important;
+    color: #012a52 !important;
+}
+
+html.theme-dark .public-page .header-link,
+html.theme-dark .public-page .footer-link,
+html.theme-dark .public-page .kicker,
+html.theme-dark .public-page .brand,
+html.theme-dark .login-page .kicker,
+html.theme-dark .login-page .brand,
+html.theme-dark .register-page .kicker,
+html.theme-dark .register-page .brand {
+    color: #eff6ff !important;
+}
+
+html.theme-dark .public-page .header-link.active,
+html.theme-dark .public-page .footer-link.active {
+    color: #ffffff !important;
+    border-color: rgba(173, 216, 255, 0.65) !important;
+}
+
+html.theme-dark .page,
+html.theme-dark .page .site-header,
+html.theme-dark .page .nav-shell,
+html.theme-dark .page .definition-hero,
+html.theme-dark .page [class*='card'],
+html.theme-dark .page [class*='panel'],
+html.theme-dark .page [class*='strip'],
+html.theme-dark .page [class*='hero'],
+html.theme-dark .page [class*='footer'],
+html.theme-dark .page [class*='copy'],
+html.theme-dark .status-card,
+html.theme-dark .site-footer,
+html.theme-dark .footer-shell,
+html.theme-dark .footer-grid {
+    background: #0a4f97 !important;
+    color: #eff6ff !important;
+    border-color: rgba(173, 216, 255, 0.4) !important;
+}
+
+html.theme-dark .page .header-link:hover,
+html.theme-dark .page .footer-link:hover {
+    background: #1063b3 !important;
+    color: #ffffff !important;
+}
+
+html.theme-dark .public-page input,
+html.theme-dark .public-page select,
+html.theme-dark .public-page textarea,
+html.theme-dark .login-page input,
+html.theme-dark .login-page select,
+html.theme-dark .login-page textarea,
+html.theme-dark .register-page input,
+html.theme-dark .register-page select,
+html.theme-dark .register-page textarea {
+    background: #073e77 !important;
+    border-color: #2f79c2 !important;
+    color: #ffffff !important;
+}
+
+html.theme-dark .public-page .btn-outline,
+html.theme-dark .login-page .btn-outline,
+html.theme-dark .register-page .btn-outline,
+html.theme-dark .register-page .role-btn-outline {
+    background: #0a4f97 !important;
+    color: #eff6ff !important;
+    border-color: #8ec9ff !important;
+}
+
+html.theme-dark .account-card-light,
+html.theme-dark .menu-item {
+    background: #111111 !important;
+    color: #f2f2f2 !important;
+    border-color: #2f2f2f !important;
+}
+
+html.theme-dark .menu-item:hover {
+    background: #1d1d1d !important;
+}
+
+html.theme-dark .menu-item.text-red-600 {
+    color: #ef4444 !important;
+}
+
+html.theme-dark .account-card-light,
+html.theme-dark .menu-item {
+    background: #0a4f97 !important;
+    color: #eff6ff !important;
+    border-color: #2f79c2 !important;
+}
+
+html.theme-dark .menu-item:hover {
+    background: #1063b3 !important;
+}
+
+html.theme-dark .menu-item.text-red-600 {
+    color: #f87171 !important;
+}
+
+/* Admin light-theme normalization for legacy dark panels */
+html:not(.theme-dark) .admin-shell .bg-gray-950,
+html:not(.theme-dark) .admin-shell .bg-gray-900 {
+    background: var(--blue-light-primary) !important;
+    color: #eff6ff !important;
+}
+
+html:not(.theme-dark) .admin-shell .bg-gray-800 {
+    background: var(--blue-light-primary-strong) !important;
+    color: #eff6ff !important;
+}
+
+html:not(.theme-dark) .admin-shell .border-gray-800,
+html:not(.theme-dark) .admin-shell .border-gray-700 {
+    border-color: var(--blue-light-border-strong) !important;
+}
+
+html:not(.theme-dark) .admin-shell .text-white {
+    color: #eff6ff !important;
+}
+
+html:not(.theme-dark) .admin-shell .text-gray-300,
+html:not(.theme-dark) .admin-shell .text-gray-400 {
+    color: #dbeafe !important;
+}
+
+html:not(.theme-dark) .admin-shell .text-gray-500 {
+    color: #bfdbfe !important;
+}
+
+html:not(.theme-dark) .admin-shell .bg-gray-700 {
+    background: var(--blue-light-primary-strong) !important;
+    color: #eff6ff !important;
+}
+
+html.theme-dark .admin-shell {
+    --admin-header-bg: #0f3b73;
+    --admin-header-border: #1a4f8f;
+}
+
+/* Student theme modes (scoped to student shell) */
+html.theme-dark .student-shell {
+    --student-bg: #0b1020;
+    --student-surface: #111827;
+    --student-surface-alt: #0f172a;
+    --student-border: #1f2937;
+    --student-text: #f8fafc;
+    --student-text-muted: #94a3b8;
+    --student-accent: #3b82f6;
+    --student-accent-strong: #60a5fa;
+    --student-success: #34d399;
+    --student-warning: #f59e0b;
+    --student-danger: #f87171;
+}
+
+html.theme-dark .student-shell {
+    --student-bg: #0b2f5f;
+    --student-surface: #0f3b73;
+    --student-surface-alt: #0d3566;
+    --student-border: #1a4f8f;
+    --student-header-bg: #0f3b73;
+    --student-header-border: #1a4f8f;
+    --student-text: #eff6ff;
+    --student-text-muted: #bfdbfe;
+    --student-accent: #93c5fd;
+    --student-accent-strong: #60a5fa;
+    --student-success: #86efac;
+    --student-warning: #fcd34d;
+    --student-danger: #fda4af;
+}
+
+html.theme-dark .student-shell,
+html.theme-dark .student-shell {
+    background: var(--student-bg) !important;
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .student-shell__glow,
+html.theme-dark .student-shell .student-shell__glow {
+    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.28), transparent 45%) !important;
+}
+
+html.theme-dark .student-shell .bg-white,
+html.theme-dark .student-shell .bg-slate-50,
+html.theme-dark .student-shell .bg-slate-100,
+html.theme-dark .student-shell .bg-white\/90,
+html.theme-dark .student-shell .bg-white\/95,
+html.theme-dark .student-shell .bg-white,
+html.theme-dark .student-shell .bg-slate-50,
+html.theme-dark .student-shell .bg-slate-100,
+html.theme-dark .student-shell .bg-white\/90,
+html.theme-dark .student-shell .bg-white\/95 {
+    background: var(--student-surface) !important;
+}
+
+html.theme-dark .student-shell [class*='bg-gradient'],
+html.theme-dark .student-shell [class*='bg-gradient'] {
+    background-image: none !important;
+    background-color: var(--student-surface-alt) !important;
+}
+
+html.theme-dark .student-shell .border-slate-200,
+html.theme-dark .student-shell .border-slate-300,
+html.theme-dark .student-shell .border-slate-200,
+html.theme-dark .student-shell .border-slate-300 {
+    border-color: var(--student-border) !important;
+}
+
+html.theme-dark .student-shell .text-slate-900,
+html.theme-dark .student-shell .text-slate-800,
+html.theme-dark .student-shell .text-slate-700,
+html.theme-dark .student-shell .text-slate-900,
+html.theme-dark .student-shell .text-slate-800,
+html.theme-dark .student-shell .text-slate-700 {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .text-slate-600,
+html.theme-dark .student-shell .text-slate-500,
+html.theme-dark .student-shell .text-slate-400,
+html.theme-dark .student-shell .text-slate-300,
+html.theme-dark .student-shell .text-slate-600,
+html.theme-dark .student-shell .text-slate-500,
+html.theme-dark .student-shell .text-slate-400,
+html.theme-dark .student-shell .text-slate-300 {
+    color: var(--student-text-muted) !important;
+}
+
+html.theme-dark .student-shell .settings-page .settings-muted,
+html.theme-dark .student-shell .settings-page .settings-kicker,
+html.theme-dark .student-shell .settings-page .settings-label,
+html.theme-dark .student-shell .settings-page .settings-icon,
+html.theme-dark .student-shell .settings-page .settings-muted,
+html.theme-dark .student-shell .settings-page .settings-kicker,
+html.theme-dark .student-shell .settings-page .settings-label,
+html.theme-dark .student-shell .settings-page .settings-icon {
+    color: var(--student-text-muted) !important;
+}
+
+html.theme-dark .student-shell .settings-page .section-title,
+html.theme-dark .student-shell .settings-page .section-title {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .settings-page .toggle,
+html.theme-dark .student-shell .settings-page .toggle {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .student-schedule-card,
+html.theme-dark .student-shell .student-schedule-card {
+    background: var(--student-surface-alt) !important;
+    border-color: var(--student-border) !important;
+}
+
+html.theme-dark .student-shell .student-schedule-card--active,
+html.theme-dark .student-shell .student-schedule-card--active {
+    background: rgba(59, 130, 246, 0.2) !important;
+    border-color: var(--student-accent-strong) !important;
+}
+
+html.theme-dark .student-shell .student-schedule-card--completed,
+html.theme-dark .student-shell .student-schedule-card--completed {
+    background: var(--student-surface) !important;
+}
+
+html.theme-dark .student-shell [class*='text-[#034485]'],
+html.theme-dark .student-shell [class*='text-[#034485]'] {
+    color: var(--student-accent-strong) !important;
+}
+
+html.theme-dark .student-shell .bg-\[\#034485\],
+html.theme-dark .student-shell .bg-indigo-600,
+html.theme-dark .student-shell .bg-blue-700,
+html.theme-dark .student-shell .bg-blue-600,
+html.theme-dark .student-shell .bg-\[\#034485\],
+html.theme-dark .student-shell .bg-indigo-600,
+html.theme-dark .student-shell .bg-blue-700,
+html.theme-dark .student-shell .bg-blue-600 {
+    background-color: var(--student-accent) !important;
+}
+
+html.theme-dark .student-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .student-shell .hover\:bg-blue-800:hover,
+html.theme-dark .student-shell .hover\:bg-blue-700:hover,
+html.theme-dark .student-shell .hover\:bg-indigo-700:hover,
+html.theme-dark .student-shell .hover\:bg-blue-800:hover,
+html.theme-dark .student-shell .hover\:bg-blue-700:hover {
+    background-color: var(--student-accent-strong) !important;
+}
+
+html.theme-dark .student-shell .text-emerald-700,
+html.theme-dark .student-shell .text-emerald-600,
+html.theme-dark .student-shell .text-emerald-500,
+html.theme-dark .student-shell .text-emerald-400,
+html.theme-dark .student-shell .text-emerald-300,
+html.theme-dark .student-shell .text-emerald-700,
+html.theme-dark .student-shell .text-emerald-600,
+html.theme-dark .student-shell .text-emerald-500,
+html.theme-dark .student-shell .text-emerald-400,
+html.theme-dark .student-shell .text-emerald-300 {
+    color: var(--student-success) !important;
+}
+
+html.theme-dark .student-shell .text-amber-700,
+html.theme-dark .student-shell .text-amber-600,
+html.theme-dark .student-shell .text-amber-500,
+html.theme-dark .student-shell .text-amber-400,
+html.theme-dark .student-shell .text-amber-300,
+html.theme-dark .student-shell .text-amber-700,
+html.theme-dark .student-shell .text-amber-600,
+html.theme-dark .student-shell .text-amber-500,
+html.theme-dark .student-shell .text-amber-400,
+html.theme-dark .student-shell .text-amber-300 {
+    color: var(--student-warning) !important;
+}
+
+html.theme-dark .student-shell .text-rose-700,
+html.theme-dark .student-shell .text-rose-600,
+html.theme-dark .student-shell .text-rose-500,
+html.theme-dark .student-shell .text-rose-400,
+html.theme-dark .student-shell .text-rose-300,
+html.theme-dark .student-shell .text-red-700,
+html.theme-dark .student-shell .text-red-600,
+html.theme-dark .student-shell .text-red-500,
+html.theme-dark .student-shell .text-red-400,
+html.theme-dark .student-shell .text-red-300,
+html.theme-dark .student-shell .text-rose-700,
+html.theme-dark .student-shell .text-rose-600,
+html.theme-dark .student-shell .text-rose-500,
+html.theme-dark .student-shell .text-rose-400,
+html.theme-dark .student-shell .text-rose-300,
+html.theme-dark .student-shell .text-red-700,
+html.theme-dark .student-shell .text-red-600,
+html.theme-dark .student-shell .text-red-500,
+html.theme-dark .student-shell .text-red-400,
+html.theme-dark .student-shell .text-red-300 {
+    color: var(--student-danger) !important;
+}
+
+html.theme-dark .student-shell .bg-emerald-100,
+html.theme-dark .student-shell .bg-emerald-100 {
+    background: rgba(16, 185, 129, 0.18) !important;
+}
+
+html.theme-dark .student-shell .bg-amber-100,
+html.theme-dark .student-shell .bg-amber-100 {
+    background: rgba(245, 158, 11, 0.18) !important;
+}
+
+html.theme-dark .student-shell .bg-rose-100,
+html.theme-dark .student-shell .bg-red-100,
+html.theme-dark .student-shell .bg-rose-100,
+html.theme-dark .student-shell .bg-red-100 {
+    background: rgba(248, 113, 113, 0.18) !important;
+}
+
+html.theme-dark .student-shell input,
+html.theme-dark .student-shell select,
+html.theme-dark .student-shell textarea,
+html.theme-dark .student-shell input,
+html.theme-dark .student-shell select,
+html.theme-dark .student-shell textarea {
+    background: var(--student-surface-alt) !important;
+    border-color: var(--student-border) !important;
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell input::placeholder,
+html.theme-dark .student-shell textarea::placeholder,
+html.theme-dark .student-shell input::placeholder,
+html.theme-dark .student-shell textarea::placeholder {
+    color: var(--student-text-muted) !important;
+}
+
+html.theme-dark .student-shell .border-gray-300,
+html.theme-dark .student-shell .border-gray-300 {
+    border-color: var(--student-border) !important;
+}
+
+html.theme-dark .student-shell .text-gray-700,
+html.theme-dark .student-shell .text-gray-700 {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .hover\:bg-gray-100:hover,
+html.theme-dark .student-shell .hover\:bg-gray-100:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.theme-dark .student-shell .student-side-link,
+html.theme-dark .student-shell .student-side-link {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .student-side-link:hover,
+html.theme-dark .student-shell .student-side-link:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.theme-dark .student-shell .student-side-link--active,
+html.theme-dark .student-shell .student-side-link--active {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: var(--student-accent-strong) !important;
+}
+
+html.theme-dark .student-shell .student-top-tab,
+html.theme-dark .student-shell .student-top-tab {
+    color: var(--student-text-muted) !important;
+}
+
+html.theme-dark .student-shell .student-top-tab:hover,
+html.theme-dark .student-shell .student-top-tab:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .student-top-tab--active,
+html.theme-dark .student-shell .student-top-tab--active {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: var(--student-accent-strong) !important;
+}
+
+html.theme-dark .student-shell .student-bottom-nav,
+html.theme-dark .student-shell .student-bottom-nav {
+    background: var(--student-surface) !important;
+    border-top-color: var(--student-border) !important;
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .student-bottom-nav__item,
+html.theme-dark .student-shell .student-bottom-nav__item {
+    color: var(--student-text-muted) !important;
+}
+
+html.theme-dark .student-shell .student-bottom-nav__item--active,
+html.theme-dark .student-shell .student-bottom-nav__item--active {
+    color: var(--student-accent-strong) !important;
+    background: rgba(59, 130, 246, 0.2) !important;
+}
+
+html.theme-dark .student-shell .announcement-bell,
+html.theme-dark .student-shell .announcement-bell {
+    border-color: var(--student-border) !important;
+    color: var(--student-text) !important;
+    background: var(--student-surface) !important;
+}
+
+html.theme-dark .student-shell .announcement-bell:hover,
+html.theme-dark .student-shell .announcement-bell:hover {
+    background: var(--student-surface-alt) !important;
+}
+
+html.theme-dark .student-shell .account-avatar,
+html.theme-dark .student-shell .account-avatar {
+    border-color: var(--student-border) !important;
+}
+
+html.theme-dark .student-shell .account-card-light,
+html.theme-dark .student-shell .account-card-light {
+    background: var(--student-surface) !important;
+    border-color: var(--student-border) !important;
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .menu-item,
+html.theme-dark .student-shell .menu-item {
+    color: var(--student-text) !important;
+}
+
+html.theme-dark .student-shell .menu-item:hover,
+html.theme-dark .student-shell .menu-item:hover {
+    background: var(--student-surface-alt) !important;
+}
+
+html.theme-dark .student-shell .shadow-sm,
+html.theme-dark .student-shell .shadow,
+html.theme-dark .student-shell .shadow-lg,
+html.theme-dark .student-shell .shadow-xl,
+html.theme-dark .student-shell .shadow-sm,
+html.theme-dark .student-shell .shadow,
+html.theme-dark .student-shell .shadow-lg,
+html.theme-dark .student-shell .shadow-xl {
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Blue theme overrides for dark utility classes (all UIs) */
+html:not(.theme-dark) .bg-gray-950,
+html:not(.theme-dark) .bg-gray-900,
+html:not(.theme-dark) .bg-slate-900,
+html:not(.theme-dark) .bg-black,
+html:not(.theme-dark) .bg-\[\#1f2937\],
+html:not(.theme-dark) .bg-\[\#111827\],
+html:not(.theme-dark) .bg-\[\#0f172a\],
+html:not(.theme-dark) .bg-\[\#1e293b\] {
+    background: var(--blue-light-primary) !important;
+    color: #eff6ff !important;
+}
+
+html:not(.theme-dark) .bg-gray-800,
+html:not(.theme-dark) .bg-gray-700,
+html:not(.theme-dark) .bg-slate-800,
+html:not(.theme-dark) .bg-slate-700,
+html:not(.theme-dark) .bg-\[\#334155\] {
+    background: var(--blue-light-primary-strong) !important;
+    color: #eff6ff !important;
+}
+
+html:not(.theme-dark) .bg-gray-700\/80 {
+    background-color: var(--blue-light-skeleton) !important;
+}
+
+html:not(.theme-dark) .bg-black\/70,
+html:not(.theme-dark) .bg-slate-900\/25,
+html:not(.theme-dark) .bg-slate-900\/40,
+html:not(.theme-dark) .bg-slate-900\/45,
+html:not(.theme-dark) .bg-slate-900\/50,
+html:not(.theme-dark) .bg-slate-900\/60 {
+    background-color: var(--blue-light-overlay) !important;
+}
+
+html:not(.theme-dark) .border-gray-800,
+html:not(.theme-dark) .border-gray-700,
+html:not(.theme-dark) .border-gray-600,
+html:not(.theme-dark) .border-slate-800,
+html:not(.theme-dark) .border-slate-700 {
+    border-color: var(--blue-light-border-strong) !important;
+}
+
+html:not(.theme-dark) .hover\:bg-\[\#334155\]:hover,
+html:not(.theme-dark) .hover\:bg-\[\#111827\]:hover,
+html:not(.theme-dark) .hover\:bg-gray-600:hover,
+html:not(.theme-dark) .hover\:bg-gray-700:hover,
+html:not(.theme-dark) .hover\:bg-slate-800:hover,
+html:not(.theme-dark) .hover\:bg-slate-900:hover {
+    background: var(--blue-light-primary-strong) !important;
+}
+
+html.theme-dark .bg-gray-950,
+html.theme-dark .bg-gray-900,
+html.theme-dark .bg-slate-900,
+html.theme-dark .bg-black,
+html.theme-dark .bg-\[\#1f2937\],
+html.theme-dark .bg-\[\#111827\],
+html.theme-dark .bg-\[\#0f172a\],
+html.theme-dark .bg-\[\#1e293b\] {
+    background: var(--blue-dark-surface) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .bg-gray-800,
+html.theme-dark .bg-gray-700,
+html.theme-dark .bg-slate-800,
+html.theme-dark .bg-slate-700,
+html.theme-dark .bg-\[\#334155\] {
+    background: var(--blue-dark-surface-alt) !important;
+    color: var(--blue-dark-text) !important;
+}
+
+html.theme-dark .bg-gray-700\/80,
+html.theme-dark .dark\:bg-slate-700\/60 {
+    background-color: var(--blue-dark-skeleton) !important;
+}
+
+html.theme-dark .bg-black\/70,
+html.theme-dark .bg-slate-900\/25,
+html.theme-dark .bg-slate-900\/40,
+html.theme-dark .bg-slate-900\/45,
+html.theme-dark .bg-slate-900\/50,
+html.theme-dark .bg-slate-900\/60 {
+    background-color: var(--blue-dark-overlay) !important;
+}
+
+html.theme-dark .border-gray-800,
+html.theme-dark .border-gray-700,
+html.theme-dark .border-gray-600,
+html.theme-dark .border-slate-800,
+html.theme-dark .border-slate-700 {
+    border-color: var(--blue-dark-border) !important;
+}
+
+html.theme-dark .hover\:bg-\[\#334155\]:hover,
+html.theme-dark .hover\:bg-\[\#111827\]:hover,
+html.theme-dark .hover\:bg-gray-600:hover,
+html.theme-dark .hover\:bg-gray-700:hover,
+html.theme-dark .hover\:bg-slate-800:hover,
+html.theme-dark .hover\:bg-slate-900:hover {
+    background: var(--blue-dark-hover) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

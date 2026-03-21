@@ -1,0 +1,846 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\AcademicDocument;
+use App\Models\AcademicEligibilityEvaluation;
+use App\Models\AcademicPeriod;
+use App\Models\Student;
+use App\Models\Team;
+use App\Models\User;
+use App\Services\AnnouncementService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
+
+class AcademicEligibilityController extends Controller
+{
+    public function __construct(private AnnouncementService $announcements)
+    {
+    }
+
+    public function index(Request $request)
+    {
+        $periods = AcademicPeriod::query()
+            ->with(['lockedBy:id,name'])
+            ->orderByDesc('starts_on')
+            ->get();
+
+        $selectedPeriodId = (int) $request->query('period_id', 0);
+        if (!$selectedPeriodId) {
+            $selectedPeriodId = (int) ($periods->first()->id ?? 0);
+        }
+
+        $docs = collect();
+        if ($selectedPeriodId) {
+            $docs = AcademicDocument::query()
+                ->with(['student.user'])
+                ->where('academic_period_id', $selectedPeriodId)
+                ->whereIn('document_type', ['grade_report', 'other'])
+                ->latest('uploaded_at')
+                ->get();
+        }
+
+        $evalByStudent = AcademicEligibilityEvaluation::query()
+            ->when($selectedPeriodId, fn ($q) => $q->where('academic_period_id', $selectedPeriodId))
+            ->get()
+            ->keyBy('student_id');
+
+        $rows = $docs->map(function ($doc) use ($evalByStudent) {
+            $student = $doc->student;
+            $evaluation = $evalByStudent->get($doc->student_id);
+
+            return [
+                'document_id' => $doc->id,
+                'student_id' => $doc->student_id,
+                'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                'student_id_number' => $student->student_id_number ?? null,
+                'uploaded_at' => optional($doc->uploaded_at)->toDateTimeString(),
+                'document_type' => $doc->document_type,
+                'notes' => $doc->notes,
+                'file_url' => $doc->id ? route('files.academic', $doc->id) : null,
+                'evaluation' => $evaluation ? [
+                    'id' => $evaluation->id,
+                    'gpa' => $evaluation->gpa,
+                    'status' => $evaluation->status,
+                    'remarks' => $evaluation->remarks,
+                    'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
+                ] : null,
+            ];
+        })->values();
+
+        return Inertia::render('Admin/Academics', [
+            'periods' => $periods->map(fn ($p) => [
+                'id' => $p->id,
+                'school_year' => $p->school_year,
+                'term' => $p->term,
+                'starts_on' => optional($p->starts_on)->toDateString(),
+                'ends_on' => optional($p->ends_on)->toDateString(),
+                'is_submission_open' => Schema::hasColumn('academic_periods', 'is_submission_open')
+                    ? (bool) $p->is_submission_open
+                    : false,
+                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
+                    ? $p->announcement
+                    : null,
+                'is_locked' => Schema::hasColumn('academic_periods', 'is_locked')
+                    ? (bool) $p->is_locked
+                    : false,
+                'locked_at' => Schema::hasColumn('academic_periods', 'locked_at')
+                    ? optional($p->locked_at)->toDateTimeString()
+                    : null,
+                'locked_by_name' => Schema::hasColumn('academic_periods', 'locked_by')
+                    ? $p->lockedBy?->name
+                    : null,
+            ]),
+            'selectedPeriodId' => $selectedPeriodId ?: null,
+            'rows' => $rows,
+        ]);
+    }
+
+    public function storePeriod(Request $request)
+    {
+        $validated = $request->validate([
+            'school_year' => 'required|string|max:9',
+            'term' => 'required|in:1st_sem,2nd_sem,summer',
+            'starts_on' => 'required|date',
+            'ends_on' => 'required|date|after_or_equal:starts_on',
+            'announcement' => 'nullable|string',
+        ]);
+
+        $payload = $validated;
+        if (Schema::hasColumn('academic_periods', 'is_submission_open')) {
+            $payload['is_submission_open'] = false;
+        }
+        if (!Schema::hasColumn('academic_periods', 'announcement')) {
+            unset($payload['announcement']);
+        }
+
+        AcademicPeriod::create($payload);
+
+        return back()->with('success', 'Academic period created.');
+    }
+
+    public function toggleWindow(Request $request, AcademicPeriod $period)
+    {
+        $validated = $request->validate([
+            'is_submission_open' => 'required|boolean',
+            'announcement' => 'nullable|string',
+        ]);
+
+        if (!Schema::hasColumn('academic_periods', 'is_submission_open')) {
+            return back()->withErrors([
+                'window' => 'Submission window controls are unavailable. Run latest migrations first.',
+            ]);
+        }
+        if (Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
+            return back()->withErrors([
+                'window' => 'This period is locked and can no longer be edited.',
+            ]);
+        }
+
+        $period->update([
+            'is_submission_open' => (bool) $validated['is_submission_open'],
+            'announcement' => Schema::hasColumn('academic_periods', 'announcement')
+                ? ($validated['announcement'] ?? $period->announcement)
+                : null,
+        ]);
+
+        $periodLabel = "{$period->school_year} {$this->termLabel((string) $period->term)}";
+        $state = $validated['is_submission_open'] ? 'OPEN' : 'CLOSED';
+        $endsOn = optional($period->ends_on)->format('M j, Y');
+        $message = "Academic submissions are now {$state} for {$periodLabel}" . ($endsOn ? " until {$endsOn}." : '.');
+        if (!empty($validated['announcement'])) {
+            $message .= ' ' . trim((string) $validated['announcement']);
+        }
+
+        $recipientIds = User::query()
+            ->where('status', 'approved')
+            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+            ->pluck('id')
+            ->all();
+
+        $this->announcements->announceMany(
+            $recipientIds,
+            'Academic Submission Window',
+            $message,
+            'academic',
+            Auth::id()
+        );
+
+        return back()->with('success', 'Submission window updated.');
+    }
+
+    public function toggleLock(Request $request, AcademicPeriod $period)
+    {
+        $validated = $request->validate([
+            'is_locked' => 'required|boolean',
+        ]);
+
+        if (!Schema::hasColumn('academic_periods', 'is_locked')) {
+            return back()->withErrors([
+                'window' => 'Period locking is unavailable. Run latest migrations first.',
+            ]);
+        }
+
+        $lock = (bool) $validated['is_locked'];
+        $period->update([
+            'is_locked' => $lock,
+            'locked_at' => $lock ? now() : null,
+            'locked_by' => $lock ? Auth::id() : null,
+            'is_submission_open' => $lock ? false : (bool) $period->is_submission_open,
+        ]);
+
+        return back()->with('success', $lock ? 'Academic period locked.' : 'Academic period unlocked.');
+    }
+
+    public function evaluate(Request $request)
+    {
+        $validated = $request->validate([
+            'period_id' => 'required|exists:academic_periods,id',
+            'student_id' => 'required|exists:students,id',
+            'document_id' => 'required|exists:academic_documents,id',
+            'gpa' => 'nullable|numeric|min:0|max:5',
+            'status' => 'required|in:eligible,probation,ineligible',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $doc = AcademicDocument::findOrFail((int) $validated['document_id']);
+        abort_unless(
+            (int) $doc->student_id === (int) $validated['student_id']
+            && (int) $doc->academic_period_id === (int) $validated['period_id'],
+            422,
+            'Invalid document for selected student/period.'
+        );
+
+        $period = AcademicPeriod::find((int) $validated['period_id']);
+        if ($period && Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
+            abort(422, 'This period is locked and can no longer be edited.');
+        }
+
+        AcademicEligibilityEvaluation::updateOrCreate(
+            [
+                'student_id' => (int) $validated['student_id'],
+                'academic_period_id' => (int) $validated['period_id'],
+            ],
+            [
+                'document_id' => (int) $validated['document_id'],
+                'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                'status' => $validated['status'],
+                'remarks' => $validated['remarks'] ?? null,
+                'evaluated_by' => Auth::id(),
+                'evaluated_at' => now(),
+            ]
+        );
+
+        $student = Student::find((int) $validated['student_id']);
+        $studentUserId = (int) ($student?->user_id ?? 0);
+        $status = strtoupper((string) $validated['status']);
+        $periodLabel = $period
+            ? "{$period->school_year} {$this->termLabel((string) $period->term)}"
+            : 'selected period';
+
+        if ($studentUserId > 0) {
+            $message = "Your academic status for {$periodLabel} is {$status}.";
+            if (strtolower((string) $validated['status']) === 'eligible') {
+                $message .= ' You are now eligible; further submissions for this period are locked.';
+            }
+            $this->announcements->announce(
+                $studentUserId,
+                'Academic Evaluation Result',
+                $message,
+                'academic',
+                Auth::id()
+            );
+        }
+
+        $coachUserIds = Team::query()
+            ->whereHas('players', fn ($q) => $q->where('student_id', (int) $validated['student_id']))
+            ->with(['coach:id,user_id', 'assistantCoach:id,user_id'])
+            ->get()
+            ->flatMap(function ($team) {
+                return [
+                    $team->coach?->user_id,
+                    $team->assistantCoach?->user_id,
+                ];
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!empty($coachUserIds) && $student) {
+            $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
+            $this->announcements->announceMany(
+                $coachUserIds,
+                'Athlete Academic Evaluation',
+                "{$studentName} was evaluated as {$status} for {$periodLabel}.",
+                'academic',
+                Auth::id()
+            );
+        }
+
+        return back()->with('success', 'Academic evaluation saved.');
+    }
+
+    public function submissionsRecords(Request $request)
+    {
+        $filters = $this->validatedRecordsFilters($request);
+
+        $query = DB::table('academic_documents as d')
+            ->join('students as s', 's.id', '=', 'd.student_id')
+            ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
+            ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
+                $join->on('e.student_id', '=', 'd.student_id')
+                    ->on('e.academic_period_id', '=', 'd.academic_period_id');
+            })
+            ->leftJoin('users as evaluator', 'evaluator.id', '=', 'e.evaluated_by')
+            ->leftJoin('teams as t', function ($join) {
+                $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = d.student_id ORDER BY tp.id ASC LIMIT 1)'));
+            })
+            ->select([
+                'd.id as document_id',
+                'd.student_id',
+                's.student_id_number',
+                's.first_name',
+                's.last_name',
+                'd.document_type',
+                'd.uploaded_at',
+                'd.notes',
+                'd.academic_period_id as period_id',
+                'p.school_year',
+                'p.term',
+                't.id as team_id',
+                't.team_name',
+                'e.id as evaluation_id',
+                'e.gpa as evaluation_gpa',
+                'e.status as evaluation_status',
+                'e.remarks as evaluation_remarks',
+                'e.evaluated_at',
+                'evaluator.name as evaluator_name',
+            ]);
+
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+
+        $perPage = max(10, min(100, (int) $filters['per_page']));
+        $paginator = $query
+            ->orderByDesc('d.uploaded_at')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return response()->json([
+            'data' => collect($paginator->items())->map(function ($row) {
+                return [
+                    'document_id' => (int) $row->document_id,
+                    'student_id' => (int) $row->student_id,
+                    'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                    'student_id_number' => $row->student_id_number,
+                    'team_id' => $row->team_id ? (int) $row->team_id : null,
+                    'team_name' => $row->team_name,
+                    'document_type' => $row->document_type,
+                    'uploaded_at' => $row->uploaded_at,
+                    'notes' => $row->notes,
+                    'period' => $row->period_id ? [
+                        'id' => (int) $row->period_id,
+                        'school_year' => $row->school_year,
+                        'term' => $row->term,
+                    ] : null,
+                    'evaluation' => $row->evaluation_id ? [
+                        'id' => (int) $row->evaluation_id,
+                        'gpa' => $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null,
+                        'status' => $row->evaluation_status,
+                        'remarks' => $row->evaluation_remarks,
+                        'evaluated_at' => $row->evaluated_at,
+                        'evaluator_name' => $row->evaluator_name,
+                    ] : null,
+                ];
+            })->values(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
+    }
+
+    public function evaluationsRecords(Request $request)
+    {
+        $filters = $this->validatedRecordsFilters($request);
+
+        $query = DB::table('academic_eligibility_evaluations as e')
+            ->join('students as s', 's.id', '=', 'e.student_id')
+            ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->leftJoin('users as evaluator', 'evaluator.id', '=', 'e.evaluated_by')
+            ->leftJoin('teams as t', function ($join) {
+                $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = e.student_id ORDER BY tp.id ASC LIMIT 1)'));
+            })
+            ->select([
+                'e.id as evaluation_id',
+                'e.student_id',
+                's.student_id_number',
+                's.first_name',
+                's.last_name',
+                'e.academic_period_id as period_id',
+                'p.school_year',
+                'p.term',
+                't.id as team_id',
+                't.team_name',
+                'e.document_id',
+                'd.document_type',
+                'e.gpa',
+                'e.status',
+                'e.remarks',
+                'e.evaluated_at',
+                'evaluator.name as evaluator_name',
+            ]);
+
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+
+        $perPage = max(10, min(100, (int) $filters['per_page']));
+        $paginator = $query
+            ->orderByDesc('e.evaluated_at')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return response()->json([
+            'data' => collect($paginator->items())->map(function ($row) {
+                return [
+                    'evaluation_id' => (int) $row->evaluation_id,
+                    'student_id' => (int) $row->student_id,
+                    'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                    'student_id_number' => $row->student_id_number,
+                    'team_id' => $row->team_id ? (int) $row->team_id : null,
+                    'team_name' => $row->team_name,
+                    'period' => $row->period_id ? [
+                        'id' => (int) $row->period_id,
+                        'school_year' => $row->school_year,
+                        'term' => $row->term,
+                    ] : null,
+                    'document_id' => $row->document_id ? (int) $row->document_id : null,
+                    'document_type' => $row->document_type,
+                    'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
+                    'status' => $row->status,
+                    'remarks' => $row->remarks,
+                    'evaluated_at' => $row->evaluated_at,
+                    'evaluator_name' => $row->evaluator_name,
+                ];
+            })->values(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
+    }
+
+    public function exceptions(Request $request)
+    {
+        $filters = $this->validatedRecordsFilters($request);
+        $periodId = $this->resolvePeriodId($filters['period_id'] ?? null);
+
+        if (!$periodId) {
+            return response()->json([
+                'meta' => ['period_id' => null],
+                'kpis' => [
+                    'missing_submissions' => 0,
+                    'pending_evaluation' => 0,
+                    'probation' => 0,
+                    'ineligible' => 0,
+                ],
+                'rows' => [],
+            ]);
+        }
+
+        $teamScope = DB::table('students as s')
+            ->select('s.id')
+            ->when(!empty($filters['team_id']), function ($q) use ($filters) {
+                $q->whereExists(function ($sq) use ($filters) {
+                    $sq->selectRaw('1')
+                        ->from('team_players as tp')
+                        ->whereColumn('tp.student_id', 's.id')
+                        ->where('tp.team_id', (int) $filters['team_id']);
+                });
+            })
+            ->when(!empty($filters['coach_id']), function ($q) use ($filters) {
+                $coachId = (int) $filters['coach_id'];
+                $q->whereExists(function ($sq) use ($coachId) {
+                    $sq->selectRaw('1')
+                        ->from('team_players as tp')
+                        ->join('teams as t', 't.id', '=', 'tp.team_id')
+                        ->whereColumn('tp.student_id', 's.id')
+                        ->where(function ($cq) use ($coachId) {
+                            $cq->where('t.coach_id', $coachId)
+                                ->orWhere('t.assistant_coach_id', $coachId);
+                        });
+                });
+            });
+
+        $studentIds = $teamScope->pluck('id');
+
+        $submittedStudentIds = DB::table('academic_documents')
+            ->where('academic_period_id', $periodId)
+            ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('student_id', $studentIds))
+            ->distinct()
+            ->pluck('student_id');
+
+        $evaluatedByStatus = DB::table('academic_eligibility_evaluations')
+            ->where('academic_period_id', $periodId)
+            ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('student_id', $studentIds))
+            ->selectRaw("SUM(CASE WHEN status = 'probation' THEN 1 ELSE 0 END) as probation_count")
+            ->selectRaw("SUM(CASE WHEN status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
+            ->selectRaw("COUNT(*) as evaluated_count")
+            ->first();
+
+        $missingSubmissions = $studentIds->diff($submittedStudentIds)->count();
+        $pendingEvaluation = max(0, $submittedStudentIds->count() - (int) ($evaluatedByStatus->evaluated_count ?? 0));
+
+        $rows = DB::table('academic_documents as d')
+            ->join('students as s', 's.id', '=', 'd.student_id')
+            ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
+                $join->on('e.student_id', '=', 'd.student_id')
+                    ->on('e.academic_period_id', '=', 'd.academic_period_id');
+            })
+            ->where('d.academic_period_id', $periodId)
+            ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('d.student_id', $studentIds))
+            ->where(function ($q) {
+                $q->whereNull('e.id')
+                    ->orWhereIn('e.status', ['probation', 'ineligible']);
+            })
+            ->select([
+                'd.student_id',
+                's.student_id_number',
+                's.first_name',
+                's.last_name',
+                'd.id as document_id',
+                'd.uploaded_at',
+                'e.id as evaluation_id',
+                'e.status as evaluation_status',
+                'e.gpa',
+                'e.evaluated_at',
+            ])
+            ->orderByDesc('d.uploaded_at')
+            ->limit(100)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'student_id' => (int) $row->student_id,
+                    'student_name' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                    'student_id_number' => $row->student_id_number,
+                    'document_id' => (int) $row->document_id,
+                    'uploaded_at' => $row->uploaded_at,
+                    'evaluation_id' => $row->evaluation_id ? (int) $row->evaluation_id : null,
+                    'evaluation_status' => $row->evaluation_status,
+                    'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
+                    'evaluated_at' => $row->evaluated_at,
+                    'exception_type' => $row->evaluation_id ? 'at_risk' : 'pending_evaluation',
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'meta' => ['period_id' => $periodId],
+            'kpis' => [
+                'missing_submissions' => $missingSubmissions,
+                'pending_evaluation' => $pendingEvaluation,
+                'probation' => (int) ($evaluatedByStatus->probation_count ?? 0),
+                'ineligible' => (int) ($evaluatedByStatus->ineligible_count ?? 0),
+            ],
+            'rows' => $rows,
+        ]);
+    }
+
+    public function updateEvaluation(Request $request, int $studentId, int $periodId)
+    {
+        $validated = $request->validate([
+            'document_id' => 'required|exists:academic_documents,id',
+            'gpa' => 'nullable|numeric|min:0|max:5',
+            'status' => 'required|in:eligible,probation,ineligible',
+            'remarks' => 'nullable|string|max:1000',
+            'audit_note' => 'nullable|string|max:1000',
+        ]);
+
+        $period = AcademicPeriod::findOrFail($periodId);
+        if (Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
+            abort(422, 'This period is locked and can no longer be edited.');
+        }
+
+        $document = AcademicDocument::query()
+            ->where('id', (int) $validated['document_id'])
+            ->where('student_id', $studentId)
+            ->where('academic_period_id', $periodId)
+            ->firstOrFail();
+
+        $remarkParts = [];
+        if (!empty($validated['remarks'])) {
+            $remarkParts[] = trim((string) $validated['remarks']);
+        }
+        if (!empty($validated['audit_note'])) {
+            $remarkParts[] = '[Admin Note] ' . trim((string) $validated['audit_note']);
+        }
+
+        $evaluation = AcademicEligibilityEvaluation::query()->updateOrCreate(
+            [
+                'student_id' => $studentId,
+                'academic_period_id' => $periodId,
+            ],
+            [
+                'document_id' => $document->id,
+                'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                'status' => $validated['status'],
+                'remarks' => !empty($remarkParts) ? implode("\n\n", $remarkParts) : null,
+                'evaluated_by' => Auth::id(),
+                'evaluated_at' => now(),
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Evaluation updated.',
+            'evaluation_id' => $evaluation->id,
+        ]);
+    }
+
+    public function printSummary(Request $request)
+    {
+        $validated = $request->validate([
+            'period_id' => 'nullable|integer|exists:academic_periods,id',
+        ]);
+
+        $periodId = $this->resolvePeriodId($validated['period_id'] ?? null);
+        abort_unless($periodId, 404);
+
+        $period = AcademicPeriod::findOrFail($periodId);
+
+        $docs = AcademicDocument::query()
+            ->with(['student.user'])
+            ->where('academic_period_id', $periodId)
+            ->whereIn('document_type', ['grade_report', 'other'])
+            ->latest('uploaded_at')
+            ->get();
+
+        $evalByStudent = AcademicEligibilityEvaluation::query()
+            ->where('academic_period_id', $periodId)
+            ->get()
+            ->keyBy('student_id');
+
+        $rows = $docs->map(function ($doc) use ($evalByStudent) {
+            $student = $doc->student;
+            $evaluation = $evalByStudent->get($doc->student_id);
+
+            return [
+                'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                'student_id_number' => $student->student_id_number ?? null,
+                'document_type' => $doc->document_type,
+                'uploaded_at' => optional($doc->uploaded_at)->format('M j, Y g:i A'),
+                'status' => $evaluation?->status ?? 'pending',
+                'gpa' => $evaluation?->gpa,
+                'evaluated_at' => $evaluation?->evaluated_at
+                    ? $evaluation->evaluated_at->format('M j, Y g:i A')
+                    : null,
+            ];
+        })->values();
+
+        $counts = [
+            'eligible' => $rows->where('status', 'eligible')->count(),
+            'probation' => $rows->where('status', 'probation')->count(),
+            'ineligible' => $rows->where('status', 'ineligible')->count(),
+            'pending' => $rows->where('status', 'pending')->count(),
+            'total' => $rows->count(),
+        ];
+
+        $periodLabel = "{$period->school_year} {$this->termLabel((string) $period->term)}";
+
+        return view('print.academics-summary', [
+            'periodLabel' => $periodLabel,
+            'generatedAt' => now()->format('M j, Y g:i A'),
+            'counts' => $counts,
+            'rows' => $rows,
+        ]);
+    }
+
+    private function validatedRecordsFilters(Request $request): array
+    {
+        $validated = $request->validate([
+            'period_id' => 'nullable|integer|exists:academic_periods,id',
+            'team_id' => 'nullable|integer|exists:teams,id',
+            'coach_id' => 'nullable|integer|exists:coaches,id',
+            'status' => 'nullable|in:eligible,probation,ineligible,pending',
+            'search' => 'nullable|string|max:150',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'per_page' => 'nullable|integer|min:10|max:100',
+        ]);
+
+        return [
+            'period_id' => isset($validated['period_id']) ? (int) $validated['period_id'] : null,
+            'team_id' => isset($validated['team_id']) ? (int) $validated['team_id'] : null,
+            'coach_id' => isset($validated['coach_id']) ? (int) $validated['coach_id'] : null,
+            'status' => $validated['status'] ?? null,
+            'search' => $validated['search'] ?? null,
+            'start_date' => $validated['start_date'] ?? null,
+            'end_date' => $validated['end_date'] ?? null,
+            'per_page' => (int) ($validated['per_page'] ?? 15),
+        ];
+    }
+
+    private function resolvePeriodId(?int $periodId): ?int
+    {
+        if ($periodId) {
+            return $periodId;
+        }
+
+        return AcademicPeriod::query()
+            ->orderByDesc('starts_on')
+            ->value('id');
+    }
+
+    private function applyRecordsFilters($query, array $filters, string $documentAlias, string $studentAlias, string $evaluationAlias): void
+    {
+        $periodId = $this->resolvePeriodId($filters['period_id']);
+        if ($periodId) {
+            $query->where("{$documentAlias}.academic_period_id", $periodId);
+        }
+
+        if (!empty($filters['status'])) {
+            if ($filters['status'] === 'pending') {
+                $query->whereNull("{$evaluationAlias}.id");
+            } else {
+                $query->where("{$evaluationAlias}.status", $filters['status']);
+            }
+        }
+
+        if (!empty($filters['search'])) {
+            $search = trim((string) $filters['search']);
+            $query->where(function ($q) use ($search, $studentAlias, $documentAlias) {
+                $q->where("{$studentAlias}.first_name", 'like', "%{$search}%")
+                    ->orWhere("{$studentAlias}.last_name", 'like', "%{$search}%")
+                    ->orWhere("{$studentAlias}.student_id_number", 'like', "%{$search}%")
+                    ->orWhere("{$documentAlias}.document_type", 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->whereDate("{$documentAlias}.uploaded_at", '>=', $filters['start_date']);
+        }
+        if (!empty($filters['end_date'])) {
+            $query->whereDate("{$documentAlias}.uploaded_at", '<=', $filters['end_date']);
+        }
+
+        if (!empty($filters['team_id'])) {
+            $teamId = (int) $filters['team_id'];
+            $query->whereExists(function ($sq) use ($studentAlias, $teamId) {
+                $sq->selectRaw('1')
+                    ->from('team_players as tp')
+                    ->whereColumn('tp.student_id', "{$studentAlias}.id")
+                    ->where('tp.team_id', $teamId);
+            });
+        }
+
+        if (!empty($filters['coach_id'])) {
+            $coachId = (int) $filters['coach_id'];
+            $query->whereExists(function ($sq) use ($studentAlias, $coachId) {
+                $sq->selectRaw('1')
+                    ->from('team_players as tp')
+                    ->join('teams as t', 't.id', '=', 'tp.team_id')
+                    ->whereColumn('tp.student_id', "{$studentAlias}.id")
+                    ->where(function ($cq) use ($coachId) {
+                        $cq->where('t.coach_id', $coachId)
+                            ->orWhere('t.assistant_coach_id', $coachId);
+                    });
+            });
+        }
+    }
+
+    private function submissionsExportRows(array $filters): array
+    {
+        $query = DB::table('academic_documents as d')
+            ->join('students as s', 's.id', '=', 'd.student_id')
+            ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
+            ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
+                $join->on('e.student_id', '=', 'd.student_id')
+                    ->on('e.academic_period_id', '=', 'd.academic_period_id');
+            })
+            ->select([
+                'd.id as document_id',
+                's.student_id_number',
+                's.first_name',
+                's.last_name',
+                'p.school_year',
+                'p.term',
+                'd.document_type',
+                'd.uploaded_at',
+                'e.status as evaluation_status',
+                'e.gpa',
+            ]);
+
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+
+        return $query->orderByDesc('d.uploaded_at')->get()->map(function ($row) {
+            return [
+                $row->document_id,
+                $row->student_id_number,
+                trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                trim(($row->school_year ?? '') . ' ' . ($row->term ?? '')),
+                $row->document_type,
+                $row->uploaded_at,
+                $row->evaluation_status,
+                $row->gpa,
+            ];
+        })->all();
+    }
+
+    private function evaluationsExportRows(array $filters): array
+    {
+        $query = DB::table('academic_eligibility_evaluations as e')
+            ->join('students as s', 's.id', '=', 'e.student_id')
+            ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->select([
+                'e.id as evaluation_id',
+                's.student_id_number',
+                's.first_name',
+                's.last_name',
+                'p.school_year',
+                'p.term',
+                'd.document_type',
+                'e.gpa',
+                'e.status',
+                'e.remarks',
+                'e.evaluated_at',
+            ]);
+
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+
+        return $query->orderByDesc('e.evaluated_at')->get()->map(function ($row) {
+            return [
+                $row->evaluation_id,
+                $row->student_id_number,
+                trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                trim(($row->school_year ?? '') . ' ' . ($row->term ?? '')),
+                $row->document_type,
+                $row->gpa,
+                $row->status,
+                $row->remarks,
+                $row->evaluated_at,
+            ];
+        })->all();
+    }
+
+    private function termLabel(string $term): string
+    {
+        return match ($term) {
+            '1st_sem' => '1st Sem',
+            '2nd_sem' => '2nd Sem',
+            'summer' => 'Summer',
+            default => $term,
+        };
+    }
+}

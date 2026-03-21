@@ -1,0 +1,332 @@
+<?php
+
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Admin\CreateTeamController;
+use App\Http\Controllers\Admin\OperationsWorkspaceController;
+use App\Http\Controllers\Admin\HealthWorkspaceController;
+use App\Http\Controllers\Admin\AcademicEligibilityController;
+use App\Http\Controllers\Coaches\CoachTeamController;
+use App\Http\Controllers\StudentAthlete\StudentAthleteController;
+use App\Http\Controllers\Coaches\CoachScheduleController;
+use App\Http\Controllers\Coaches\CoachOperationsController;
+use App\Http\Controllers\Coaches\CoachDashboardController;
+use App\Http\Controllers\Coaches\AttendanceController;
+use App\Http\Controllers\Coaches\WellnessMonitoringController;
+use App\Http\Controllers\Coaches\AcademicVisibilityController;
+use App\Http\Controllers\StudentAthlete\ScheduleRecord;
+use App\Http\Controllers\StudentAthlete\WellnessHistoryController;
+use App\Http\Controllers\StudentAthlete\AcademicSubmissionController;
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\AccountSettingsController;
+use App\Http\Controllers\FileAccessController;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+
+Route::get('/', function () {
+    if (Auth::check()) {
+        $role = Auth::user()->role;
+        return redirect(match ($role) {
+            'admin' => '/AdminDashboard',
+            'coach' => '/coach/dashboard',
+            'student-athlete', 'student' => '/StudentAthleteDashboard',
+            default => '/Login',
+        });
+    }
+    return Inertia::render('Public/Welcome');
+})->name('Welcome');
+
+Route::get('/about', function () {
+    return Inertia::render('Public/About');
+})->name('about');
+
+Route::get('/services', function () {
+    return Inertia::render('Public/Services');
+})->name('services');
+
+Route::get('/how-it-works', function () {
+    return Inertia::render('Public/HowItWorks');
+})->name('how-it-works');
+
+Route::get('/faq', function () {
+    return Inertia::render('Public/Faq');
+})->name('faq');
+
+Route::get('/policies', function () {
+    return Inertia::render('Public/Policies');
+})->name('policies');
+
+Route::get('/contact', function () {
+    return Inertia::render('Public/Contact');
+})->name('contact');
+
+Route::get('/privacy-policy', function () {
+    return Inertia::render('Public/PrivacyPolicy');
+})->name('privacy-policy');
+
+Route::get('/terms-of-use', function () {
+    return Inertia::render('Public/TermsOfUse');
+})->name('terms-of-use');
+
+Route::get('/pending-approval', function () {
+    if (Auth::check() && Auth::user()->status === 'approved') {
+        $role = Auth::user()->role;
+        return redirect(match ($role) {
+            'admin' => '/AdminDashboard',
+            'coach' => '/coach/dashboard',
+            'student-athlete', 'student' => '/StudentAthleteDashboard',
+            default => '/Login',
+        });
+    }
+    return inertia('Status/PendingApproval');
+})->name('pendingapproval');
+
+Route::get('/rejected', function () {
+    if (Auth::check() && Auth::user()->status === 'approved') {
+        $role = Auth::user()->role;
+        return redirect(match ($role) {
+            'admin' => '/AdminDashboard',
+            'coach' => '/coach/dashboard',
+            'student-athlete', 'student' => '/StudentAthleteDashboard',
+            default => '/Login',
+        });
+    }
+    return inertia('Status/Rejected');
+})->name('rejected');
+
+Route::get('/deactivated', function () {
+    if (Auth::check() && Auth::user()->status === 'approved') {
+        $role = Auth::user()->role;
+        return redirect(match ($role) {
+            'admin' => '/AdminDashboard',
+            'coach' => '/coach/dashboard',
+            'student-athlete', 'student' => '/StudentAthleteDashboard',
+            default => '/Login',
+        });
+    }
+    return inertia('Status/Deactivated');
+})->name('deactivated');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/login', function () {
+        return Inertia::render('Auth/Login');
+    });
+    Route::get('/Login', function () {
+        return Inertia::render('Auth/Login');
+    })->name('Login');
+    Route::post('/login', [LoginController::class, 'login'])
+        ->middleware('throttle:login')
+        ->name('login');
+    Route::get('/Register', function () {
+        return Inertia::render('Auth/Register');
+    })->name('Register');
+    Route::get('/Student-AthleteRegister', function () {
+        return Inertia::render('Auth/Student-AthleteRegister');
+    })->name('Student-AthleteRegister');
+    Route::get('/RegisterStudent-AthleteData/check-student-id', [RegisterController::class, 'checkStudentIdAvailability'])
+        ->name('student.register.check_id');
+    Route::post('/RegisterStudent-AthleteData', [RegisterController::class, 'registerStudentAthlete']);
+
+    Route::get('/CoachRegister', function () {
+        return Inertia::render('Auth/CoachRegister');
+    })->name('CoachRegister');
+    Route::post('/RegisterCoachData', [RegisterController::class, 'registerCoach']);
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth');
+    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
+    Route::put('/announcements/read-all', [AnnouncementController::class, 'markAllRead'])->name('announcements.readAll');
+    Route::put('/announcements/{announcement}/read', [AnnouncementController::class, 'markRead'])->name('announcements.read');
+    Route::get('/files/clearance/{clearance}', [FileAccessController::class, 'clearance'])->name('files.clearance');
+    Route::get('/files/academic/{document}', [FileAccessController::class, 'academic'])->name('files.academic');
+    Route::get('/account/profile', [AccountSettingsController::class, 'profile'])->name('account.profile.show');
+    Route::put('/account/profile', [AccountSettingsController::class, 'updateProfile'])->name('account.profile.update');
+    Route::get('/account/settings', [AccountSettingsController::class, 'settings'])->name('account.settings.show');
+    Route::put('/account/settings', [AccountSettingsController::class, 'updateSettings'])->name('account.settings.update');
+    Route::put('/account/password', [AccountSettingsController::class, 'updatePassword'])->name('account.password.update');
+
+    // Legacy paths kept for backwards compatibility.
+    Route::redirect('/Announcements', '/announcements');
+    Route::redirect('/Account/Profile', '/account/profile');
+    Route::redirect('/Account/Settings', '/account/settings');
+});
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/AdminDashboard', [AdminController::class, 'dashboard'])
+        ->name('AdminDashboard');
+
+    Route::get('/people/queue', [AdminController::class, 'approvalManagement'])
+        ->name('admin.people.queue');
+    Route::post('/admin/users/{user}/approve', [AdminController::class, 'approve'])->name('admin.users.approve');
+    Route::post('/admin/users/{user}/reject', [AdminController::class, 'reject'])->name('admin.users.reject');
+    Route::post('/admin/users/{user}/deactivate', [AdminController::class, 'deactivate'])->name('admin.users.deactivate');
+    Route::post('/admin/users/{user}/reactivate', [AdminController::class, 'reactivate'])->name('admin.users.reactivate');
+
+    Route::get('/people', [AdminController::class, 'userManagement'])
+        ->name('admin.people.index');
+
+    Route::get('/teams', [CreateTeamController::class, 'teamSetup'])
+        ->name('admin.teams.index');
+    Route::get('/teams/create', [CreateTeamController::class, 'create'])
+        ->name('admin.teams.create');
+    Route::post('/teams/create', [CreateTeamController::class, 'store'])
+        ->name('admin.teams.store');
+    Route::get('/teams/{team}/edit', [CreateTeamController::class, 'edit'])
+        ->name('admin.teams.edit');
+    Route::put('/teams/{team}', [CreateTeamController::class, 'update'])
+        ->name('admin.teams.update');
+    Route::get('/teams/{team}/roster', [CreateTeamController::class, 'roster'])
+        ->name('admin.teams.roster');
+    Route::get('/teams/{team}/print', [CreateTeamController::class, 'printRoster'])
+        ->name('admin.teams.print');
+    Route::post('/teams/{team}/archive', [CreateTeamController::class, 'archive'])
+        ->name('admin.teams.archive');
+    Route::post('/teams/{team}/reactivate', [CreateTeamController::class, 'reactivate'])
+        ->name('admin.teams.reactivate');
+
+    Route::get('/operations', [OperationsWorkspaceController::class, 'index'])
+        ->name('admin.operations.index');
+    Route::get('/operations/attendance/records', [OperationsWorkspaceController::class, 'attendanceRecords'])
+        ->name('admin.operations.attendance.records');
+    Route::put('/operations/attendance/{schedule}/{student}', [OperationsWorkspaceController::class, 'updateAttendance'])
+        ->name('admin.operations.attendance.update');
+    Route::get('/operations/attendance/print', [OperationsWorkspaceController::class, 'printAttendance'])
+        ->name('admin.operations.attendance.print');
+    Route::get('/operations/schedules/{schedule}/drilldown', [OperationsWorkspaceController::class, 'scheduleDrilldown'])
+        ->name('admin.operations.schedules.drilldown');
+    Route::redirect('/operations/attendance', '/operations?tab=attendance')
+        ->name('admin.operations.attendance');
+
+    Route::get('/health', [HealthWorkspaceController::class, 'index'])
+        ->name('admin.health.index');
+    Route::redirect('/health/clearance', '/health?tab=clearance')
+        ->name('admin.health.clearance');
+    Route::redirect('/health/wellness', '/health?tab=wellness')
+        ->name('admin.health.wellness');
+
+    Route::get('/academics', [AcademicEligibilityController::class, 'index'])
+        ->name('admin.academics.index');
+    Route::post('/academics/periods', [AcademicEligibilityController::class, 'storePeriod'])
+        ->name('academic.periods.store');
+    Route::put('/academics/periods/{period}/window', [AcademicEligibilityController::class, 'toggleWindow'])
+        ->name('academic.periods.window');
+    Route::put('/academics/periods/{period}/lock', [AcademicEligibilityController::class, 'toggleLock'])
+        ->name('academic.periods.lock');
+    Route::post('/academics/evaluate', [AcademicEligibilityController::class, 'evaluate'])
+        ->name('academic.evaluate');
+    Route::get('/academics/submissions/records', [AcademicEligibilityController::class, 'submissionsRecords'])
+        ->name('academic.submissions.records');
+    Route::get('/academics/evaluations/records', [AcademicEligibilityController::class, 'evaluationsRecords'])
+        ->name('academic.evaluations.records');
+    Route::get('/academics/exceptions', [AcademicEligibilityController::class, 'exceptions'])
+        ->name('academic.exceptions');
+    Route::put('/academics/evaluations/{student}/{period}', [AcademicEligibilityController::class, 'updateEvaluation'])
+        ->name('academic.evaluations.update');
+    Route::get('/academics/print', [AcademicEligibilityController::class, 'printSummary'])
+        ->name('academic.print');
+
+    // Legacy admin routes kept for backwards compatibility.
+    Route::redirect('/ApprovalManagement', '/people/queue');
+    Route::redirect('/UserManagement', '/people');
+    Route::redirect('/TeamSetup', '/teams');
+    Route::redirect('/CreateTeam', '/teams/create');
+    Route::post('/CreateTeam', [CreateTeamController::class, 'store']);
+    Route::get('/CreateTeam/{team}/edit', [CreateTeamController::class, 'edit']);
+    Route::put('/CreateTeam/{team}', [CreateTeamController::class, 'update']);
+    Route::redirect('/ScheduleOverview', '/operations');
+    Route::redirect('/AttendanceInsights', '/operations?tab=attendance');
+    Route::redirect('/ClearanceOverview', '/health?tab=clearance');
+    Route::redirect('/WellnessOverview', '/health?tab=wellness');
+    Route::redirect('/AcademicEligibility', '/academics');
+    Route::post('/AcademicEligibility/periods', [AcademicEligibilityController::class, 'storePeriod']);
+    Route::put('/AcademicEligibility/periods/{period}/window', [AcademicEligibilityController::class, 'toggleWindow']);
+    Route::put('/AcademicEligibility/periods/{period}/lock', [AcademicEligibilityController::class, 'toggleLock']);
+    Route::post('/AcademicEligibility/evaluate', [AcademicEligibilityController::class, 'evaluate']);
+    Route::get('/AcademicEligibility/submissions/records', [AcademicEligibilityController::class, 'submissionsRecords']);
+    Route::get('/AcademicEligibility/evaluations/records', [AcademicEligibilityController::class, 'evaluationsRecords']);
+    Route::get('/AcademicEligibility/exceptions', [AcademicEligibilityController::class, 'exceptions']);
+    Route::put('/AcademicEligibility/evaluations/{student}/{period}', [AcademicEligibilityController::class, 'updateEvaluation']);
+    // CSV export removed in favor of print-only reports.
+});
+
+Route::middleware(['auth', 'role:coach'])->group(function () {
+    Route::get('/coach/dashboard', [CoachDashboardController::class, 'index'])
+        ->name('coach.dashboard.index');
+
+    Route::get('/coach/operations', [CoachOperationsController::class, 'index'])
+        ->name('coach.operations.index');
+    Route::get('/coach/team', [CoachTeamController::class, 'index'])->name('coach.team.index');
+    Route::get('/coach/team/print', [CoachTeamController::class, 'printRoster'])
+        ->name('coach.team.print');
+    Route::put('/coach/team-players/{teamPlayer}/position', [CoachTeamController::class, 'updatePlayerPosition'])
+        ->name('coach.team_players.position');
+    Route::put('/coach/team-players/{teamPlayer}/status', [CoachTeamController::class, 'updatePlayerStatus'])
+        ->name('coach.team_players.status');
+    Route::post('/coach/team/requests', [CoachTeamController::class, 'requestChange'])
+        ->middleware('throttle:coach-requests')
+        ->name('coach.team.request');
+
+    Route::get('/coach/schedule', [CoachScheduleController::class, 'index'])
+        ->name('coach.schedule.index');
+    Route::get('/coach/schedule/print', [CoachScheduleController::class, 'print'])
+        ->name('coach.schedule.print');
+    Route::get('/coach/attendance/{schedule}', [AttendanceController::class, 'show'])
+        ->name('coach.attendance.show');
+    Route::get('/coach/attendance/{schedule}/print', [AttendanceController::class, 'printSheet'])
+        ->name('coach.attendance.print');
+    Route::get('/coach/attendance/{schedule}/print-blank', [AttendanceController::class, 'printBlankSheet'])
+        ->name('coach.attendance.print_blank');
+    Route::get('/coach/attendance', function () {
+        return redirect('/coach/operations?tab=attendance');
+    })->name('coach.attendance.index');
+    Route::post('/coach/schedules/{schedule}/attendance/verify-qr', [AttendanceController::class, 'verifyQrScan'])
+        ->name('coach.attendance.verify_qr');
+    Route::post('/coach/schedules/{schedule}/attendance/manual/{student}', [AttendanceController::class, 'manualOverride'])
+        ->name('coach.attendance.manual_override');
+    Route::get('/coach/wellness', function () {
+        return redirect('/coach/operations?tab=wellness');
+    })->name('coach.wellness.index');
+    Route::post('/coach/wellness', [WellnessMonitoringController::class, 'store'])
+        ->name('coach.wellness.store');
+    Route::get('/coach/academics', [AcademicVisibilityController::class, 'index'])
+        ->name('coach.academics.index');
+
+    Route::post('/coach/schedules', [CoachScheduleController::class, 'store'])
+        ->name('coach.schedules.store');
+
+    Route::put('/coach/schedules/{id}', [CoachScheduleController::class, 'update'])
+        ->name('coach.schedules.update');
+    Route::delete('/coach/schedules/{id}', [CoachScheduleController::class, 'destroy'])
+        ->name('coach.schedules.destroy');
+
+    // Legacy paths kept for backwards compatibility.
+    Route::redirect('/CoachDashboard', '/coach/dashboard');
+    Route::redirect('/CoachTeam', '/coach/team');
+    Route::redirect('/CoachSchedule', '/coach/schedule');
+    Route::redirect('/AttendanceRecord', '/coach/operations?tab=attendance');
+    Route::redirect('/WellnessMonitoring', '/coach/operations?tab=wellness');
+    Route::redirect('/CoachAcademicVisibility', '/coach/academics');
+});
+
+Route::middleware(['auth', 'role:student-athlete,student'])->group(function () {
+    Route::get('/StudentAthleteDashboard', function () {
+        return Inertia::render('StudentAthletes/StudentAthleteDashboard');
+    })->name('StudentAthleteDashboard');
+    Route::get('/MyTeam', [StudentAthleteController::class, 'index'])->name('MyTeam');
+    Route::put('/Student/TeamPlayers/{teamPlayer}/jersey', [StudentAthleteController::class, 'updateDesiredJersey'])
+        ->name('student.team_players.jersey');
+    Route::get('/MySchedule', [ScheduleRecord::class, 'mySchedules'])->name('MySchedule');
+    Route::get('/MySchedule/print', [ScheduleRecord::class, 'print'])->name('MySchedule.print');
+    Route::get('/WellnessHistory', [WellnessHistoryController::class, 'index'])->name('WellnessHistory');
+    Route::get('/AcademicSubmissions', [AcademicSubmissionController::class, 'index'])->name('AcademicSubmissions');
+    Route::get('/AcademicSubmissions/print', [AcademicSubmissionController::class, 'print'])->name('AcademicSubmissions.print');
+    Route::post('/AcademicSubmissions', [AcademicSubmissionController::class, 'store'])->name('academic.submissions.store');
+    Route::put('/Student/Schedules/{id}/attendance', [ScheduleRecord::class, 'updateScheduleAttendance'])
+        ->name('student.schedules.attendance');
+    Route::get('/Student/Schedules/{id}/qr-token', [ScheduleRecord::class, 'qrToken'])
+        ->name('student.schedules.qr_token');
+});

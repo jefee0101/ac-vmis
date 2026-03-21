@@ -1,0 +1,841 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Models\Student;
+use App\Models\Coach;
+use App\Models\AccountApproval;
+use App\Models\Announcement;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AccountApprovedMail;
+use App\Mail\AccountRejectedMail;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+
+class AdminController extends Controller
+{
+    public function dashboard(Request $request)
+    {
+        $period = (string) $request->query('period', 'week');
+        if (!in_array($period, ['today', 'week', 'month'], true)) {
+            $period = 'week';
+        }
+
+        $cacheKey = "admin_dashboard:{$period}";
+        $payload = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($period) {
+            [$start, $end] = $this->dashboardRange($period);
+
+            $attendanceSummary = $this->attendanceSummary($start, $end);
+            $attendanceTrend = $this->attendanceTrend($start, $end);
+            $healthDistribution = $this->healthDistribution();
+            $academicByTeam = $this->academicByTeam();
+            $heatmap = $this->attendanceHeatmap($start, $end);
+            $todaySchedules = $this->todaySchedules();
+            $needsAttentionQueue = $this->needsAttentionQueue();
+
+            return [
+                'dashboard' => [
+                    'filters' => [
+                        'period' => $period,
+                        'start_date' => $start->toDateString(),
+                        'end_date' => $end->toDateString(),
+                    ],
+                    'kpis' => [
+                        'attendance_rate' => $attendanceSummary['attendance_rate'],
+                        'no_response' => $attendanceSummary['no_response'],
+                        'expired_clearances' => $healthDistribution['expired'],
+                        'academic_at_risk' => $academicByTeam['totals']['probation'] + $academicByTeam['totals']['ineligible'],
+                        'pending_approvals' => User::query()
+                            ->where('status', 'pending')
+                            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+                            ->count(),
+                    ],
+                    'trends' => [
+                        'labels' => $attendanceTrend['labels'],
+                        'attendance' => $attendanceTrend['series'],
+                        'health_distribution' => $healthDistribution,
+                        'academic_by_team' => $academicByTeam['rows'],
+                        'heatmap' => $heatmap,
+                    ],
+                    'queues' => [
+                        'today_schedules' => $todaySchedules,
+                        'needs_attention' => $needsAttentionQueue,
+                    ],
+                    'activity_log' => $this->recentActivityLog(),
+                ],
+            ];
+        });
+
+        return Inertia::render('Admin/AdminDashboard', $payload);
+    }
+
+    public function approve(User $user)
+    {
+        if (in_array($user->role, ['student-athlete', 'student'], true)) {
+            $student = $user->student;
+            $clearance = $student?->latestHealthClearance;
+            $academicDocument = $student?->latestAcademicDocument;
+
+            if (!$clearance) {
+                return back()->withErrors([
+                    'approval' => 'Cannot approve this student-athlete without health clearance data.',
+                ]);
+            }
+            if (!$academicDocument) {
+                return back()->withErrors([
+                    'approval' => 'Cannot approve this student-athlete without academic document data.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($user, $clearance) {
+            if ($clearance) {
+                $clearance->update([
+                    'reviewed_by' => Auth::id(),
+                    'reviewed_at' => now(),
+                ]);
+            }
+
+            $user->update([
+                'status' => 'approved',
+            ]);
+
+            AccountApproval::create([
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'decision' => 'approved',
+            ]);
+
+            Announcement::create([
+                'user_id' => $user->id,
+                'title' => 'Account Approved',
+                'message' => 'Your account has been approved. You may now log in and access the system.',
+                'type' => \App\Models\Announcement::TYPE_APPROVAL,
+                'is_read' => false,
+                'published_at' => now(),
+                'created_by' => Auth::id(),
+            ]);
+        });
+
+        try {
+            Mail::to($user->email)->send(new AccountApprovedMail($user));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return back()->with('success', 'User approved.');
+    }
+
+    public function reject(Request $request, User $user)
+    {
+        $request->validate([
+            'remarks' => 'nullable|string|max:255',
+        ]);
+
+        DB::transaction(function () use ($user, $request) {
+            $user->update([
+                'status' => 'rejected',
+            ]);
+
+            AccountApproval::create([
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'decision' => 'rejected',
+                'remarks' => $request->remarks,
+            ]);
+
+            Announcement::create([
+                'user_id' => $user->id,
+                'title' => 'Account Rejected',
+                'message' => 'Your account registration was rejected.' . ($request->remarks ? " Remarks: {$request->remarks}" : ''),
+                'type' => \App\Models\Announcement::TYPE_APPROVAL,
+                'is_read' => false,
+                'published_at' => now(),
+                'created_by' => Auth::id(),
+            ]);
+        });
+
+        try {
+            Mail::to($user->email)->send(
+                new AccountRejectedMail($user, $request->remarks)
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return back()->with('success', 'User rejected.');
+    }
+
+    public function deactivate(User $user)
+    {
+        if ($user->role === 'admin') {
+            return back()->withErrors([
+                'user_action' => 'Admin accounts cannot be deactivated from this panel.',
+            ]);
+        }
+
+        if ($user->status !== 'approved') {
+            return back()->withErrors([
+                'user_action' => 'Only approved accounts can be deactivated.',
+            ]);
+        }
+
+        DB::transaction(function () use ($user) {
+            $user->update([
+                'status' => 'deactivated',
+            ]);
+
+            Announcement::create([
+                'user_id' => $user->id,
+                'title' => 'Account Deactivated',
+                'message' => 'Your account has been temporarily deactivated. Contact administration for reactivation.',
+                'type' => \App\Models\Announcement::TYPE_SYSTEM,
+                'is_read' => false,
+                'published_at' => now(),
+                'created_by' => Auth::id(),
+            ]);
+        });
+
+        return back()->with('success', 'User deactivated.');
+    }
+
+    public function reactivate(User $user)
+    {
+        if ($user->role === 'admin') {
+            return back()->withErrors([
+                'user_action' => 'Admin accounts cannot be reactivated from this panel.',
+            ]);
+        }
+
+        if ($user->status !== 'deactivated') {
+            return back()->withErrors([
+                'user_action' => 'Only deactivated accounts can be reactivated.',
+            ]);
+        }
+
+        DB::transaction(function () use ($user) {
+            $user->update([
+                'status' => 'approved',
+            ]);
+
+            Announcement::create([
+                'user_id' => $user->id,
+                'title' => 'Account Reactivated',
+                'message' => 'Your account has been reactivated. You may log in again.',
+                'type' => \App\Models\Announcement::TYPE_SYSTEM,
+                'is_read' => false,
+                'published_at' => now(),
+                'created_by' => Auth::id(),
+            ]);
+        });
+
+        return back()->with('success', 'User reactivated.');
+    }
+
+    public function approvalManagement(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+        $status = (string) $request->query('status', 'pending');
+        $readiness = (string) $request->query('readiness', 'all');
+        $sort = (string) $request->query('sort', 'newest');
+
+        $allowedStatuses = ['pending', 'rejected'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = 'pending';
+        }
+
+        $allowedReadiness = ['all', 'ready', 'incomplete'];
+        if (!in_array($readiness, $allowedReadiness, true)) {
+            $readiness = 'all';
+        }
+
+        $allowedSorts = ['newest', 'oldest', 'name_asc', 'name_desc'];
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'newest';
+        }
+
+        $baseQuery = User::query()
+            ->where('status', $status)
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+
+        if ($search !== '') {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $applyReadinessFilter = function ($query, string $state): void {
+            if ($state === 'ready') {
+                $query->where(function ($q) {
+                    $q->where('role', 'coach')
+                        ->orWhere(function ($sq) {
+                            $sq->whereIn('role', ['student-athlete', 'student'])
+                                ->whereHas('student.latestHealthClearance')
+                                ->whereHas('student.latestAcademicDocument');
+                        });
+                });
+            }
+
+            if ($state === 'incomplete') {
+                $query->whereIn('role', ['student-athlete', 'student'])
+                    ->where(function ($q) {
+                        $q->whereDoesntHave('student.latestHealthClearance')
+                            ->orWhereDoesntHave('student.latestAcademicDocument');
+                    });
+            }
+        };
+
+        if ($status === 'pending') {
+            $applyReadinessFilter($baseQuery, $readiness);
+        }
+
+        $queueQuery = (clone $baseQuery)
+            ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->with([
+                'student:id,user_id,student_id_number,first_name,last_name,course,current_grade_level',
+                'student.latestHealthClearance' => function ($query) {
+                    $query->select(
+                        'athlete_health_clearances.id',
+                        'athlete_health_clearances.student_id',
+                        'athlete_health_clearances.clearance_status',
+                        'athlete_health_clearances.valid_until',
+                        'athlete_health_clearances.physician_name'
+                    );
+                },
+                'student.latestAcademicDocument' => function ($query) {
+                    $query->select(
+                        'academic_documents.id',
+                        'academic_documents.student_id',
+                        'academic_documents.document_type',
+                        'academic_documents.uploaded_at'
+                    );
+                },
+                'coach:id,user_id,first_name,last_name,coach_status',
+            ]);
+
+        if ($sort === 'newest') {
+            $queueQuery->latest();
+        } elseif ($sort === 'oldest') {
+            $queueQuery->oldest();
+        } elseif ($sort === 'name_asc') {
+            $queueQuery->orderBy('name', 'asc');
+        } else {
+            $queueQuery->orderBy('name', 'desc');
+        }
+
+        $queue = $queueQuery
+            ->paginate(10)
+            ->withQueryString();
+
+        $pendingPool = User::query()
+            ->where('status', 'pending')
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+
+        $rejectedPool = User::query()
+            ->where('status', 'rejected')
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+
+        $readyPool = User::query()
+            ->where('status', 'pending')
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+        $applyReadinessFilter($readyPool, 'ready');
+
+        $incompletePool = User::query()
+            ->where('status', 'pending')
+            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+        $applyReadinessFilter($incompletePool, 'incomplete');
+
+        return inertia('Admin/PeopleQueue', [
+            'queue' => $queue,
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+                'readiness' => $readiness,
+                'sort' => $sort,
+            ],
+            'stats' => [
+                'pending_total' => (clone $pendingPool)->count(),
+                'ready_total' => (clone $readyPool)->count(),
+                'incomplete_total' => (clone $incompletePool)->count(),
+                'rejected_total' => (clone $rejectedPool)->count(),
+            ],
+            'pendingCount' => (clone $pendingPool)->count(),
+        ]);
+    }
+
+    public function userManagement(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+        $role = (string) $request->query('role', 'all');
+        $status = (string) $request->query('status', 'approved');
+        $sort = (string) $request->query('sort', 'created_at');
+        $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $allowedRoles = ['all', 'student-athlete', 'coach'];
+        if (!in_array($role, $allowedRoles, true)) {
+            $role = 'all';
+        }
+
+        $allowedStatuses = ['approved', 'deactivated'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = 'approved';
+        }
+
+        $allowedSorts = ['name', 'email', 'created_at'];
+        if (!in_array($sort, $allowedSorts, true)) {
+            $sort = 'created_at';
+        }
+
+        $baseQuery = User::query()
+            ->where('status', $status)
+            ->whereIn('role', ['student-athlete', 'coach']);
+
+        if ($role !== 'all') {
+            $baseQuery->where('role', $role);
+        }
+
+        if ($search !== '') {
+            $baseQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = (clone $baseQuery)
+            ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->with([
+                'student:id,user_id,student_id_number,course,education_level,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight',
+                'coach:id,user_id,first_name,middle_name,last_name,coach_status,phone_number,date_of_birth,gender',
+            ])
+            ->orderBy($sort, $direction)
+            ->paginate(10)
+            ->withQueryString();
+
+        $totalBase = User::query()
+            ->whereIn('status', ['approved', 'deactivated'])
+            ->whereIn('role', ['student-athlete', 'coach']);
+
+        $totals = [
+            'all' => (clone $totalBase)->where('status', 'approved')->count(),
+            'students' => (clone $totalBase)->where('status', 'approved')->where('role', 'student-athlete')->count(),
+            'coaches' => (clone $totalBase)->where('status', 'approved')->where('role', 'coach')->count(),
+            'deactivated' => (clone $totalBase)->where('status', 'deactivated')->count(),
+            'filtered' => (clone $baseQuery)->count(),
+        ];
+        $pendingCount = User::query()->where('status', 'pending')->count();
+
+        return Inertia::render('Admin/PeopleUsers', [
+            'users' => $users,
+            'filters' => [
+                'search' => $search,
+                'role' => $role,
+                'status' => $status,
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
+            'totals' => $totals,
+            'pendingCount' => $pendingCount,
+        ]);
+    }
+
+    private function dashboardRange(string $period): array
+    {
+        $now = now();
+        $start = $now->copy()->startOfDay();
+        $end = $now->copy()->endOfDay();
+
+        if ($period === 'week') {
+            $start = $now->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+            $end = $now->copy()->endOfWeek(Carbon::SUNDAY)->endOfDay();
+        }
+
+        if ($period === 'month') {
+            $start = $now->copy()->startOfMonth()->startOfDay();
+            $end = $now->copy()->endOfMonth()->endOfDay();
+        }
+
+        return [$start, $end];
+    }
+
+    private function attendanceSummary(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $row = DB::table('team_schedules as ts')
+            ->join('team_players as tp', 'tp.team_id', '=', 'ts.team_id')
+            ->leftJoin('schedule_attendances as sa', function ($join) {
+                $join->on('sa.schedule_id', '=', 'ts.id')
+                    ->on('sa.student_id', '=', 'tp.student_id');
+            })
+            ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->selectRaw('COUNT(*) as total_rows')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'present' THEN 1 ELSE 0 END) as present_count")
+            ->selectRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) as no_response_count')
+            ->first();
+
+        $total = (int) ($row->total_rows ?? 0);
+        $present = (int) ($row->present_count ?? 0);
+        $noResponse = (int) ($row->no_response_count ?? 0);
+
+        return [
+            'attendance_rate' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
+            'no_response' => $noResponse,
+        ];
+    }
+
+    private function attendanceTrend(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $rows = DB::table('team_schedules as ts')
+            ->join('team_players as tp', 'tp.team_id', '=', 'ts.team_id')
+            ->leftJoin('schedule_attendances as sa', function ($join) {
+                $join->on('sa.schedule_id', '=', 'ts.id')
+                    ->on('sa.student_id', '=', 'tp.student_id');
+            })
+            ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->selectRaw('DATE(ts.start_time) as schedule_date')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'present' THEN 1 ELSE 0 END) as present_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'late' THEN 1 ELSE 0 END) as late_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'absent' THEN 1 ELSE 0 END) as absent_count")
+            ->selectRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) as no_response_count')
+            ->groupByRaw('DATE(ts.start_time)')
+            ->orderByRaw('DATE(ts.start_time)')
+            ->get()
+            ->keyBy('schedule_date');
+
+        $labels = [];
+        $series = [
+            'present' => [],
+            'late' => [],
+            'absent' => [],
+            'no_response' => [],
+        ];
+
+        $cursor = $start->copy()->startOfDay();
+        while ($cursor->lte($end)) {
+            $key = $cursor->toDateString();
+            $labels[] = $cursor->format('M j');
+            $series['present'][] = (int) ($rows[$key]->present_count ?? 0);
+            $series['late'][] = (int) ($rows[$key]->late_count ?? 0);
+            $series['absent'][] = (int) ($rows[$key]->absent_count ?? 0);
+            $series['no_response'][] = (int) ($rows[$key]->no_response_count ?? 0);
+            $cursor = $cursor->addDay();
+        }
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+        ];
+    }
+
+    private function healthDistribution(): array
+    {
+        $today = now()->toDateString();
+
+        $rows = DB::table('athlete_health_clearances as ahc')
+            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
+            ->selectRaw(
+                "CASE 
+                    WHEN ahc.clearance_status = 'expired' THEN 'expired'
+                    WHEN ahc.valid_until IS NOT NULL AND ahc.valid_until < ? THEN 'expired'
+                    ELSE ahc.clearance_status
+                END as status_key",
+                [$today]
+            )
+            ->selectRaw('COUNT(*) as total_count')
+            ->groupBy('status_key')
+            ->get()
+            ->keyBy('status_key');
+
+        return [
+            'fit' => (int) ($rows['fit']->total_count ?? 0),
+            'fit_with_restrictions' => (int) ($rows['fit_with_restrictions']->total_count ?? 0),
+            'not_fit' => (int) ($rows['not_fit']->total_count ?? 0),
+            'expired' => (int) ($rows['expired']->total_count ?? 0),
+        ];
+    }
+
+    private function academicByTeam(): array
+    {
+        $periodId = DB::table('academic_periods')->orderByDesc('starts_on')->value('id');
+        if (!$periodId) {
+            return [
+                'rows' => [],
+                'totals' => ['eligible' => 0, 'probation' => 0, 'ineligible' => 0],
+            ];
+        }
+
+        $rows = DB::table('academic_eligibility_evaluations as e')
+            ->join('students as s', 's.id', '=', 'e.student_id')
+            ->leftJoin('teams as t', function ($join) {
+                $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = s.id ORDER BY tp.id ASC LIMIT 1)'));
+            })
+            ->where('e.academic_period_id', $periodId)
+            ->selectRaw("COALESCE(t.team_name, 'Unassigned') as team_name")
+            ->selectRaw("SUM(CASE WHEN e.status = 'eligible' THEN 1 ELSE 0 END) as eligible_count")
+            ->selectRaw("SUM(CASE WHEN e.status = 'probation' THEN 1 ELSE 0 END) as probation_count")
+            ->selectRaw("SUM(CASE WHEN e.status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
+            ->groupBy('team_name')
+            ->orderByRaw("
+                (
+                    SUM(CASE WHEN e.status = 'probation' THEN 1 ELSE 0 END) +
+                    SUM(CASE WHEN e.status = 'ineligible' THEN 1 ELSE 0 END)
+                ) DESC
+            ")
+            ->orderBy('team_name')
+            ->limit(8)
+            ->get();
+
+        return [
+            'rows' => $rows->map(fn ($row) => [
+                'team_name' => $row->team_name,
+                'eligible' => (int) $row->eligible_count,
+                'probation' => (int) $row->probation_count,
+                'ineligible' => (int) $row->ineligible_count,
+                'total' => (int) $row->eligible_count + (int) $row->probation_count + (int) $row->ineligible_count,
+            ])->values(),
+            'totals' => [
+                'eligible' => (int) $rows->sum('eligible_count'),
+                'probation' => (int) $rows->sum('probation_count'),
+                'ineligible' => (int) $rows->sum('ineligible_count'),
+            ],
+        ];
+    }
+
+    private function attendanceHeatmap(CarbonInterface $start, CarbonInterface $end): array
+    {
+        $rows = DB::table('team_schedules as ts')
+            ->join('team_players as tp', 'tp.team_id', '=', 'ts.team_id')
+            ->leftJoin('schedule_attendances as sa', function ($join) {
+                $join->on('sa.schedule_id', '=', 'ts.id')
+                    ->on('sa.student_id', '=', 'tp.student_id');
+            })
+            ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
+            ->selectRaw('DAYOFWEEK(ts.start_time) as day_index')
+            ->selectRaw('HOUR(ts.start_time) as hour_key')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'late' THEN 1 ELSE 0 END) as late_count")
+            ->selectRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) as no_response_count')
+            ->groupByRaw('DAYOFWEEK(ts.start_time), HOUR(ts.start_time)')
+            ->get();
+
+        $hours = range(6, 21);
+        $dayMap = [2 => 'Mon', 3 => 'Tue', 4 => 'Wed', 5 => 'Thu', 6 => 'Fri', 7 => 'Sat', 1 => 'Sun'];
+
+        $cells = collect($rows)->map(fn ($row) => [
+            'day' => $dayMap[(int) $row->day_index] ?? 'Mon',
+            'hour' => (int) $row->hour_key,
+            'late' => (int) $row->late_count,
+            'no_response' => (int) $row->no_response_count,
+            'value' => (int) $row->late_count + (int) $row->no_response_count,
+        ])->values();
+
+        return [
+            'days' => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            'hours' => $hours,
+            'cells' => $cells,
+        ];
+    }
+
+    private function todaySchedules(): array
+    {
+        return DB::table('team_schedules as ts')
+            ->join('teams as t', 't.id', '=', 'ts.team_id')
+            ->join('team_players as tp', 'tp.team_id', '=', 't.id')
+            ->leftJoin('schedule_attendances as sa', function ($join) {
+                $join->on('sa.schedule_id', '=', 'ts.id')
+                    ->on('sa.student_id', '=', 'tp.student_id');
+            })
+            ->whereDate('ts.start_time', now()->toDateString())
+            ->select([
+                'ts.id',
+                'ts.title',
+                't.team_name',
+                'ts.start_time',
+            ])
+            ->selectRaw('COUNT(tp.id) as roster_total')
+            ->selectRaw("SUM(CASE WHEN sa.status = 'late' THEN 1 ELSE 0 END) as late_count")
+            ->selectRaw("SUM(CASE WHEN sa.status = 'absent' THEN 1 ELSE 0 END) as absent_count")
+            ->selectRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) as no_response_count')
+            ->groupBy('ts.id', 'ts.title', 't.team_name', 'ts.start_time')
+            ->orderBy('ts.start_time')
+            ->limit(6)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'title' => $row->title,
+                'team_name' => $row->team_name,
+                'start_time' => Carbon::parse($row->start_time)->format('M j, g:i A'),
+                'roster_total' => (int) $row->roster_total,
+                'late' => (int) $row->late_count,
+                'absent' => (int) $row->absent_count,
+                'no_response' => (int) $row->no_response_count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function needsAttentionQueue(): array
+    {
+        $expired = DB::table('athlete_health_clearances as ahc')
+            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
+            ->join('students as s', 's.id', '=', 'ahc.student_id')
+            ->where(function ($query) {
+                $query->where('ahc.clearance_status', 'expired')
+                    ->orWhere(function ($sq) {
+                        $sq->whereNotNull('ahc.valid_until')
+                            ->whereDate('ahc.valid_until', '<', now()->toDateString());
+                    });
+            })
+            ->select([
+                's.id as student_id',
+                's.first_name',
+                's.last_name',
+            ])
+            ->limit(4)
+            ->get()
+            ->map(fn ($row) => [
+                'type' => 'health',
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                'subtitle' => 'Expired health clearance',
+                'action_label' => 'Review',
+                'action_url' => '/health?tab=clearance',
+                'priority' => 100,
+            ]);
+
+        $academic = DB::table('academic_eligibility_evaluations as e')
+            ->join('students as s', 's.id', '=', 'e.student_id')
+            ->whereIn('e.status', ['probation', 'ineligible'])
+            ->orderByRaw("CASE WHEN e.status = 'ineligible' THEN 0 ELSE 1 END")
+            ->orderByDesc('e.evaluated_at')
+            ->limit(4)
+            ->get([
+                's.first_name',
+                's.last_name',
+                'e.status',
+            ])
+            ->map(fn ($row) => [
+                'type' => 'academic',
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                'subtitle' => strtoupper((string) $row->status) . ' academic status',
+                'action_label' => 'Evaluate',
+                'action_url' => '/academics',
+                'priority' => $row->status === 'ineligible' ? 95 : 85,
+            ]);
+
+        $pendingApprovals = User::query()
+            ->where('status', 'pending')
+            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+            ->latest('created_at')
+            ->limit(4)
+            ->get(['name'])
+            ->map(fn ($row) => [
+                'type' => 'people',
+                'title' => $row->name,
+                'subtitle' => 'Pending account approval',
+                'action_label' => 'Open Queue',
+                'action_url' => '/people/queue',
+                'priority' => 75,
+            ]);
+
+        return $expired
+            ->concat($academic)
+            ->concat($pendingApprovals)
+            ->sortByDesc('priority')
+            ->take(10)
+            ->values()
+            ->all();
+    }
+
+    private function recentActivityLog(): array
+    {
+        $roleScope = ['student', 'student-athlete', 'coach'];
+
+        $attendance = DB::table('schedule_attendances as sa')
+            ->join('users as actor', 'actor.id', '=', 'sa.recorded_by')
+            ->leftJoin('students as st', 'st.id', '=', 'sa.student_id')
+            ->leftJoin('team_schedules as ts', 'ts.id', '=', 'sa.schedule_id')
+            ->whereIn('actor.role', $roleScope)
+            ->whereNotNull('sa.recorded_by')
+            ->select([
+                'sa.id as source_id',
+                'actor.id as actor_id',
+                'actor.name as actor_name',
+                'actor.role as actor_role',
+                DB::raw("'attendance' as action_type"),
+                DB::raw("CONCAT('Recorded ', COALESCE(sa.status, 'attendance'), ' for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, ''), CASE WHEN ts.title IS NOT NULL THEN CONCAT(' (', ts.title, ')') ELSE '' END) as description"),
+                DB::raw('COALESCE(sa.recorded_at, sa.updated_at, sa.created_at) as happened_at'),
+            ])
+            ->limit(80)
+            ->get();
+
+        $wellness = DB::table('wellness_logs as wl')
+            ->join('users as actor', 'actor.id', '=', 'wl.logged_by')
+            ->leftJoin('students as st', 'st.id', '=', 'wl.student_id')
+            ->whereIn('actor.role', $roleScope)
+            ->select([
+                'wl.id as source_id',
+                'actor.id as actor_id',
+                'actor.name as actor_name',
+                'actor.role as actor_role',
+                DB::raw("'wellness' as action_type"),
+                DB::raw("CONCAT('Logged wellness for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, ''), CASE WHEN wl.injury_observed = 1 THEN ' (injury observed)' ELSE '' END) as description"),
+                DB::raw('COALESCE(wl.updated_at, wl.created_at) as happened_at'),
+            ])
+            ->limit(80)
+            ->get();
+
+        $academics = DB::table('academic_documents as ad')
+            ->join('users as actor', 'actor.id', '=', 'ad.uploaded_by')
+            ->leftJoin('students as st', 'st.id', '=', 'ad.student_id')
+            ->whereIn('actor.role', $roleScope)
+            ->whereNotNull('ad.uploaded_by')
+            ->select([
+                'ad.id as source_id',
+                'actor.id as actor_id',
+                'actor.name as actor_name',
+                'actor.role as actor_role',
+                DB::raw("'academics' as action_type"),
+                DB::raw("CONCAT('Uploaded ', REPLACE(ad.document_type, '_', ' '), ' for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, '')) as description"),
+                DB::raw('COALESCE(ad.uploaded_at, ad.updated_at, ad.created_at) as happened_at'),
+            ])
+            ->limit(80)
+            ->get();
+
+        $combined = $attendance
+            ->concat($wellness)
+            ->concat($academics)
+            ->filter(fn ($row) => !empty($row->happened_at))
+            ->sortByDesc('happened_at')
+            ->take(60)
+            ->values();
+
+        $byRole = [
+            'students' => $combined->filter(fn ($row) => in_array((string) $row->actor_role, ['student', 'student-athlete'], true))->count(),
+            'coaches' => $combined->where('actor_role', 'coach')->count(),
+        ];
+
+        return [
+            'items' => $combined->map(function ($row) {
+                return [
+                    'id' => (string) $row->action_type . '-' . (string) $row->source_id,
+                    'actor_id' => (int) $row->actor_id,
+                    'actor_name' => (string) $row->actor_name,
+                    'actor_role' => (string) $row->actor_role,
+                    'action_type' => (string) $row->action_type,
+                    'description' => (string) $row->description,
+                    'happened_at' => Carbon::parse($row->happened_at)->toIso8601String(),
+                ];
+            })->all(),
+            'summary' => [
+                'total' => $combined->count(),
+                'students' => $byRole['students'],
+                'coaches' => $byRole['coaches'],
+            ],
+        ];
+    }
+}

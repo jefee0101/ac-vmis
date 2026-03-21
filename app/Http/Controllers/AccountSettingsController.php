@@ -1,0 +1,400 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AcademicDocument;
+use App\Models\AcademicEligibilityEvaluation;
+use App\Models\AcademicPeriod;
+use App\Models\Team;
+use App\Models\TeamPlayer;
+use App\Models\UserSetting;
+use App\Services\SecureUploadService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\Password;
+use Inertia\Inertia;
+
+class AccountSettingsController extends Controller
+{
+    private function normalizeThemePreference(?string $value): string
+    {
+        return in_array($value, ['light', 'dark', 'blue'], true) ? $value : 'light';
+    }
+
+    public function __construct(private SecureUploadService $secureUpload)
+    {
+    }
+
+    public function profile(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        return Inertia::render('Account/Profile', [
+            'profile' => [
+                'admin' => $user->role === 'admin' ? [
+                    'role' => 'Administrator',
+                    'status' => $user->status,
+                    'capabilities' => [
+                        'People approvals and account lifecycle',
+                        'Team creation and roster management',
+                        'Operations attendance overrides and exports',
+                        'Health clearance and wellness monitoring',
+                        'Academic period controls and evaluations',
+                    ],
+                ] : null,
+                'student' => $user->student ? [
+                    'student_id_number' => $user->student->student_id_number,
+                    'first_name' => $user->student->first_name,
+                    'middle_name' => $user->student->middle_name,
+                    'last_name' => $user->student->last_name,
+                    'date_of_birth' => $user->student->date_of_birth ? (string) $user->student->date_of_birth : null,
+                    'gender' => $user->student->gender,
+                    'phone_number' => $user->student->phone_number,
+                    'home_address' => $user->student->home_address,
+                    'course' => $user->student->course,
+                    'education_level' => $user->student->education_level,
+                    'current_grade_level' => $user->student->current_grade_level,
+                    'year_level' => $user->student->year_level,
+                    'student_status' => $user->student->student_status,
+                    'emergency_contact_name' => $user->student->emergency_contact_name,
+                    'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
+                    'emergency_contact_phone' => $user->student->emergency_contact_phone,
+                    'height' => $user->student->height,
+                    'weight' => $user->student->weight,
+                ] : null,
+                'coach' => $user->coach ? [
+                    'phone_number' => $user->coach->phone_number,
+                    'home_address' => $user->coach->home_address,
+                    'date_of_birth' => $user->coach->date_of_birth ? (string) $user->coach->date_of_birth : null,
+                    'gender' => $user->coach->gender,
+                ] : null,
+            ],
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'avatar' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'phone_number' => ['nullable', 'string', 'max:30'],
+            'home_address' => ['nullable', 'string', 'max:255'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
+            'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
+            'date_of_birth' => ['nullable', 'date'],
+            'gender' => ['nullable', 'string', 'max:30'],
+        ]);
+
+        $updates = [
+            'name' => $validated['name'],
+        ];
+
+        if ($request->hasFile('avatar')) {
+            $newPath = $this->secureUpload->storePublic($request->file('avatar'), 'avatars', 'avatar');
+
+            if ($user->avatar && !str_starts_with($user->avatar, 'http')) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+
+            $updates['avatar'] = $newPath;
+        }
+
+        $user->update($updates);
+
+        if (in_array($user->role, ['student', 'student-athlete'], true) && $user->student) {
+            $user->student->update([
+                'phone_number' => $validated['phone_number'] ?? null,
+                'home_address' => $validated['home_address'] ?? null,
+                'emergency_contact_name' => $validated['emergency_contact_name'] ?? null,
+                'emergency_contact_relationship' => $validated['emergency_contact_relationship'] ?? null,
+                'emergency_contact_phone' => $validated['emergency_contact_phone'] ?? null,
+            ]);
+        }
+
+        if ($user->role === 'coach' && $user->coach) {
+            $user->coach->update([
+                'phone_number' => $validated['phone_number'] ?? null,
+                'home_address' => $validated['home_address'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+            ]);
+        }
+
+        return back();
+    }
+
+    public function settings(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        $settings = UserSetting::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'notification_email_enabled' => true,
+                'notification_in_app_enabled' => true,
+                'notify_approvals' => true,
+                'notify_schedule_changes' => true,
+                'notify_attendance_changes' => true,
+                'notify_wellness_alerts' => true,
+                'notify_academic_alerts' => true,
+                'notify_attendance_exceptions' => true,
+                'notify_wellness_injury_threshold' => true,
+                'wellness_injury_threshold_level' => 3,
+                'theme_preference' => 'light',
+                'timezone' => 'Asia/Manila',
+                'language' => 'en',
+            ]
+        );
+
+        return Inertia::render('Account/Settings', [
+            'settings' => [
+                'notification_email_enabled' => (bool) $settings->notification_email_enabled,
+                'notification_in_app_enabled' => (bool) $settings->notification_in_app_enabled,
+                'notify_approvals' => (bool) $settings->notify_approvals,
+                'notify_schedule_changes' => (bool) $settings->notify_schedule_changes,
+                'notify_attendance_changes' => (bool) $settings->notify_attendance_changes,
+                'notify_wellness_alerts' => (bool) $settings->notify_wellness_alerts,
+                'notify_academic_alerts' => (bool) $settings->notify_academic_alerts,
+                'notify_attendance_exceptions' => (bool) $settings->notify_attendance_exceptions,
+                'notify_wellness_injury_threshold' => (bool) $settings->notify_wellness_injury_threshold,
+                'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
+                'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
+                'timezone' => $settings->timezone,
+                'language' => $settings->language,
+            ],
+            'scope' => $this->settingsScopeForRole((string) $user->role),
+            'compliance' => $this->buildCompliance($user),
+        ]);
+    }
+
+    public function updateSettings(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'notification_email_enabled' => ['nullable', 'boolean'],
+            'notification_in_app_enabled' => ['nullable', 'boolean'],
+            'notify_approvals' => ['nullable', 'boolean'],
+            'notify_schedule_changes' => ['nullable', 'boolean'],
+            'notify_attendance_changes' => ['nullable', 'boolean'],
+            'notify_wellness_alerts' => ['nullable', 'boolean'],
+            'notify_academic_alerts' => ['nullable', 'boolean'],
+            'notify_attendance_exceptions' => ['nullable', 'boolean'],
+            'notify_wellness_injury_threshold' => ['nullable', 'boolean'],
+            'wellness_injury_threshold_level' => ['required', 'integer', 'between:1,5'],
+            'theme_preference' => ['required', 'in:light,dark,blue'],
+            'timezone' => ['required', 'string', 'max:60'],
+            'language' => ['required', 'string', 'max:12'],
+        ]);
+
+        UserSetting::updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'notification_email_enabled' => (bool) ($validated['notification_email_enabled'] ?? false),
+                'notification_in_app_enabled' => (bool) ($validated['notification_in_app_enabled'] ?? false),
+                'notify_approvals' => (bool) ($validated['notify_approvals'] ?? false),
+                'notify_schedule_changes' => (bool) ($validated['notify_schedule_changes'] ?? false),
+                'notify_attendance_changes' => (bool) ($validated['notify_attendance_changes'] ?? false),
+                'notify_wellness_alerts' => (bool) ($validated['notify_wellness_alerts'] ?? false),
+                'notify_academic_alerts' => (bool) ($validated['notify_academic_alerts'] ?? false),
+                'notify_attendance_exceptions' => (bool) ($validated['notify_attendance_exceptions'] ?? false),
+                'notify_wellness_injury_threshold' => (bool) ($validated['notify_wellness_injury_threshold'] ?? false),
+                'wellness_injury_threshold_level' => (int) $validated['wellness_injury_threshold_level'],
+                'theme_preference' => $validated['theme_preference'],
+                'timezone' => $validated['timezone'],
+                'language' => $validated['language'],
+            ]
+        );
+
+        return back();
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+        ]);
+
+        $request->user()->update([
+            'password' => Hash::make($validated['new_password']),
+        ]);
+
+        return back();
+    }
+
+    private function buildCompliance($user): array
+    {
+        if ($user->role === 'admin') {
+            $pendingApprovals = \App\Models\User::query()
+                ->where('status', 'pending')
+                ->whereIn('role', ['student-athlete', 'student', 'coach'])
+                ->count();
+
+            $today = now()->toDateString();
+            $expiredClearances = DB::table('athlete_health_clearances')
+                ->where(function ($query) use ($today) {
+                    $query->where('clearance_status', 'expired')
+                        ->orWhere(function ($sq) use ($today) {
+                            $sq->whereNotNull('valid_until')
+                                ->whereDate('valid_until', '<', $today);
+                        });
+                })
+                ->count();
+
+            $latestPeriodId = AcademicPeriod::query()->orderByDesc('starts_on')->value('id');
+            $atRiskAcademic = $latestPeriodId
+                ? AcademicEligibilityEvaluation::query()
+                    ->where('academic_period_id', $latestPeriodId)
+                    ->whereIn('status', ['probation', 'ineligible'])
+                    ->count()
+                : 0;
+
+            return [
+                'admin' => [
+                    'pending_approvals' => (int) $pendingApprovals,
+                    'expired_clearances' => (int) $expiredClearances,
+                    'academic_at_risk' => (int) $atRiskAcademic,
+                ],
+                'student' => null,
+                'coach' => null,
+            ];
+        }
+
+        if (in_array($user->role, ['student', 'student-athlete'], true) && $user->student) {
+            $studentId = $user->student->id;
+            $latestClearance = $user->student->healthClearances()->latest('clearance_date')->first();
+            $latestEval = AcademicEligibilityEvaluation::query()
+                ->with('academicPeriod')
+                ->where('student_id', $studentId)
+                ->latest('evaluated_at')
+                ->first();
+
+            $latestPeriod = AcademicPeriod::query()->orderByDesc('starts_on')->first();
+            $missingLatestSubmission = $latestPeriod
+                ? !AcademicDocument::query()
+                    ->where('student_id', $studentId)
+                    ->where('academic_period_id', $latestPeriod->id)
+                    ->exists()
+                : false;
+
+            return [
+                'admin' => null,
+                'student' => [
+                    'health_clearance_status' => $latestClearance?->clearance_status,
+                    'health_clearance_expires_on' => optional($latestClearance?->valid_until)->toDateString(),
+                    'academic_status' => $latestEval?->status,
+                    'academic_period' => $latestEval?->academicPeriod
+                        ? ($latestEval->academicPeriod->school_year . ' ' . $latestEval->academicPeriod->term)
+                        : null,
+                    'missing_latest_submission' => (bool) $missingLatestSubmission,
+                ],
+                'coach' => null,
+            ];
+        }
+
+        if ($user->role === 'coach' && $user->coach) {
+            $teamIds = Team::query()
+                ->where('coach_id', $user->coach->id)
+                ->orWhere('assistant_coach_id', $user->coach->id)
+                ->pluck('id');
+
+            $studentIds = TeamPlayer::query()
+                ->whereIn('team_id', $teamIds)
+                ->pluck('student_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            $latestPeriod = AcademicPeriod::query()->orderByDesc('starts_on')->first();
+
+            $latestEvaluations = AcademicEligibilityEvaluation::query()
+                ->whereIn('student_id', $studentIds)
+                ->when($latestPeriod, fn ($q) => $q->where('academic_period_id', $latestPeriod->id))
+                ->get()
+                ->keyBy('student_id');
+
+            $submittedInLatest = $latestPeriod
+                ? AcademicDocument::query()
+                    ->whereIn('student_id', $studentIds)
+                    ->where('academic_period_id', $latestPeriod->id)
+                    ->pluck('student_id')
+                    ->unique()
+                : collect();
+
+            $missingCount = $latestPeriod ? $studentIds->diff($submittedInLatest)->count() : 0;
+            $eligibleCount = $latestEvaluations->where('status', 'eligible')->count();
+            $probationCount = $latestEvaluations->where('status', 'probation')->count();
+            $ineligibleCount = $latestEvaluations->where('status', 'ineligible')->count();
+
+            return [
+                'admin' => null,
+                'student' => null,
+                'coach' => [
+                    'tracked_students' => $studentIds->count(),
+                    'latest_period' => $latestPeriod ? ($latestPeriod->school_year . ' ' . $latestPeriod->term) : null,
+                    'missing_submissions_count' => (int) $missingCount,
+                    'eligible_count' => (int) $eligibleCount,
+                    'probation_count' => (int) $probationCount,
+                    'ineligible_count' => (int) $ineligibleCount,
+                ],
+            ];
+        }
+
+        return [
+            'admin' => null,
+            'student' => null,
+            'coach' => null,
+        ];
+    }
+
+    private function settingsScopeForRole(string $role): array
+    {
+        if ($role === 'admin') {
+            return [
+                'notifications' => [
+                    'notify_approvals',
+                    'notify_attendance_exceptions',
+                    'notify_wellness_alerts',
+                    'notify_academic_alerts',
+                    'notification_email_enabled',
+                    'notification_in_app_enabled',
+                ],
+                'coach_preferences' => false,
+            ];
+        }
+
+        if ($role === 'coach') {
+            return [
+                'notifications' => [
+                    'notify_schedule_changes',
+                    'notify_attendance_changes',
+                    'notify_wellness_alerts',
+                    'notify_academic_alerts',
+                    'notify_attendance_exceptions',
+                    'notify_wellness_injury_threshold',
+                    'notification_email_enabled',
+                    'notification_in_app_enabled',
+                ],
+                'coach_preferences' => true,
+            ];
+        }
+
+        return [
+            'notifications' => [
+                'notify_schedule_changes',
+                'notify_attendance_changes',
+                'notify_wellness_alerts',
+                'notify_academic_alerts',
+                'notification_email_enabled',
+                'notification_in_app_enabled',
+            ],
+            'coach_preferences' => false,
+        ];
+    }
+}

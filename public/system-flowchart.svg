@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+    </marker>
+    <style>
+      .node { fill: #ffffff; stroke: #333333; stroke-width: 2; }
+      .text { font-family: Arial, sans-serif; font-size: 16px; fill: #111111; text-anchor: middle; dominant-baseline: middle; }
+      .label { font-family: Arial, sans-serif; font-size: 14px; fill: #111111; }
+      .arrow { stroke: #333333; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <!-- Start / Welcome / Decision -->
+  <ellipse class="node" cx="900" cy="60" rx="70" ry="28" />
+  <text class="text" x="900" y="60">Start</text>
+
+  <rect class="node" x="790" y="120" width="220" height="50" rx="6" />
+  <text class="text" x="900" y="145">Welcome Page</text>
+
+  <polygon class="node" points="900,200 1000,250 900,300 800,250" />
+  <text class="text" x="900" y="250">Login or Register?</text>
+
+  <!-- Login Path -->
+  <polygon class="node" points="400,310 660,310 620,370 360,370" />
+  <text class="text" x="510" y="340">Login Credentials</text>
+
+  <polygon class="node" points="510,400 610,450 510,500 410,450" />
+  <text class="text" x="510" y="450">Credentials Valid?</text>
+
+  <polygon class="node" points="510,520 610,570 510,620 410,570" />
+  <text class="text" x="510" y="570">User Role?</text>
+
+  <rect class="node" x="230" y="670" width="180" height="50" rx="6" />
+  <text class="text" x="320" y="695">Admin Dashboard</text>
+
+  <rect class="node" x="420" y="670" width="180" height="50" rx="6" />
+  <text class="text" x="510" y="695">Coach Dashboard</text>
+
+  <rect class="node" x="610" y="670" width="220" height="50" rx="6" />
+  <text class="text" x="720" y="695">Student-Athlete Dashboard</text>
+
+  <polygon class="node" points="420,800 640,800 600,860 380,860" />
+  <text class="text" x="510" y="830">Logout</text>
+
+  <ellipse class="node" cx="510" cy="960" rx="70" ry="28" />
+  <text class="text" x="510" y="960">End</text>
+
+  <!-- Register Path -->
+  <rect class="node" x="1190" y="315" width="220" height="50" rx="6" />
+  <text class="text" x="1300" y="340">Register Page</text>
+
+  <polygon class="node" points="1300,400 1400,450 1300,500 1200,450" />
+  <text class="text" x="1300" y="450">Select Role?</text>
+
+  <polygon class="node" points="1040,540 1280,540 1240,600 1000,600" />
+  <text class="text" x="1140" y="570">Student-Athlete Details</text>
+
+  <polygon class="node" points="1320,540 1560,540 1520,600 1280,600" />
+  <text class="text" x="1420" y="570">Coach Details</text>
+
+  <rect class="node" x="1190" y="640" width="220" height="50" rx="6" />
+  <text class="text" x="1300" y="665">Submit Registration</text>
+
+  <polygon class="node" points="1180,730 1420,730 1380,790 1140,790" />
+  <text class="text" x="1300" y="760">Pending Approval Page</text>
+
+  <polygon class="node" points="1300,820 1400,870 1300,920 1200,870" />
+  <text class="text" x="1300" y="870">Admin Approval?</text>
+
+  <polygon class="node" points="1440,940 1680,940 1640,1000 1400,1000" />
+  <text class="text" x="1540" y="970">Rejected Page</text>
+
+  <!-- Arrows -->
+  <line class="arrow" x1="900" y1="88" x2="900" y2="120" />
+  <line class="arrow" x1="900" y1="170" x2="900" y2="200" />
+
+  <!-- Decision to Login/Register -->
+  <line class="arrow" x1="820" y1="250" x2="640" y2="310" />
+  <line class="arrow" x1="980" y1="250" x2="1190" y2="340" />
+
+  <!-- Login Flow -->
+  <line class="arrow" x1="510" y1="370" x2="510" y2="400" />
+  <line class="arrow" x1="510" y1="500" x2="510" y2="520" />
+
+  <line class="arrow" x1="510" y1="620" x2="320" y2="670" />
+  <line class="arrow" x1="510" y1="620" x2="510" y2="670" />
+  <line class="arrow" x1="510" y1="620" x2="720" y2="670" />
+
+  <line class="arrow" x1="320" y1="720" x2="510" y2="800" />
+  <line class="arrow" x1="510" y1="720" x2="510" y2="800" />
+  <line class="arrow" x1="720" y1="720" x2="510" y2="800" />
+
+  <line class="arrow" x1="510" y1="860" x2="510" y2="932" />
+
+  <!-- Invalid credentials loop -->
+  <path class="arrow" d="M610 450 C700 450 700 340 660 340" />
+  <text class="label" x="690" y="390">No</text>
+
+  <text class="label" x="535" y="515">Yes</text>
+
+  <!-- Register Flow -->
+  <line class="arrow" x1="1300" y1="365" x2="1300" y2="400" />
+  <line class="arrow" x1="1300" y1="500" x2="1140" y2="540" />
+  <line class="arrow" x1="1300" y1="500" x2="1420" y2="540" />
+
+  <line class="arrow" x1="1140" y1="600" x2="1300" y2="640" />
+  <line class="arrow" x1="1420" y1="600" x2="1300" y2="640" />
+
+  <line class="arrow" x1="1300" y1="690" x2="1300" y2="730" />
+  <line class="arrow" x1="1300" y1="790" x2="1300" y2="820" />
+
+  <!-- Approval decision -->
+  <line class="arrow" x1="1400" y1="870" x2="1440" y2="940" />
+  <text class="label" x="1425" y="900">Rejected</text>
+
+  <path class="arrow" d="M1200 870 C1000 870 900 500 660 340" />
+  <text class="label" x="1020" y="820">Approved</text>
+
+  <!-- Rejected back to Register -->
+  <path class="arrow" d="M1540 1000 C1540 1080 1300 1080 1300 365" />
+</svg>
