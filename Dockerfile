@@ -1,20 +1,22 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS node-builder
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY resources ./resources
-COPY public ./public
-COPY vite.config.ts tsconfig.json ./
-RUN npm run build
-
 FROM composer:2 AS composer-builder
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
 COPY . .
 RUN composer dump-autoload --optimize
+
+FROM node:20-bookworm-slim AS node-builder
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends php8.2-cli \
+    && rm -rf /var/lib/apt/lists/*
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+COPY --from=composer-builder /app/vendor /app/vendor
+RUN npm run build
 
 FROM php:8.2-apache
 
