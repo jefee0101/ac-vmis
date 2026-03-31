@@ -298,9 +298,10 @@ class AttendanceInsightController extends Controller
                         'sport_name' => $team->sport?->name ?? 'Unknown',
                     ])->values(),
                 'coaches' => Coach::query()
-                    ->orderBy('last_name')
-                    ->orderBy('first_name')
-                    ->get(['id', 'first_name', 'last_name'])
+                    ->join('users', 'users.id', '=', 'coaches.user_id')
+                    ->orderBy('users.last_name')
+                    ->orderBy('users.first_name')
+                    ->get(['coaches.id', 'users.first_name', 'users.last_name'])
                     ->map(fn ($coach) => [
                         'coach_id' => $coach->id,
                         'name' => trim(($coach->first_name ?? '') . ' ' . ($coach->last_name ?? '')),

@@ -7,10 +7,7 @@ import Spinner from '@/components/ui/spinner/Spinner.vue';
 import PublicLayout from '@/components/Public/PublicLayout.vue';
 
 type Step = 1 | 2 | 3;
-type EducationLevel = 'Senior High' | 'College';
 type AcademicDocumentType = 'tor' | 'grade_report' | 'other';
-type ClearanceStatus = 'fit' | 'fit_with_restrictions' | 'not_fit' | 'expired';
-
 const draftKey = 'ac-vmis-student-registration-draft-v2';
 const acceptedDocsText = 'Accepted file types: PDF, JPG, JPEG, PNG (max 5MB each)';
 
@@ -44,7 +41,6 @@ const form = reactive({
     gender: '' as '' | 'Male' | 'Female' | 'Other',
     phone_number: '',
     home_address: '',
-    education_level: 'Senior High' as EducationLevel,
     current_grade_level: '11',
     course_or_strand: '',
     student_status: 'Enrolled',
@@ -64,7 +60,6 @@ const form = reactive({
     conditions: '',
     allergies: '',
     restrictions: '',
-    clearance_status: 'fit' as ClearanceStatus,
     medical_certificate: null as File | null,
 
     academic_document_type: 'tor' as AcademicDocumentType,
@@ -74,12 +69,27 @@ const form = reactive({
 
 const fieldErrors = reactive<Record<string, string>>({});
 
-const yearLevelOptions = computed(() => {
-    if (form.education_level === 'Senior High') {
-        return ['11', '12'];
-    }
+const yearLevelOptions = computed(() => ['11', '12', '1', '2', '3', '4']);
 
-    return ['1', '2', '3', '4'];
+const derivedEducationLevel = computed(() => {
+    const raw = String(form.current_grade_level || '').trim();
+    if (!raw) return null;
+    const numeric = Number(raw);
+    if ([11, 12].includes(numeric)) return 'Senior High';
+    if ([1, 2, 3, 4].includes(numeric)) return 'College';
+    return null;
+});
+
+const courseLabel = computed(() => {
+    if (derivedEducationLevel.value === 'Senior High') return 'Strand';
+    if (derivedEducationLevel.value === 'College') return 'Course';
+    return 'Course / Strand';
+});
+
+const coursePlaceholder = computed(() => {
+    if (derivedEducationLevel.value === 'Senior High') return 'e.g. STEM, HUMSS, ABM';
+    if (derivedEducationLevel.value === 'College') return 'e.g. BSIT, BSA';
+    return 'e.g. STEM, HUMSS, BSIT';
 });
 
 const fullNamePreview = computed(() => {
@@ -247,7 +257,7 @@ function validateField(field: string): boolean {
         return true;
     }
 
-    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'current_grade_level', 'course_or_strand'].includes(field)) {
+    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand'].includes(field)) {
         if (!String(value || '').trim()) {
             setFieldError(field, 'This field is required.');
             return false;
@@ -328,13 +338,8 @@ function validateField(field: string): boolean {
 }
 
 watch(
-    () => form.education_level,
+    () => form.current_grade_level,
     () => {
-        const options = yearLevelOptions.value;
-        if (!options.includes(form.current_grade_level)) {
-            form.current_grade_level = options[0] ?? '';
-        }
-        validateField('education_level');
         validateField('current_grade_level');
     },
 );
@@ -405,7 +410,7 @@ watch(
 function validateStep(currentStep: Step): boolean {
     const checks: Record<Step, string[]> = {
         1: ['email', 'password', 'password_confirmation', 'student_id_number'],
-        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'current_grade_level', 'course_or_strand', 'height', 'weight_kg'],
+        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand', 'height', 'weight_kg'],
         3: ['clearance_date', 'physician_name', 'medical_certificate', 'academic_document_file'],
     };
 
@@ -617,6 +622,9 @@ function restoreDraft() {
 
     try {
         const parsed = JSON.parse(raw) as Partial<typeof form>;
+        if (parsed && typeof parsed === 'object' && 'education_level' in parsed) {
+            delete (parsed as Record<string, unknown>).education_level;
+        }
         Object.assign(form, parsed);
         openModal('Draft Restored', 'Your previous registration draft has been loaded.');
     } catch {
@@ -658,7 +666,6 @@ function submit() {
     formData.append('gender', form.gender);
     formData.append('phone_number', form.phone_number);
     formData.append('home_address', form.home_address);
-    formData.append('education_level', form.education_level);
     formData.append('current_grade_level', form.current_grade_level);
     formData.append('course_or_strand', form.course_or_strand);
     formData.append('student_status', 'Enrolled');
@@ -676,7 +683,6 @@ function submit() {
     formData.append('conditions', form.conditions);
     formData.append('allergies', form.allergies);
     formData.append('restrictions', form.restrictions);
-    formData.append('clearance_status', form.clearance_status);
     if (form.medical_certificate) {
         formData.append('medical_certificate', form.medical_certificate);
     }
@@ -944,12 +950,13 @@ onBeforeUnmount(() => {
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="label">Education Level</label>
-                            <select v-model="form.education_level" :class="['field', { 'is-error': fieldErrors.education_level }]" @blur="validateField('education_level')">
-                                <option value="Senior High">Senior High</option>
-                                <option value="College">College</option>
-                            </select>
-                            <p v-if="fieldErrors.education_level" class="field-error">{{ fieldErrors.education_level }}</p>
+                            <label class="label">Education Level (Auto)</label>
+                            <input
+                                :value="derivedEducationLevel || ''"
+                                class="field"
+                                placeholder="Select grade level first"
+                                disabled
+                            />
                         </div>
                         <div>
                             <label class="label">Current Grade Level</label>
@@ -962,12 +969,12 @@ onBeforeUnmount(() => {
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="label">Course / Strand</label>
+                            <label class="label">{{ courseLabel }}</label>
                             <input
                                 v-model="form.course_or_strand"
                                 type="text"
                                 :class="['field', { 'is-error': fieldErrors.course_or_strand }]"
-                                placeholder="e.g. STEM, HUMSS, BSIT"
+                                :placeholder="coursePlaceholder"
                                 @blur="validateField('course_or_strand')"
                             />
                             <p v-if="fieldErrors.course_or_strand" class="field-error">{{ fieldErrors.course_or_strand }}</p>
@@ -1043,15 +1050,6 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="label">Clearance Status</label>
-                            <select v-model="form.clearance_status" class="field">
-                                <option value="fit">Fit</option>
-                                <option value="fit_with_restrictions">Fit with Restrictions</option>
-                                <option value="not_fit">Not Fit</option>
-                                <option value="expired">Expired</option>
-                            </select>
-                        </div>
                         <div>
                             <label class="label">Medical Certificate</label>
                             <input

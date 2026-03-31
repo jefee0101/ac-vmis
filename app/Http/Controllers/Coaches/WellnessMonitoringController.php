@@ -163,7 +163,6 @@ class WellnessMonitoringController extends Controller
                 'student_id' => (int) $validated['student_id'],
             ],
             [
-                'team_id' => $schedule->team_id,
                 'logged_by' => Auth::id(),
                 'log_date' => Carbon::now()->toDateString(),
                 'injury_observed' => (bool) $validated['injury_observed'],

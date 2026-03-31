@@ -12,14 +12,20 @@ class Coach extends Model
 
     protected $fillable = [
         'user_id',
-        'first_name',
-        'middle_name',
-        'last_name',
         'phone_number',
         'date_of_birth',
         'gender',
         'home_address',
         'coach_status',
+    ];
+
+    protected $with = ['user'];
+
+    protected $appends = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'full_name',
     ];
 
     /**
@@ -28,6 +34,26 @@ class Coach extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function getFirstNameAttribute(): ?string
+    {
+        return $this->user?->first_name;
+    }
+
+    public function getMiddleNameAttribute(): ?string
+    {
+        return $this->user?->middle_name;
+    }
+
+    public function getLastNameAttribute(): ?string
+    {
+        return $this->user?->last_name;
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return $this->user?->full_name ?? '';
     }
 
     /**

@@ -11,7 +11,6 @@ class WellnessLog extends Model
 
     protected $fillable = [
         'student_id',
-        'team_id',
         'schedule_id',
         'logged_by',
         'log_date',
@@ -32,11 +31,6 @@ class WellnessLog extends Model
         return $this->belongsTo(Student::class, 'student_id');
     }
 
-    public function team()
-    {
-        return $this->belongsTo(Team::class, 'team_id');
-    }
-
     public function schedule()
     {
         return $this->belongsTo(TeamSchedule::class, 'schedule_id');
@@ -52,4 +46,3 @@ class WellnessLog extends Model
         return $this->hasMany(WellnessAttachment::class, 'wellness_log_id');
     }
 }
-

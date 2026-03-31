@@ -234,8 +234,8 @@ class CreateTeamController extends Controller
         $baseQuery = Team::query()
             ->with([
                 'sport:id,name',
-                'coach:id,first_name,last_name',
-                'assistantCoach:id,first_name,last_name',
+                'coach.user',
+                'assistantCoach.user',
             ])
             ->withCount('players');
 
@@ -250,10 +250,10 @@ class CreateTeamController extends Controller
                 $q->where('team_name', 'like', "%{$search}%")
                     ->orWhere('year', 'like', "%{$search}%")
                     ->orWhereHas('sport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('coach', fn ($coachQuery) => $coachQuery
+                    ->orWhereHas('coach.user', fn ($coachQuery) => $coachQuery
                         ->where('first_name', 'like', "%{$search}%")
                         ->orWhere('last_name', 'like', "%{$search}%"))
-                    ->orWhereHas('assistantCoach', fn ($assistantQuery) => $assistantQuery
+                    ->orWhereHas('assistantCoach.user', fn ($assistantQuery) => $assistantQuery
                         ->where('first_name', 'like', "%{$search}%")
                         ->orWhere('last_name', 'like', "%{$search}%"));
             });
@@ -326,7 +326,7 @@ class CreateTeamController extends Controller
             'Athlete Removal Request',
         ];
         $teamChangeRequests = Announcement::query()
-            ->with('creator:id,name')
+            ->with('creator:id,first_name,middle_name,last_name')
             ->where('user_id', auth()->id())
             ->whereIn('title', $requestTitles)
             ->orderByDesc('published_at')
@@ -337,7 +337,7 @@ class CreateTeamController extends Controller
                     'id' => $announcement->id,
                     'title' => $announcement->title,
                     'message' => $announcement->message,
-                    'is_read' => (bool) $announcement->is_read,
+                    'is_read' => !empty($announcement->read_at),
                     'published_at' => $announcement->published_at?->toDateTimeString(),
                     'requested_by' => $announcement->creator?->name,
                 ];
@@ -381,7 +381,7 @@ class CreateTeamController extends Controller
 
     public function roster(Team $team): JsonResponse
     {
-        $team->load(['players.student:id,first_name,last_name,student_id_number']);
+        $team->load(['players.student:id,user_id,student_id_number']);
         return response()->json([
             'team_id' => $team->id,
             'players' => $team->players
@@ -401,9 +401,9 @@ class CreateTeamController extends Controller
     {
         $team->load([
             'sport:id,name',
-            'coach:id,first_name,last_name',
-            'assistantCoach:id,first_name,last_name',
-            'players.student:id,first_name,last_name,student_id_number',
+            'coach.user',
+            'assistantCoach.user',
+            'players.student:id,user_id,student_id_number',
         ]);
 
         $players = $team->players
@@ -469,9 +469,10 @@ class CreateTeamController extends Controller
     private function buildFormPayload(?Team $team = null): array
     {
         $coaches = Coach::query()
-            ->select('id', 'first_name', 'last_name', 'coach_status')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->join('users', 'users.id', '=', 'coaches.user_id')
+            ->select('coaches.id', 'coaches.coach_status', 'users.first_name', 'users.middle_name', 'users.last_name')
+            ->orderBy('users.first_name')
+            ->orderBy('users.last_name')
             ->get()
             ->map(fn ($c) => [
                 'id' => $c->id,
@@ -480,9 +481,10 @@ class CreateTeamController extends Controller
             ])->values();
 
         $players = Student::query()
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'student_id_number', 'education_level', 'current_grade_level')
-            ->orderBy('first_name')
-            ->orderBy('last_name')
+            ->join('users', 'users.id', '=', 'students.user_id')
+            ->select('students.id', 'students.student_id_number', 'students.current_grade_level', 'users.first_name', 'users.middle_name', 'users.last_name')
+            ->orderBy('users.first_name')
+            ->orderBy('users.last_name')
             ->get()
             ->map(fn ($p) => [
                 'id' => $p->id,
@@ -700,7 +702,6 @@ class CreateTeamController extends Controller
             'title' => $title,
             'message' => $message,
             'type' => 'system',
-            'is_read' => false,
             'published_at' => now(),
             'created_by' => auth()->id(),
         ]);
@@ -783,8 +784,9 @@ class CreateTeamController extends Controller
 
         if (!empty($conflictingStudentIds)) {
             $names = Student::query()
-                ->whereIn('id', $conflictingStudentIds)
-                ->get(['first_name', 'last_name'])
+                ->join('users', 'users.id', '=', 'students.user_id')
+                ->whereIn('students.id', $conflictingStudentIds)
+                ->get(['users.first_name', 'users.last_name'])
                 ->map(fn ($student) => trim($student->first_name . ' ' . $student->last_name))
                 ->values()
                 ->all();
@@ -895,8 +897,9 @@ class CreateTeamController extends Controller
         }
 
         $coachNames = Coach::query()
-            ->whereIn('id', array_keys($byCoach))
-            ->get(['id', 'first_name', 'last_name'])
+            ->join('users', 'users.id', '=', 'coaches.user_id')
+            ->whereIn('coaches.id', array_keys($byCoach))
+            ->get(['coaches.id', 'users.first_name', 'users.last_name'])
             ->mapWithKeys(fn ($coach) => [$coach->id => trim($coach->first_name . ' ' . $coach->last_name)]);
 
         $conflicts = [];
@@ -953,8 +956,9 @@ class CreateTeamController extends Controller
         $sportIds = $duplicates->pluck('sport_id')->unique()->all();
 
         $studentNames = Student::query()
-            ->whereIn('id', $studentIds)
-            ->get(['id', 'first_name', 'last_name'])
+            ->join('users', 'users.id', '=', 'students.user_id')
+            ->whereIn('students.id', $studentIds)
+            ->get(['students.id', 'users.first_name', 'users.last_name'])
             ->mapWithKeys(fn ($student) => [$student->id => trim($student->first_name . ' ' . $student->last_name)]);
 
         $sportNames = Sport::query()

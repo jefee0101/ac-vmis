@@ -50,28 +50,23 @@ class HealthWorkspaceController extends Controller
 
         $today = now()->toDateString();
         $expiringLimit = now()->copy()->addDays(30)->toDateString();
+        $statusCaseSql = AthleteHealthClearance::statusCaseSql();
 
-        $applyFilters = function ($query) use ($search, $status, $validity, $reviewed, $today, $expiringLimit) {
+        $applyFilters = function ($query) use ($search, $status, $validity, $reviewed, $today, $expiringLimit, $statusCaseSql) {
             if ($search !== '') {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('student', function ($sq) use ($search) {
-                        $sq->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('student_id_number', 'like', "%{$search}%");
+                        $sq->where('student_id_number', 'like', "%{$search}%")
+                            ->orWhereHas('user', function ($uq) use ($search) {
+                                $uq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
                     })->orWhere('physician_name', 'like', "%{$search}%");
                 });
             }
 
-            if ($status === 'expired') {
-                $query->where(function ($q) use ($today) {
-                    $q->where('clearance_status', 'expired')
-                        ->orWhere(function ($sq) use ($today) {
-                            $sq->whereNotNull('valid_until')
-                                ->whereDate('valid_until', '<', $today);
-                        });
-                });
-            } elseif ($status !== 'all') {
-                $query->where('clearance_status', $status);
+            if ($status !== 'all') {
+                $query->whereRaw("{$statusCaseSql} = ?", [$today, $status]);
             }
 
             if ($validity === 'expired') {
@@ -103,7 +98,7 @@ class HealthWorkspaceController extends Controller
 
         $stats = (clone $base)
             ->selectRaw('COUNT(*) as total_records')
-            ->selectRaw("SUM(CASE WHEN (clearance_status = 'expired' OR (valid_until IS NOT NULL AND valid_until < ?)) THEN 1 ELSE 0 END) as expired_count", [$today])
+            ->selectRaw("SUM(CASE WHEN {$statusCaseSql} = 'expired' THEN 1 ELSE 0 END) as expired_count", [$today])
             ->selectRaw("SUM(CASE WHEN (valid_until IS NOT NULL AND valid_until >= ? AND valid_until <= ?) THEN 1 ELSE 0 END) as expiring_30_count", [$today, $expiringLimit])
             ->selectRaw('SUM(CASE WHEN reviewed_at IS NOT NULL THEN 1 ELSE 0 END) as reviewed_count')
             ->first();
@@ -115,10 +110,8 @@ class HealthWorkspaceController extends Controller
             ->withQueryString();
 
         $rows = collect($paginator->items())
-            ->map(function ($record) use ($today) {
+            ->map(function ($record) {
                 $student = $record->student;
-                $isExpiredByDate = $record->valid_until && $record->valid_until->toDateString() < $today;
-                $effectiveStatus = $isExpiredByDate ? 'expired' : $record->clearance_status;
 
                 return [
                     'id' => $record->id,
@@ -127,7 +120,7 @@ class HealthWorkspaceController extends Controller
                     'clearance_date' => optional($record->clearance_date)->toDateString(),
                     'valid_until' => optional($record->valid_until)->toDateString(),
                     'physician_name' => $record->physician_name,
-                    'clearance_status' => $effectiveStatus,
+                    'clearance_status' => $record->clearance_status,
                     'certificate_url' => $record->id ? route('files.clearance', $record->id) : null,
                     'reviewed_at' => optional($record->reviewed_at)->toDateTimeString(),
                     'reviewed_by' => $record->reviewer?->name,
@@ -177,10 +170,12 @@ class HealthWorkspaceController extends Controller
             if ($search !== '') {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('student', function ($sq) use ($search) {
-                        $sq->where('first_name', 'like', "%{$search}%")
-                            ->orWhere('last_name', 'like', "%{$search}%")
-                            ->orWhere('student_id_number', 'like', "%{$search}%");
-                    })->orWhereHas('team', function ($tq) use ($search) {
+                        $sq->where('student_id_number', 'like', "%{$search}%")
+                            ->orWhereHas('user', function ($uq) use ($search) {
+                                $uq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
+                    })->orWhereHas('schedule.team', function ($tq) use ($search) {
                         $tq->where('team_name', 'like', "%{$search}%");
                     })->orWhereHas('schedule', function ($schq) use ($search) {
                         $schq->where('title', 'like', "%{$search}%");
@@ -197,7 +192,9 @@ class HealthWorkspaceController extends Controller
             }
 
             if ($teamId) {
-                $query->where('team_id', $teamId);
+                $query->whereHas('schedule', function ($sq) use ($teamId) {
+                    $sq->where('team_id', $teamId);
+                });
             }
 
             if (!empty($startDate)) {
@@ -232,7 +229,7 @@ class HealthWorkspaceController extends Controller
         $fatigueSeverity = $this->fatigueSeverity($avgFatigue);
 
         $paginator = WellnessLog::query()
-            ->with(['student', 'team', 'schedule', 'logger'])
+            ->with(['student', 'schedule.team', 'logger'])
             ->tap($applyFilters)
             ->latest('log_date')
             ->paginate($perPage)
@@ -241,13 +238,14 @@ class HealthWorkspaceController extends Controller
         $logs = collect($paginator->items())
             ->map(function ($log) {
                 $student = $log->student;
+                $team = $log->schedule?->team;
                 return [
                     'id' => $log->id,
                     'log_date' => optional($log->log_date)->toDateString(),
                     'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                     'student_id_number' => $student->student_id_number ?? null,
-                    'team_name' => $log->team?->team_name,
-                    'team_id' => $log->team?->id,
+                    'team_name' => $team?->team_name,
+                    'team_id' => $team?->id,
                     'schedule_title' => $log->schedule?->title,
                     'schedule_type' => $log->schedule?->type,
                     'injury_observed' => (bool) $log->injury_observed,

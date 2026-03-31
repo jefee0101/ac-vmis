@@ -14,7 +14,7 @@ type Period = {
     term: string
     starts_on: string
     ends_on: string
-    status: 'draft' | 'open' | 'closed' | 'locked'
+    status: 'draft' | 'open' | 'closed'
     announcement: string | null
 }
 
@@ -27,7 +27,7 @@ type EvaluationsRow = {
     document_id: number | null
     document_type: string | null
     gpa: number | null
-    status: 'eligible' | 'probation' | 'ineligible'
+    status: string | null
     remarks: string | null
     evaluated_at: string | null
     evaluator_name: string | null
@@ -54,8 +54,6 @@ const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
 const activeTab = ref<'periods' | 'evaluations' | 'policies'>('periods')
 const isLoading = ref(false)
 const showFilters = ref(false)
-const lockPeriodDialogOpen = ref(false)
-const pendingLockValue = ref<boolean | null>(null)
 const deletePeriodDialogOpen = ref(false)
 const auditDialogOpen = ref(false)
 const auditNote = ref('')
@@ -65,7 +63,6 @@ const noticeDialog = ref<{ open: boolean; title: string; description: string }>(
     title: '',
     description: '',
 })
-const periodStatus = ref<'draft' | 'open' | 'closed' | 'locked'>('draft')
 const schoolYear = ref('')
 const term = ref<'1st_sem' | '2nd_sem' | 'summer'>('1st_sem')
 const startsOn = ref('')
@@ -133,17 +130,32 @@ function formatDateTime(dt: string | null) {
 function periodStatusLabel(status: string | null) {
     const normalized = String(status ?? '').toLowerCase()
     if (normalized === 'open') return 'Open'
-    if (normalized === 'locked') return 'Locked'
     if (normalized === 'draft') return 'Draft'
+    if (normalized === 'closed') return 'Closed'
     return 'Closed'
 }
 
 function periodStatusTone(status: string | null) {
     const normalized = String(status ?? '').toLowerCase()
     if (normalized === 'open') return 'bg-emerald-100 text-emerald-700'
-    if (normalized === 'locked') return 'bg-slate-800 text-white'
     if (normalized === 'draft') return 'bg-slate-100 text-slate-600'
     return 'bg-rose-100 text-rose-700'
+}
+
+function evaluationLabel(status: string | null) {
+    const normalized = String(status ?? '').toLowerCase()
+    if (normalized === 'eligible') return 'Eligible'
+    if (normalized === 'probation') return 'Probation'
+    if (normalized === 'ineligible') return 'Ineligible'
+    return 'Pending'
+}
+
+function evaluationTone(status: string | null) {
+    const normalized = String(status ?? '').toLowerCase()
+    if (normalized === 'eligible') return 'bg-emerald-100 text-emerald-700'
+    if (normalized === 'probation') return 'bg-amber-100 text-amber-700'
+    if (normalized === 'ineligible') return 'bg-rose-100 text-rose-700'
+    return 'bg-slate-100 text-slate-600'
 }
 
 function buildQuery(page = 1) {
@@ -210,31 +222,8 @@ function createPeriod() {
     })
 }
 
-function savePeriodStatus() {
-    if (!selectedPeriod.value) return
-    if (periodStatus.value === 'locked' && selectedPeriod.value.status !== 'locked') {
-        pendingLockValue.value = true
-        lockPeriodDialogOpen.value = true
-        return
-    }
-
-    router.put(`/academics/periods/${selectedPeriod.value.id}/status`, {
-        status: periodStatus.value,
-        announcement: selectedPeriod.value.announcement ?? '',
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            router.get('/academics', { period_id: selectedPeriodId.value }, {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            })
-        },
-    })
-}
-
 function openDeletePeriod() {
-    if (!selectedPeriod.value || selectedPeriod.value.status === 'locked') return
+    if (!selectedPeriod.value) return
     deletePeriodDialogOpen.value = true
 }
 
@@ -257,7 +246,7 @@ function confirmDeletePeriod() {
             noticeDialog.value = {
                 open: true,
                 title: 'Delete blocked',
-                description: 'This period cannot be deleted once it has submissions or is locked.',
+                description: 'This period cannot be deleted once it has submissions.',
             }
         },
     })
@@ -294,7 +283,6 @@ async function confirmEvaluationUpdate() {
         body: JSON.stringify({
             document_id: row.document_id,
             gpa: row.gpa,
-            status: row.status,
             remarks: row.remarks,
             audit_note: auditNote.value.trim() || null,
         }),
@@ -312,26 +300,6 @@ async function confirmEvaluationUpdate() {
     auditDialogOpen.value = false
     pendingEvaluation.value = null
     fetchEvaluations(evaluationsState.value.meta.current_page)
-}
-
-function confirmLockPeriod() {
-    if (pendingLockValue.value !== true) return
-    lockPeriodDialogOpen.value = false
-    if (!selectedPeriod.value) return
-    router.put(`/academics/periods/${selectedPeriod.value.id}/status`, {
-        status: 'locked',
-        announcement: selectedPeriod.value.announcement ?? '',
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            router.get('/academics', { period_id: selectedPeriodId.value }, {
-                preserveScroll: true,
-                preserveState: true,
-                replace: true,
-            })
-        },
-    })
-    pendingLockValue.value = null
 }
 
 function printSummary() {
@@ -405,9 +373,6 @@ function changePeriod() {
     })
 }
 
-watch(selectedPeriod, (period) => {
-    periodStatus.value = (period?.status ?? 'draft') as 'draft' | 'open' | 'closed' | 'locked'
-}, { immediate: true })
 </script>
 
 <template>
@@ -535,7 +500,7 @@ watch(selectedPeriod, (period) => {
                     <div class="flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-800">Active Period</h2>
                         <button
-                            v-if="selectedPeriod && selectedPeriod.status !== 'locked'"
+                            v-if="selectedPeriod"
                             type="button"
                             class="rounded-full border border-rose-200 bg-rose-500 px-2 py-0.5 text-xs font-semibold text-white transition hover:bg-rose-600"
                             title="Delete period"
@@ -554,22 +519,7 @@ watch(selectedPeriod, (period) => {
                             <span class="ml-auto text-xs text-slate-500">Deadline: {{ deadlineCountdown(selectedPeriod.ends_on) }}</span>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <div class="flex items-center gap-2">
-                                <label class="text-xs font-semibold text-slate-600">Status</label>
-                                <select v-model="periodStatus" class="rounded-md border border-slate-300 px-2 py-1 text-xs">
-                                    <option value="draft">Draft</option>
-                                    <option value="open">Open</option>
-                                    <option value="closed">Closed</option>
-                                    <option value="locked">Locked</option>
-                                </select>
-                            </div>
-                            <button
-                                type="button"
-                                class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#334155]"
-                                @click="savePeriodStatus"
-                            >
-                                Save Status
-                            </button>
+                            <span class="text-xs text-slate-500">Status is auto-calculated from the date window.</span>
                             <button
                                 type="button"
                                 class="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
@@ -623,11 +573,9 @@ watch(selectedPeriod, (period) => {
                                     <div class="text-xs text-slate-500">{{ row.student_id_number || '-' }}</div>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <select v-model="row.status" class="rounded-md border border-slate-300 px-2 py-1.5">
-                                        <option value="eligible">Eligible</option>
-                                        <option value="probation">Probation</option>
-                                        <option value="ineligible">Ineligible</option>
-                                    </select>
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="evaluationTone(row.status)">
+                                        {{ evaluationLabel(row.status) }}
+                                    </span>
                                 </td>
                                 <td class="px-4 py-3">
                                     <input v-model.number="row.gpa" type="number" step="0.01" min="0" max="5" class="w-24 rounded-md border border-slate-300 px-2 py-1.5" />
@@ -656,7 +604,7 @@ watch(selectedPeriod, (period) => {
                 <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                         <p class="text-xs font-semibold uppercase text-slate-500">Status Flow</p>
-                        <p class="mt-1">Draft → Open → Closed → Locked. Use status to control the submission window.</p>
+                        <p class="mt-1">Draft → Open → Closed. Status is auto-calculated from the date window.</p>
                     </div>
                     <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                         <p class="text-xs font-semibold uppercase text-slate-500">Submissions Page</p>
@@ -703,16 +651,6 @@ watch(selectedPeriod, (period) => {
         </section>
 
         <ConfirmDialog
-            :open="lockPeriodDialogOpen"
-            title="Lock Academic Period"
-            description="Lock this period? This prevents further submission and evaluation edits."
-            confirm-text="Lock Period"
-            confirm-variant="destructive"
-            @update:open="(value) => { lockPeriodDialogOpen = value; if (!value) pendingLockValue = null }"
-            @confirm="confirmLockPeriod"
-        />
-
-        <ConfirmDialog
             :open="auditDialogOpen"
             title="Update Evaluation"
             description="Add an optional audit note for this admin update."
@@ -742,7 +680,7 @@ watch(selectedPeriod, (period) => {
         <ConfirmDialog
             :open="deletePeriodDialogOpen"
             title="Delete Academic Period"
-            description="Delete this period? This is only allowed if there are no submissions and the period is unlocked."
+            description="Delete this period? This is only allowed if there are no submissions."
             confirm-text="Delete Period"
             confirm-variant="destructive"
             @update:open="deletePeriodDialogOpen = $event"

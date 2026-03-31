@@ -13,7 +13,7 @@ type Period = {
     term: string
     starts_on: string
     ends_on: string
-    status: 'draft' | 'open' | 'closed' | 'locked'
+    status: 'draft' | 'open' | 'closed'
     announcement: string | null
 }
 
@@ -29,7 +29,7 @@ type LegacyRow = {
     evaluation: {
         id: number
         gpa: number | null
-        status: 'eligible' | 'probation' | 'ineligible'
+        status: string | null
         remarks: string | null
         evaluated_at: string | null
     } | null
@@ -48,7 +48,7 @@ type SubmissionsRow = {
     evaluation: {
         id: number
         gpa: number | null
-        status: 'eligible' | 'probation' | 'ineligible'
+        status: string | null
         remarks: string | null
         evaluated_at: string | null
         evaluator_name: string | null
@@ -77,12 +77,11 @@ const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
 const isLoading = ref(false)
 const perPage = ref(15)
 
-const evalForms = ref<Record<number, { gpa: string; status: 'eligible' | 'probation' | 'ineligible'; remarks: string }>>(
+const evalForms = ref<Record<number, { gpa: string; remarks: string }>>(
     Object.fromEntries((props.rows || []).map((row) => [
         row.document_id,
         {
             gpa: row.evaluation?.gpa != null ? String(row.evaluation.gpa) : '',
-            status: row.evaluation?.status ?? 'eligible',
             remarks: row.evaluation?.remarks ?? '',
         },
     ])),
@@ -198,11 +197,10 @@ async function fetchSubmissions(page = 1) {
 
     const payload = await response.json() as PaginatedPayload<SubmissionsRow>
 
-    const nextForms: Record<number, { gpa: string; status: 'eligible' | 'probation' | 'ineligible'; remarks: string }> = {}
+    const nextForms: Record<number, { gpa: string; remarks: string }> = {}
     payload.data.forEach((row) => {
         nextForms[row.document_id] = {
             gpa: row.evaluation?.gpa != null ? String(row.evaluation.gpa) : '',
-            status: row.evaluation?.status ?? 'eligible',
             remarks: row.evaluation?.remarks ?? '',
         }
     })
@@ -228,7 +226,6 @@ function saveEvaluation(row: SubmissionsRow) {
         student_id: row.student_id,
         document_id: row.document_id,
         gpa: form.gpa ? Number(form.gpa) : null,
-        status: form.status,
         remarks: form.remarks,
     }, {
         preserveScroll: true,
@@ -257,7 +254,7 @@ onMounted(() => {
                     </button>
                     <div>
                         <h1 class="text-2xl font-bold text-slate-900">Academic Submissions</h1>
-                        <p class="text-sm text-slate-600">Confirm documents, update eligibility, and save status.</p>
+                        <p class="text-sm text-slate-600">Confirm documents, update GPA notes, and save evaluations.</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2 text-xs font-semibold text-slate-600">
@@ -332,11 +329,6 @@ onMounted(() => {
                             </td>
                             <td class="px-4 py-3">
                                 <div v-if="evalForms[row.document_id]" class="space-y-2">
-                                    <select v-model="evalForms[row.document_id].status" class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs">
-                                        <option value="eligible">Eligible</option>
-                                        <option value="probation">Probation</option>
-                                        <option value="ineligible">Ineligible</option>
-                                    </select>
                                     <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(row.evaluation?.status)">
                                         Current: {{ row.evaluation?.status || 'pending' }}
                                     </span>

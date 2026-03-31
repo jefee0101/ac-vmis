@@ -256,7 +256,7 @@ class StudentAthleteController extends Controller
         }
 
         $openPeriodIds = AcademicPeriod::query()
-            ->where('status', 'open')
+            ->open()
             ->pluck('id');
         $openPeriodCount = $openPeriodIds->count();
         $submittedCount = 0;

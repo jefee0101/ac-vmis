@@ -118,7 +118,6 @@ class AdminController extends Controller
                 'title' => 'Account Approved',
                 'message' => 'Your account has been approved. You may now log in and access the system.',
                 'type' => \App\Models\Announcement::TYPE_APPROVAL,
-                'is_read' => false,
                 'published_at' => now(),
                 'created_by' => Auth::id(),
             ]);
@@ -156,7 +155,6 @@ class AdminController extends Controller
                 'title' => 'Account Rejected',
                 'message' => 'Your account registration was rejected.' . ($request->remarks ? " Remarks: {$request->remarks}" : ''),
                 'type' => \App\Models\Announcement::TYPE_APPROVAL,
-                'is_read' => false,
                 'published_at' => now(),
                 'created_by' => Auth::id(),
             ]);
@@ -197,7 +195,6 @@ class AdminController extends Controller
                 'title' => 'Account Deactivated',
                 'message' => 'Your account has been temporarily deactivated. Contact administration for reactivation.',
                 'type' => \App\Models\Announcement::TYPE_SYSTEM,
-                'is_read' => false,
                 'published_at' => now(),
                 'created_by' => Auth::id(),
             ]);
@@ -230,7 +227,6 @@ class AdminController extends Controller
                 'title' => 'Account Reactivated',
                 'message' => 'Your account has been reactivated. You may log in again.',
                 'type' => \App\Models\Announcement::TYPE_SYSTEM,
-                'is_read' => false,
                 'published_at' => now(),
                 'created_by' => Auth::id(),
             ]);
@@ -267,7 +263,8 @@ class AdminController extends Controller
 
         if ($search !== '') {
             $baseQuery->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
@@ -298,16 +295,18 @@ class AdminController extends Controller
         }
 
         $queueQuery = (clone $baseQuery)
-            ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'status', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,first_name,last_name,course_or_strand,current_grade_level',
+                'student:id,user_id,student_id_number,course_or_strand,current_grade_level',
                 'student.latestHealthClearance' => function ($query) {
                     $query->select(
                         'athlete_health_clearances.id',
                         'athlete_health_clearances.student_id',
-                        'athlete_health_clearances.clearance_status',
                         'athlete_health_clearances.valid_until',
-                        'athlete_health_clearances.physician_name'
+                        'athlete_health_clearances.physician_name',
+                        'athlete_health_clearances.conditions',
+                        'athlete_health_clearances.allergies',
+                        'athlete_health_clearances.restrictions'
                     );
                 },
                 'student.latestAcademicDocument' => function ($query) {
@@ -318,7 +317,7 @@ class AdminController extends Controller
                         'academic_documents.uploaded_at'
                     );
                 },
-                'coach:id,user_id,first_name,last_name,coach_status',
+                'coach:id,user_id,coach_status',
             ]);
 
         if ($sort === 'newest') {
@@ -326,9 +325,9 @@ class AdminController extends Controller
         } elseif ($sort === 'oldest') {
             $queueQuery->oldest();
         } elseif ($sort === 'name_asc') {
-            $queueQuery->orderBy('name', 'asc');
+            $queueQuery->orderBy('last_name', 'asc')->orderBy('first_name', 'asc');
         } else {
-            $queueQuery->orderBy('name', 'desc');
+            $queueQuery->orderBy('last_name', 'desc')->orderBy('first_name', 'desc');
         }
 
         $queue = $queueQuery
@@ -404,18 +403,23 @@ class AdminController extends Controller
 
         if ($search !== '') {
             $baseQuery->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%{$search}%")
+                $query->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
         $users = (clone $baseQuery)
-            ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'status', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course_or_strand,education_level,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
-                'coach:id,user_id,first_name,middle_name,last_name,coach_status,phone_number,date_of_birth,gender',
+                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
+                'coach:id,user_id,coach_status,phone_number,date_of_birth,gender',
             ])
-            ->orderBy($sort, $direction)
+            ->when($sort === 'name', function ($query) use ($direction) {
+                $query->orderBy('last_name', $direction)->orderBy('first_name', $direction);
+            }, function ($query) use ($sort, $direction) {
+                $query->orderBy($sort, $direction);
+            })
             ->paginate(10)
             ->withQueryString();
 
@@ -536,15 +540,12 @@ class AdminController extends Controller
     private function healthDistribution(): array
     {
         $today = now()->toDateString();
+        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
 
         $rows = DB::table('athlete_health_clearances as ahc')
             ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
             ->selectRaw(
-                "CASE 
-                    WHEN ahc.clearance_status = 'expired' THEN 'expired'
-                    WHEN ahc.valid_until IS NOT NULL AND ahc.valid_until < ? THEN 'expired'
-                    ELSE ahc.clearance_status
-                END as status_key",
+                "{$statusCaseSql} as status_key",
                 [$today]
             )
             ->selectRaw('COUNT(*) as total_count')
@@ -570,6 +571,9 @@ class AdminController extends Controller
             ];
         }
 
+        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
+        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
+
         $rows = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->leftJoin('teams as t', function ($join) {
@@ -577,16 +581,12 @@ class AdminController extends Controller
             })
             ->where('e.academic_period_id', $periodId)
             ->selectRaw("COALESCE(t.team_name, 'Unassigned') as team_name")
-            ->selectRaw("SUM(CASE WHEN e.status = 'eligible' THEN 1 ELSE 0 END) as eligible_count")
-            ->selectRaw("SUM(CASE WHEN e.status = 'probation' THEN 1 ELSE 0 END) as probation_count")
-            ->selectRaw("SUM(CASE WHEN e.status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
+            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa <= ? THEN 1 ELSE 0 END) as eligible_count", [$eligibleMax])
+            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? AND e.gpa <= ? THEN 1 ELSE 0 END) as probation_count", [$eligibleMax, $probationMax])
+            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? THEN 1 ELSE 0 END) as ineligible_count", [$probationMax])
+            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? THEN 1 ELSE 0 END) as risk_count", [$eligibleMax])
             ->groupBy('team_name')
-            ->orderByRaw("
-                (
-                    SUM(CASE WHEN e.status = 'probation' THEN 1 ELSE 0 END) +
-                    SUM(CASE WHEN e.status = 'ineligible' THEN 1 ELSE 0 END)
-                ) DESC
-            ")
+            ->orderByDesc('risk_count')
             ->orderBy('team_name')
             ->limit(8)
             ->get();
@@ -681,20 +681,20 @@ class AdminController extends Controller
 
     private function needsAttentionQueue(): array
     {
+        $today = now()->toDateString();
+        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
+        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
+        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
+
         $expired = DB::table('athlete_health_clearances as ahc')
             ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
             ->join('students as s', 's.id', '=', 'ahc.student_id')
-            ->where(function ($query) {
-                $query->where('ahc.clearance_status', 'expired')
-                    ->orWhere(function ($sq) {
-                        $sq->whereNotNull('ahc.valid_until')
-                            ->whereDate('ahc.valid_until', '<', now()->toDateString());
-                    });
-            })
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->whereRaw("{$statusCaseSql} = 'expired'", [$today])
             ->select([
                 's.id as student_id',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
             ])
             ->limit(4)
             ->get()
@@ -709,22 +709,26 @@ class AdminController extends Controller
 
         $academic = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
-            ->whereIn('e.status', ['probation', 'ineligible'])
-            ->orderByRaw("CASE WHEN e.status = 'ineligible' THEN 0 ELSE 1 END")
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->whereNotNull('e.gpa')
+            ->where('e.gpa', '>', $eligibleMax)
+            ->orderByRaw("CASE WHEN e.gpa > {$probationMax} THEN 0 ELSE 1 END")
             ->orderByDesc('e.evaluated_at')
             ->limit(4)
             ->get([
-                's.first_name',
-                's.last_name',
-                'e.status',
+                'su.first_name',
+                'su.last_name',
+                'e.gpa',
             ])
             ->map(fn ($row) => [
                 'type' => 'academic',
                 'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
-                'subtitle' => strtoupper((string) $row->status) . ' academic status',
+                'subtitle' => strtoupper(\App\Models\AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ) ?? 'pending') . ' academic status',
                 'action_label' => 'Evaluate',
                 'action_url' => '/academics',
-                'priority' => $row->status === 'ineligible' ? 95 : 85,
+                'priority' => ($row->gpa !== null && (float) $row->gpa > $probationMax) ? 95 : 85,
             ]);
 
         $pendingApprovals = User::query()
@@ -732,10 +736,10 @@ class AdminController extends Controller
             ->whereIn('role', ['student-athlete', 'student', 'coach'])
             ->latest('created_at')
             ->limit(4)
-            ->get(['name'])
+            ->get(['first_name', 'last_name'])
             ->map(fn ($row) => [
                 'type' => 'people',
-                'title' => $row->name,
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
                 'subtitle' => 'Pending account approval',
                 'action_label' => 'Open Queue',
                 'action_url' => '/people/queue',
@@ -758,16 +762,17 @@ class AdminController extends Controller
         $attendance = DB::table('schedule_attendances as sa')
             ->join('users as actor', 'actor.id', '=', 'sa.recorded_by')
             ->leftJoin('students as st', 'st.id', '=', 'sa.student_id')
+            ->leftJoin('users as su', 'su.id', '=', 'st.user_id')
             ->leftJoin('team_schedules as ts', 'ts.id', '=', 'sa.schedule_id')
             ->whereIn('actor.role', $roleScope)
             ->whereNotNull('sa.recorded_by')
             ->select([
                 'sa.id as source_id',
                 'actor.id as actor_id',
-                'actor.name as actor_name',
+                DB::raw("TRIM(CONCAT(COALESCE(actor.first_name, ''), ' ', COALESCE(actor.last_name, ''))) as actor_name"),
                 'actor.role as actor_role',
                 DB::raw("'attendance' as action_type"),
-                DB::raw("CONCAT('Recorded ', COALESCE(sa.status, 'attendance'), ' for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, ''), CASE WHEN ts.title IS NOT NULL THEN CONCAT(' (', ts.title, ')') ELSE '' END) as description"),
+                DB::raw("CONCAT('Recorded ', COALESCE(sa.status, 'attendance'), ' for ', COALESCE(su.first_name, ''), ' ', COALESCE(su.last_name, ''), CASE WHEN ts.title IS NOT NULL THEN CONCAT(' (', ts.title, ')') ELSE '' END) as description"),
                 DB::raw('COALESCE(sa.recorded_at, sa.updated_at, sa.created_at) as happened_at'),
             ])
             ->limit(80)
@@ -776,14 +781,15 @@ class AdminController extends Controller
         $wellness = DB::table('wellness_logs as wl')
             ->join('users as actor', 'actor.id', '=', 'wl.logged_by')
             ->leftJoin('students as st', 'st.id', '=', 'wl.student_id')
+            ->leftJoin('users as su', 'su.id', '=', 'st.user_id')
             ->whereIn('actor.role', $roleScope)
             ->select([
                 'wl.id as source_id',
                 'actor.id as actor_id',
-                'actor.name as actor_name',
+                DB::raw("TRIM(CONCAT(COALESCE(actor.first_name, ''), ' ', COALESCE(actor.last_name, ''))) as actor_name"),
                 'actor.role as actor_role',
                 DB::raw("'wellness' as action_type"),
-                DB::raw("CONCAT('Logged wellness for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, ''), CASE WHEN wl.injury_observed = 1 THEN ' (injury observed)' ELSE '' END) as description"),
+                DB::raw("CONCAT('Logged wellness for ', COALESCE(su.first_name, ''), ' ', COALESCE(su.last_name, ''), CASE WHEN wl.injury_observed = 1 THEN ' (injury observed)' ELSE '' END) as description"),
                 DB::raw('COALESCE(wl.updated_at, wl.created_at) as happened_at'),
             ])
             ->limit(80)
@@ -792,15 +798,16 @@ class AdminController extends Controller
         $academics = DB::table('academic_documents as ad')
             ->join('users as actor', 'actor.id', '=', 'ad.uploaded_by')
             ->leftJoin('students as st', 'st.id', '=', 'ad.student_id')
+            ->leftJoin('users as su', 'su.id', '=', 'st.user_id')
             ->whereIn('actor.role', $roleScope)
             ->whereNotNull('ad.uploaded_by')
             ->select([
                 'ad.id as source_id',
                 'actor.id as actor_id',
-                'actor.name as actor_name',
+                DB::raw("TRIM(CONCAT(COALESCE(actor.first_name, ''), ' ', COALESCE(actor.last_name, ''))) as actor_name"),
                 'actor.role as actor_role',
                 DB::raw("'academics' as action_type"),
-                DB::raw("CONCAT('Uploaded ', REPLACE(ad.document_type, '_', ' '), ' for ', COALESCE(st.first_name, ''), ' ', COALESCE(st.last_name, '')) as description"),
+                DB::raw("CONCAT('Uploaded ', REPLACE(ad.document_type, '_', ' '), ' for ', COALESCE(su.first_name, ''), ' ', COALESCE(su.last_name, '')) as description"),
                 DB::raw('COALESCE(ad.uploaded_at, ad.updated_at, ad.created_at) as happened_at'),
             ])
             ->limit(80)

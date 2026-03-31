@@ -66,6 +66,7 @@ class OperationsWorkspaceController extends Controller
 
         $roster = DB::table('team_players as tp')
             ->join('students as st', 'st.id', '=', 'tp.student_id')
+            ->join('users as su', 'su.id', '=', 'st.user_id')
             ->leftJoin('schedule_attendances as sa', function ($join) use ($scheduleId) {
                 $join->on('sa.student_id', '=', 'st.id')
                     ->where('sa.schedule_id', '=', $scheduleId);
@@ -74,16 +75,16 @@ class OperationsWorkspaceController extends Controller
             ->select([
                 'st.id as student_id',
                 'st.student_id_number',
-                'st.first_name',
-                'st.middle_name',
-                'st.last_name',
+                'su.first_name',
+                'su.middle_name',
+                'su.last_name',
                 DB::raw("COALESCE(sa.status, 'no_response') as attendance_status"),
                 'sa.recorded_at',
                 'sa.notes',
                 'sa.override_reason',
             ])
-            ->orderBy('st.last_name')
-            ->orderBy('st.first_name')
+            ->orderBy('su.last_name')
+            ->orderBy('su.first_name')
             ->get()
             ->map(fn ($row) => [
                 'student_id' => (int) $row->student_id,
@@ -166,8 +167,8 @@ class OperationsWorkspaceController extends Controller
         $query = $this->recordsQuery($filters, $exceptionOnly)
             ->orderBy('ts.start_time', 'desc')
             ->orderBy('t.team_name')
-            ->orderBy('st.last_name')
-            ->orderBy('st.first_name');
+            ->orderBy('su.last_name')
+            ->orderBy('su.first_name');
 
         $records = $query->get()->map(function ($row) {
             return [
@@ -294,7 +295,7 @@ class OperationsWorkspaceController extends Controller
         $sortMap = [
             'schedule_start' => 'ts.start_time',
             'team_name' => 't.team_name',
-            'student_name' => 'st.last_name',
+            'student_name' => 'su.last_name',
             'status' => 'attendance_status',
         ];
 
@@ -310,7 +311,7 @@ class OperationsWorkspaceController extends Controller
             $query->orderBy($sort, $direction);
         }
 
-        $query->orderBy('t.team_name')->orderBy('st.last_name')->orderBy('st.first_name');
+        $query->orderBy('t.team_name')->orderBy('su.last_name')->orderBy('su.first_name');
 
         $pagination = $query->paginate($perPage, ['*'], 'page', max(1, (int) $filters['page']));
         $totals = $this->recordTotals($filters, $exceptionOnly);
@@ -463,9 +464,9 @@ class OperationsWorkspaceController extends Controller
                 DB::raw("COALESCE(sp.name, 'Unknown') as sport_name"),
                 'st.id as student_id',
                 'st.student_id_number',
-                'st.first_name as student_first_name',
-                'st.middle_name as student_middle_name',
-                'st.last_name as student_last_name',
+                'su.first_name as student_first_name',
+                'su.middle_name as student_middle_name',
+                'su.last_name as student_last_name',
                 DB::raw("COALESCE(sa.status, 'no_response') as attendance_status"),
                 'sa.verification_method',
                 'sa.recorded_at',
@@ -482,6 +483,7 @@ class OperationsWorkspaceController extends Controller
             ->leftJoin('sports as sp', 'sp.id', '=', 't.sport_id')
             ->join('team_players as tp', 'tp.team_id', '=', 't.id')
             ->join('students as st', 'st.id', '=', 'tp.student_id')
+            ->join('users as su', 'su.id', '=', 'st.user_id')
             ->leftJoin('schedule_attendances as sa', function ($join) {
                 $join->on('sa.schedule_id', '=', 'ts.id')
                     ->on('sa.student_id', '=', 'st.id');
@@ -577,9 +579,10 @@ class OperationsWorkspaceController extends Controller
                 ])
                 ->values(),
             'coaches' => Coach::query()
-                ->orderBy('last_name')
-                ->orderBy('first_name')
-                ->get(['id', 'first_name', 'last_name'])
+                ->join('users', 'users.id', '=', 'coaches.user_id')
+                ->orderBy('users.last_name')
+                ->orderBy('users.first_name')
+                ->get(['coaches.id', 'users.first_name', 'users.last_name'])
                 ->map(fn ($coach) => [
                     'coach_id' => $coach->id,
                     'name' => trim(($coach->first_name ?? '') . ' ' . ($coach->last_name ?? '')),
@@ -731,8 +734,8 @@ class OperationsWorkspaceController extends Controller
                 $builder->where('ts.title', 'like', "%{$search}%")
                     ->orWhere('t.team_name', 'like', "%{$search}%")
                     ->orWhere('sp.name', 'like', "%{$search}%")
-                    ->orWhere('st.first_name', 'like', "%{$search}%")
-                    ->orWhere('st.last_name', 'like', "%{$search}%")
+                    ->orWhere('su.first_name', 'like', "%{$search}%")
+                    ->orWhere('su.last_name', 'like', "%{$search}%")
                     ->orWhere('st.student_id_number', 'like', "%{$search}%");
             });
         }

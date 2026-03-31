@@ -160,7 +160,6 @@ class AcademicEligibilityController extends Controller
         ]);
 
         $payload = $validated;
-        $payload['status'] = 'draft';
         if (!Schema::hasColumn('academic_periods', 'announcement')) {
             unset($payload['announcement']);
         }
@@ -173,39 +172,20 @@ class AcademicEligibilityController extends Controller
     public function updateStatus(Request $request, AcademicPeriod $period)
     {
         $validated = $request->validate([
-            'status' => 'required|in:draft,open,closed,locked',
             'announcement' => 'nullable|string',
         ]);
 
-        $status = $validated['status'];
-
-        if ($status === 'locked') {
+        if (Schema::hasColumn('academic_periods', 'announcement')) {
             $period->update([
-                'status' => 'locked',
-                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
-                    ? ($validated['announcement'] ?? $period->announcement)
-                    : null,
+                'announcement' => $validated['announcement'] ?? $period->announcement,
             ]);
-
-            return back()->with('success', 'Academic period locked.');
         }
 
-        $period->update([
-            'status' => $status,
-            'announcement' => Schema::hasColumn('academic_periods', 'announcement')
-                ? ($validated['announcement'] ?? $period->announcement)
-                : null,
-        ]);
-
-        return back()->with('success', 'Academic period status updated.');
+        return back()->with('success', 'Academic period updated.');
     }
 
     public function destroyPeriod(AcademicPeriod $period)
     {
-        if ($period->status === 'locked') {
-            abort(422, 'This period is locked and cannot be deleted.');
-        }
-
         $hasDocs = AcademicDocument::query()
             ->where('academic_period_id', $period->id)
             ->exists();
@@ -230,7 +210,6 @@ class AcademicEligibilityController extends Controller
             'student_id' => 'required|exists:students,id',
             'document_id' => 'required|exists:academic_documents,id',
             'gpa' => 'nullable|numeric|min:0|max:5',
-            'status' => 'required|in:eligible,probation,ineligible',
             'remarks' => 'nullable|string',
         ]);
 
@@ -243,9 +222,6 @@ class AcademicEligibilityController extends Controller
         );
 
         $period = AcademicPeriod::find((int) $validated['period_id']);
-        if ($period && $period->status === 'locked') {
-            abort(422, 'This period is locked and can no longer be edited.');
-        }
 
         AcademicEligibilityEvaluation::updateOrCreate(
             [
@@ -253,9 +229,7 @@ class AcademicEligibilityController extends Controller
                 'academic_period_id' => (int) $validated['period_id'],
             ],
             [
-                'document_id' => (int) $validated['document_id'],
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
-                'status' => $validated['status'],
                 'remarks' => $validated['remarks'] ?? null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
@@ -264,14 +238,17 @@ class AcademicEligibilityController extends Controller
 
         $student = Student::find((int) $validated['student_id']);
         $studentUserId = (int) ($student?->user_id ?? 0);
-        $status = strtoupper((string) $validated['status']);
+        $computedStatus = AcademicEligibilityEvaluation::statusForGpa(
+            $validated['gpa'] !== null ? (float) $validated['gpa'] : null
+        );
+        $status = strtoupper((string) ($computedStatus ?? 'pending'));
         $periodLabel = $period
             ? "{$period->school_year} {$this->termLabel((string) $period->term)}"
             : 'selected period';
 
         if ($studentUserId > 0) {
             $message = "Your academic status for {$periodLabel} is {$status}.";
-            if (strtolower((string) $validated['status']) === 'eligible') {
+            if (($computedStatus ?? '') === 'eligible') {
                 $message .= ' You are now eligible; further submissions for this period are locked.';
             }
             $this->announcements->announce(
@@ -318,6 +295,7 @@ class AcademicEligibilityController extends Controller
 
         $query = DB::table('academic_documents as d')
             ->join('students as s', 's.id', '=', 'd.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
             ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
                 $join->on('e.student_id', '=', 'd.student_id')
@@ -331,8 +309,8 @@ class AcademicEligibilityController extends Controller
                 'd.id as document_id',
                 'd.student_id',
                 's.student_id_number',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
                 'd.document_type',
                 'd.uploaded_at',
                 'd.notes',
@@ -343,13 +321,12 @@ class AcademicEligibilityController extends Controller
                 't.team_name',
                 'e.id as evaluation_id',
                 'e.gpa as evaluation_gpa',
-                'e.status as evaluation_status',
                 'e.remarks as evaluation_remarks',
                 'e.evaluated_at',
-                'evaluator.name as evaluator_name',
+                DB::raw("TRIM(CONCAT(COALESCE(evaluator.first_name, ''), ' ', COALESCE(evaluator.last_name, ''))) as evaluator_name"),
             ]);
 
-        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e', 'su');
 
         $perPage = max(10, min(100, (int) $filters['per_page']));
         $paginator = $query
@@ -378,7 +355,9 @@ class AcademicEligibilityController extends Controller
                     'evaluation' => $row->evaluation_id ? [
                         'id' => (int) $row->evaluation_id,
                         'gpa' => $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null,
-                        'status' => $row->evaluation_status,
+                        'status' => AcademicEligibilityEvaluation::statusForGpa(
+                            $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null
+                        ),
                         'remarks' => $row->evaluation_remarks,
                         'evaluated_at' => $row->evaluated_at,
                         'evaluator_name' => $row->evaluator_name,
@@ -400,10 +379,19 @@ class AcademicEligibilityController extends Controller
     {
         $filters = $this->validatedRecordsFilters($request);
 
+        $latestDocs = DB::table('academic_documents as ad')
+            ->selectRaw('MAX(ad.id) as id, ad.student_id, ad.academic_period_id')
+            ->groupBy('ad.student_id', 'ad.academic_period_id');
+
         $query = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->leftJoinSub($latestDocs, 'ld', function ($join) {
+                $join->on('ld.student_id', '=', 'e.student_id')
+                    ->on('ld.academic_period_id', '=', 'e.academic_period_id');
+            })
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'ld.id')
             ->leftJoin('users as evaluator', 'evaluator.id', '=', 'e.evaluated_by')
             ->leftJoin('teams as t', function ($join) {
                 $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = e.student_id ORDER BY tp.id ASC LIMIT 1)'));
@@ -412,23 +400,22 @@ class AcademicEligibilityController extends Controller
                 'e.id as evaluation_id',
                 'e.student_id',
                 's.student_id_number',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
                 'e.academic_period_id as period_id',
                 'p.school_year',
                 'p.term',
                 't.id as team_id',
                 't.team_name',
-                'e.document_id',
+                'd.id as document_id',
                 'd.document_type',
                 'e.gpa',
-                'e.status',
                 'e.remarks',
                 'e.evaluated_at',
-                'evaluator.name as evaluator_name',
+                DB::raw("TRIM(CONCAT(COALESCE(evaluator.first_name, ''), ' ', COALESCE(evaluator.last_name, ''))) as evaluator_name"),
             ]);
 
-        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e', 'su');
 
         $perPage = max(10, min(100, (int) $filters['per_page']));
         $paginator = $query
@@ -453,7 +440,9 @@ class AcademicEligibilityController extends Controller
                     'document_id' => $row->document_id ? (int) $row->document_id : null,
                     'document_type' => $row->document_type,
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
-                    'status' => $row->status,
+                    'status' => AcademicEligibilityEvaluation::statusForGpa(
+                        $row->gpa !== null ? (float) $row->gpa : null
+                    ),
                     'remarks' => $row->remarks,
                     'evaluated_at' => $row->evaluated_at,
                     'evaluator_name' => $row->evaluator_name,
@@ -520,12 +509,15 @@ class AcademicEligibilityController extends Controller
             ->distinct()
             ->pluck('student_id');
 
+        $eligibleMax = AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
+        $probationMax = AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
+
         $evaluatedByStatus = DB::table('academic_eligibility_evaluations')
             ->where('academic_period_id', $periodId)
             ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('student_id', $studentIds))
-            ->selectRaw("SUM(CASE WHEN status = 'probation' THEN 1 ELSE 0 END) as probation_count")
-            ->selectRaw("SUM(CASE WHEN status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
-            ->selectRaw("COUNT(*) as evaluated_count")
+            ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL AND gpa > ? AND gpa <= ? THEN 1 ELSE 0 END) as probation_count", [$eligibleMax, $probationMax])
+            ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL AND gpa > ? THEN 1 ELSE 0 END) as ineligible_count", [$probationMax])
+            ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL THEN 1 ELSE 0 END) as evaluated_count")
             ->first();
 
         $missingSubmissions = $studentIds->diff($submittedStudentIds)->count();
@@ -533,25 +525,28 @@ class AcademicEligibilityController extends Controller
 
         $rows = DB::table('academic_documents as d')
             ->join('students as s', 's.id', '=', 'd.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
                 $join->on('e.student_id', '=', 'd.student_id')
                     ->on('e.academic_period_id', '=', 'd.academic_period_id');
             })
             ->where('d.academic_period_id', $periodId)
             ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('d.student_id', $studentIds))
-            ->where(function ($q) {
+            ->where(function ($q) use ($eligibleMax) {
                 $q->whereNull('e.id')
-                    ->orWhereIn('e.status', ['probation', 'ineligible']);
+                    ->orWhere(function ($sq) use ($eligibleMax) {
+                        $sq->whereNotNull('e.gpa')
+                            ->where('e.gpa', '>', $eligibleMax);
+                    });
             })
             ->select([
                 'd.student_id',
                 's.student_id_number',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
                 'd.id as document_id',
                 'd.uploaded_at',
                 'e.id as evaluation_id',
-                'e.status as evaluation_status',
                 'e.gpa',
                 'e.evaluated_at',
             ])
@@ -566,7 +561,9 @@ class AcademicEligibilityController extends Controller
                     'document_id' => (int) $row->document_id,
                     'uploaded_at' => $row->uploaded_at,
                     'evaluation_id' => $row->evaluation_id ? (int) $row->evaluation_id : null,
-                    'evaluation_status' => $row->evaluation_status,
+                    'evaluation_status' => AcademicEligibilityEvaluation::statusForGpa(
+                        $row->gpa !== null ? (float) $row->gpa : null
+                    ),
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
                     'evaluated_at' => $row->evaluated_at,
                     'exception_type' => $row->evaluation_id ? 'at_risk' : 'pending_evaluation',
@@ -591,15 +588,11 @@ class AcademicEligibilityController extends Controller
         $validated = $request->validate([
             'document_id' => 'required|exists:academic_documents,id',
             'gpa' => 'nullable|numeric|min:0|max:5',
-            'status' => 'required|in:eligible,probation,ineligible',
             'remarks' => 'nullable|string|max:1000',
             'audit_note' => 'nullable|string|max:1000',
         ]);
 
         $period = AcademicPeriod::findOrFail($periodId);
-        if ($period->status === 'locked') {
-            abort(422, 'This period is locked and can no longer be edited.');
-        }
 
         $document = AcademicDocument::query()
             ->where('id', (int) $validated['document_id'])
@@ -621,9 +614,7 @@ class AcademicEligibilityController extends Controller
                 'academic_period_id' => $periodId,
             ],
             [
-                'document_id' => $document->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
-                'status' => $validated['status'],
                 'remarks' => !empty($remarkParts) ? implode("\n\n", $remarkParts) : null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
@@ -638,16 +629,24 @@ class AcademicEligibilityController extends Controller
 
     public function destroyDocument(AcademicDocument $document)
     {
-        $period = AcademicPeriod::find($document->academic_period_id);
-        if ($period && $period->status === 'locked') {
-            abort(422, 'This period is locked and can no longer be edited.');
-        }
-
-        AcademicEligibilityEvaluation::query()
-            ->where('document_id', $document->id)
-            ->delete();
+        $studentId = (int) $document->student_id;
+        $periodId = (int) ($document->academic_period_id ?? 0);
 
         $document->delete();
+
+        if ($periodId) {
+            $hasOtherDocs = AcademicDocument::query()
+                ->where('student_id', $studentId)
+                ->where('academic_period_id', $periodId)
+                ->exists();
+
+            if (!$hasOtherDocs) {
+                AcademicEligibilityEvaluation::query()
+                    ->where('student_id', $studentId)
+                    ->where('academic_period_id', $periodId)
+                    ->delete();
+            }
+        }
 
         return back()->with('success', 'Academic submission deleted.');
     }
@@ -684,7 +683,9 @@ class AcademicEligibilityController extends Controller
                 'student_id_number' => $student->student_id_number ?? null,
                 'document_type' => $doc->document_type,
                 'uploaded_at' => optional($doc->uploaded_at)->format('M j, Y g:i A'),
-                'status' => $evaluation?->status ?? 'pending',
+                'status' => AcademicEligibilityEvaluation::statusForGpa(
+                    $evaluation?->gpa !== null ? (float) $evaluation->gpa : null
+                ) ?? 'pending',
                 'gpa' => $evaluation?->gpa,
                 'evaluated_at' => $evaluation?->evaluated_at
                     ? $evaluation->evaluated_at->format('M j, Y g:i A')
@@ -737,15 +738,19 @@ class AcademicEligibilityController extends Controller
 
     private function resolveStatus(AcademicPeriod $period): string
     {
-        if (!empty($period->status)) {
-            return (string) $period->status;
-        }
+        $today = now()->startOfDay();
+        $startsOn = $period->starts_on?->copy()->startOfDay();
+        $endsOn = $period->ends_on?->copy()->startOfDay();
 
-        if ($period->starts_on && $period->starts_on->isFuture()) {
+        if ($startsOn && $today->lt($startsOn)) {
             return 'draft';
         }
 
-        return 'closed';
+        if ($endsOn && $today->gt($endsOn)) {
+            return 'closed';
+        }
+
+        return 'open';
     }
 
     private function resolvePeriodId(?int $periodId): ?int
@@ -759,7 +764,7 @@ class AcademicEligibilityController extends Controller
             ->value('id');
     }
 
-    private function applyRecordsFilters($query, array $filters, string $documentAlias, string $studentAlias, string $evaluationAlias): void
+    private function applyRecordsFilters($query, array $filters, string $documentAlias, string $studentAlias, string $evaluationAlias, string $studentUserAlias): void
     {
         $periodId = $this->resolvePeriodId($filters['period_id']);
         if ($periodId) {
@@ -767,18 +772,32 @@ class AcademicEligibilityController extends Controller
         }
 
         if (!empty($filters['status'])) {
+            $eligibleMax = AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
+            $probationMax = AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
+
             if ($filters['status'] === 'pending') {
-                $query->whereNull("{$evaluationAlias}.id");
-            } else {
-                $query->where("{$evaluationAlias}.status", $filters['status']);
+                $query->where(function ($q) use ($evaluationAlias) {
+                    $q->whereNull("{$evaluationAlias}.id")
+                        ->orWhereNull("{$evaluationAlias}.gpa");
+                });
+            } elseif ($filters['status'] === 'eligible') {
+                $query->whereNotNull("{$evaluationAlias}.gpa")
+                    ->where("{$evaluationAlias}.gpa", '<=', $eligibleMax);
+            } elseif ($filters['status'] === 'probation') {
+                $query->whereNotNull("{$evaluationAlias}.gpa")
+                    ->where("{$evaluationAlias}.gpa", '>', $eligibleMax)
+                    ->where("{$evaluationAlias}.gpa", '<=', $probationMax);
+            } elseif ($filters['status'] === 'ineligible') {
+                $query->whereNotNull("{$evaluationAlias}.gpa")
+                    ->where("{$evaluationAlias}.gpa", '>', $probationMax);
             }
         }
 
         if (!empty($filters['search'])) {
             $search = trim((string) $filters['search']);
-            $query->where(function ($q) use ($search, $studentAlias, $documentAlias) {
-                $q->where("{$studentAlias}.first_name", 'like', "%{$search}%")
-                    ->orWhere("{$studentAlias}.last_name", 'like', "%{$search}%")
+            $query->where(function ($q) use ($search, $studentAlias, $documentAlias, $studentUserAlias) {
+                $q->where("{$studentUserAlias}.first_name", 'like', "%{$search}%")
+                    ->orWhere("{$studentUserAlias}.last_name", 'like', "%{$search}%")
                     ->orWhere("{$studentAlias}.student_id_number", 'like', "%{$search}%")
                     ->orWhere("{$documentAlias}.document_type", 'like', "%{$search}%");
             });
@@ -820,6 +839,7 @@ class AcademicEligibilityController extends Controller
     {
         $query = DB::table('academic_documents as d')
             ->join('students as s', 's.id', '=', 'd.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
             ->leftJoin('academic_eligibility_evaluations as e', function ($join) {
                 $join->on('e.student_id', '=', 'd.student_id')
@@ -828,17 +848,16 @@ class AcademicEligibilityController extends Controller
             ->select([
                 'd.id as document_id',
                 's.student_id_number',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
                 'p.school_year',
                 'p.term',
                 'd.document_type',
                 'd.uploaded_at',
-                'e.status as evaluation_status',
                 'e.gpa',
             ]);
 
-        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e', 'su');
 
         return $query->orderByDesc('d.uploaded_at')->get()->map(function ($row) {
             return [
@@ -848,7 +867,9 @@ class AcademicEligibilityController extends Controller
                 trim(($row->school_year ?? '') . ' ' . ($row->term ?? '')),
                 $row->document_type,
                 $row->uploaded_at,
-                $row->evaluation_status,
+                AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ),
                 $row->gpa,
             ];
         })->all();
@@ -856,25 +877,33 @@ class AcademicEligibilityController extends Controller
 
     private function evaluationsExportRows(array $filters): array
     {
+        $latestDocs = DB::table('academic_documents as ad')
+            ->selectRaw('MAX(ad.id) as id, ad.student_id, ad.academic_period_id')
+            ->groupBy('ad.student_id', 'ad.academic_period_id');
+
         $query = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->leftJoinSub($latestDocs, 'ld', function ($join) {
+                $join->on('ld.student_id', '=', 'e.student_id')
+                    ->on('ld.academic_period_id', '=', 'e.academic_period_id');
+            })
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'ld.id')
             ->select([
                 'e.id as evaluation_id',
                 's.student_id_number',
-                's.first_name',
-                's.last_name',
+                'su.first_name',
+                'su.last_name',
                 'p.school_year',
                 'p.term',
                 'd.document_type',
                 'e.gpa',
-                'e.status',
                 'e.remarks',
                 'e.evaluated_at',
             ]);
 
-        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e');
+        $this->applyRecordsFilters($query, $filters, 'd', 's', 'e', 'su');
 
         return $query->orderByDesc('e.evaluated_at')->get()->map(function ($row) {
             return [
@@ -884,7 +913,9 @@ class AcademicEligibilityController extends Controller
                 trim(($row->school_year ?? '') . ' ' . ($row->term ?? '')),
                 $row->document_type,
                 $row->gpa,
-                $row->status,
+                AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ),
                 $row->remarks,
                 $row->evaluated_at,
             ];

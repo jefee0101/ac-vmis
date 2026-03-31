@@ -20,7 +20,6 @@ class AnnouncementService
             'title' => $title,
             'message' => $message,
             'type' => $normalizedType,
-            'is_read' => false,
             'published_at' => now(),
             'created_by' => $createdBy,
         ]);

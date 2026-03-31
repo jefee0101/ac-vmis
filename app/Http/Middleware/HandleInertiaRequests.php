@@ -67,7 +67,7 @@ class HandleInertiaRequests extends Middleware
                             now()->addSeconds(60),
                             fn () => Announcement::query()
                                 ->where('user_id', $request->user()->id)
-                                ->where('is_read', false)
+                                ->whereNull('read_at')
                                 ->count()
                         )
                         : 0,
@@ -88,7 +88,7 @@ class HandleInertiaRequests extends Middleware
                             $teamChangeRequests = Announcement::query()
                                 ->where('user_id', $adminId)
                                 ->where('title', 'Team Change Request')
-                                ->where('is_read', false)
+                                ->whereNull('read_at')
                                 ->count();
 
                             $scheduleCount = TeamSchedule::query()
@@ -104,7 +104,7 @@ class HandleInertiaRequests extends Middleware
                                 ->count();
 
                             $academicPeriodId = AcademicPeriod::query()
-                                ->where('status', 'open')
+                                ->open()
                                 ->orderByDesc('starts_on')
                                 ->value('id');
 
@@ -112,11 +112,16 @@ class HandleInertiaRequests extends Middleware
                                 ->when($academicPeriodId, function ($query, $periodId) {
                                     $query->where('academic_period_id', $periodId);
                                 })
-                                ->whereDoesntHave('evaluations')
+                                ->whereNotExists(function ($subQuery) {
+                                    $subQuery->selectRaw('1')
+                                        ->from('academic_eligibility_evaluations as e')
+                                        ->whereColumn('e.student_id', 'academic_documents.student_id')
+                                        ->whereColumn('e.academic_period_id', 'academic_documents.academic_period_id');
+                                })
                                 ->count();
 
                             $periodReminder = AcademicPeriod::query()
-                                ->where('status', 'open')
+                                ->open()
                                 ->whereNotNull('ends_on')
                                 ->whereDate('ends_on', '>=', $now->toDateString())
                                 ->whereDate('ends_on', '<=', (clone $now)->addDays(14)->toDateString())
@@ -176,7 +181,7 @@ class HandleInertiaRequests extends Middleware
                                             'title' => $announcement->title,
                                             'message' => Str::limit((string) $announcement->message, 140),
                                             'type' => $announcement->type,
-                                            'is_read' => (bool) $announcement->is_read,
+                                            'is_read' => !empty($announcement->read_at),
                                             'published_at' => $announcement->published_at?->diffForHumans(),
                                         ];
                                     })
@@ -218,7 +223,7 @@ class HandleInertiaRequests extends Middleware
                                 ->all();
 
                             $academicPeriodId = AcademicPeriod::query()
-                                ->where('status', 'open')
+                                ->open()
                                 ->orderByDesc('starts_on')
                                 ->value('id');
 
@@ -295,7 +300,7 @@ class HandleInertiaRequests extends Middleware
                                             'title' => $announcement->title,
                                             'message' => Str::limit((string) $announcement->message, 140),
                                             'type' => $announcement->type,
-                                            'is_read' => (bool) $announcement->is_read,
+                                            'is_read' => !empty($announcement->read_at),
                                             'published_at' => $announcement->published_at?->diffForHumans(),
                                         ];
                                     })
@@ -324,7 +329,7 @@ class HandleInertiaRequests extends Middleware
                                             'title' => $announcement->title,
                                             'message' => Str::limit((string) $announcement->message, 140),
                                             'type' => $announcement->type,
-                                            'is_read' => (bool) $announcement->is_read,
+                                            'is_read' => !empty($announcement->read_at),
                                             'published_at' => $announcement->published_at?->diffForHumans(),
                                         ];
                                     })

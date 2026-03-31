@@ -18,14 +18,10 @@ class Student extends Model
     protected $fillable = [
         'user_id',
         'student_id_number',
-        'first_name',
-        'middle_name',
-        'last_name',
         'date_of_birth',
         'gender',
         'home_address',
         'course_or_strand',
-        'education_level',
         'current_grade_level',
         'student_status',
         'phone_number',
@@ -36,12 +32,57 @@ class Student extends Model
         'weight',
     ];
 
+    protected $with = ['user'];
+
+    protected $appends = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'full_name',
+        'education_level',
+    ];
+
     /**
      * Relation to the user
      */
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function getFirstNameAttribute(): ?string
+    {
+        return $this->user?->first_name;
+    }
+
+    public function getMiddleNameAttribute(): ?string
+    {
+        return $this->user?->middle_name;
+    }
+
+    public function getLastNameAttribute(): ?string
+    {
+        return $this->user?->last_name;
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return $this->user?->full_name ?? '';
+    }
+
+    public function getEducationLevelAttribute(): ?string
+    {
+        $raw = trim((string) ($this->current_grade_level ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        $numeric = (int) preg_replace('/[^0-9]/', '', $raw);
+        if ($numeric >= 11) {
+            return 'Senior High';
+        }
+
+        return 'College';
     }
 
     /**

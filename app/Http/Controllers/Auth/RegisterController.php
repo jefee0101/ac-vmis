@@ -34,7 +34,6 @@ class RegisterController extends Controller
             'date_of_birth' => 'required|date',
             'gender' => 'required|in:Male,Female,Other',
             'phone_number' => 'required|string|max:30',
-            'education_level' => 'required|in:Senior High,College',
             'current_grade_level' => 'required|in:11,12,1,2,3,4',
             'course_or_strand' => 'required|string|max:255',
             'height' => 'required|numeric|min:50|max:260',
@@ -46,7 +45,6 @@ class RegisterController extends Controller
             'conditions' => 'nullable|string',
             'allergies' => 'nullable|string',
             'restrictions' => 'nullable|string',
-            'clearance_status' => 'required|in:fit,fit_with_restrictions,not_fit,expired',
             'medical_certificate' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'academic_document_type' => 'required|in:tor,grade_report,other',
             'academic_document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -102,7 +100,6 @@ class RegisterController extends Controller
             'conditions' => $request->conditions,
             'allergies' => $request->allergies,
             'restrictions' => $request->restrictions,
-            'clearance_status' => $request->clearance_status,
             'certificate_path' => $certificatePath,
         ]);
     }
@@ -141,7 +138,9 @@ class RegisterController extends Controller
         }
 
         return User::create([
-            'name' => $request->first_name . ' ' . $request->last_name,
+            'first_name' => $request->first_name,
+            'middle_name' => $request->middle_name,
+            'last_name' => $request->last_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'student-athlete',
@@ -156,14 +155,10 @@ class RegisterController extends Controller
             return Student::create([
                 'user_id' => $user->id,
                 'student_id_number' => $request->student_id_number,
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name,
-                'last_name' => $request->last_name,
                 'date_of_birth' => $request->date_of_birth,
                 'gender' => $request->gender,
                 'home_address' => $request->home_address,
                 'course_or_strand' => $request->course_or_strand,
-                'education_level' => $request->education_level,
                 'current_grade_level' => $request->current_grade_level,
                 'student_status' => 'Enrolled',
                 'phone_number' => $request->phone_number,
@@ -211,16 +206,18 @@ class RegisterController extends Controller
             $user = DB::transaction(function () use ($request) {
                 $avatarPath = null;
                 if ($request->hasFile('avatar')) {
-                    $avatarPath = $this->secureUpload->storePublic(
-                        $request->file('avatar'),
-                        'avatars',
-                        'avatar'
-                    );
+                $avatarPath = $this->secureUpload->storePublic(
+                    $request->file('avatar'),
+                    'avatars',
+                    'avatar'
+                );
                 }
 
                 // --- Create User ---
                 $user = User::create([
-                    'name' => $request->first_name . ' ' . $request->last_name,
+                    'first_name' => $request->first_name,
+                    'middle_name' => $request->middle_name,
+                    'last_name' => $request->last_name,
                     'email' => $request->email,
                     'password' => Hash::make($request->password),
                     'role' => 'coach',
@@ -231,9 +228,6 @@ class RegisterController extends Controller
                 // --- Create Coach ---
                 $coach = Coach::create([
                     'user_id' => $user->id, // link to the user
-                    'first_name' => $request->first_name,
-                    'middle_name' => $request->middle_name,
-                    'last_name' => $request->last_name,
                     'phone_number' => $request->phone_number,
                     'date_of_birth' => $request->date_of_birth,
                     'gender' => $request->gender,

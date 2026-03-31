@@ -46,15 +46,16 @@ class WellnessHistoryController extends Controller
         }
 
         $logs = WellnessLog::query()
-            ->with(['team', 'schedule', 'logger'])
+            ->with(['schedule.team', 'logger'])
             ->where('student_id', $student->id)
             ->latest('log_date')
             ->get()
             ->map(function ($log) {
+                $team = $log->schedule?->team;
                 return [
                     'id' => $log->id,
                     'log_date' => optional($log->log_date)->toDateString(),
-                    'team_name' => $log->team?->team_name,
+                    'team_name' => $team?->team_name,
                     'schedule_title' => $log->schedule?->title,
                     'schedule_type' => $log->schedule?->type,
                     'injury_observed' => (bool) $log->injury_observed,

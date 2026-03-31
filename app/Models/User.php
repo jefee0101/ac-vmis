@@ -16,12 +16,19 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected $fillable = [
-        'name',
+        'first_name',
+        'middle_name',
+        'last_name',
         'email',
         'password',
         'role',
         'status',
         'avatar', // added avatar
+    ];
+
+    protected $appends = [
+        'full_name',
+        'name',
     ];
 
     protected $hidden = [
@@ -35,6 +42,22 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        $parts = array_filter([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+        ], fn ($value) => $value !== null && trim((string) $value) !== '');
+
+        return trim(implode(' ', $parts));
+    }
+
+    public function getNameAttribute(): string
+    {
+        return $this->full_name;
     }
 
     /**

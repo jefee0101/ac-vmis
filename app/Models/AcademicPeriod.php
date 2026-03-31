@@ -14,15 +14,42 @@ class AcademicPeriod extends Model
         'term',
         'starts_on',
         'ends_on',
-        'status',
         'announcement',
     ];
 
     protected $casts = [
         'starts_on' => 'date',
         'ends_on' => 'date',
-        'status' => 'string',
     ];
+
+    protected $appends = [
+        'status',
+    ];
+
+    public function getStatusAttribute(): string
+    {
+        $today = now()->startOfDay();
+        $startsOn = $this->starts_on?->copy()->startOfDay();
+        $endsOn = $this->ends_on?->copy()->startOfDay();
+
+        if ($startsOn && $today->lt($startsOn)) {
+            return 'draft';
+        }
+
+        if ($endsOn && $today->gt($endsOn)) {
+            return 'closed';
+        }
+
+        return 'open';
+    }
+
+    public function scopeOpen($query)
+    {
+        $today = now()->toDateString();
+        return $query
+            ->whereDate('starts_on', '<=', $today)
+            ->whereDate('ends_on', '>=', $today);
+    }
 
     public function documents()
     {

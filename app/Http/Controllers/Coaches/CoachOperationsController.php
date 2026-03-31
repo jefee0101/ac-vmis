@@ -116,8 +116,9 @@ class CoachOperationsController extends Controller
             ->with('student')
             ->where('team_id', $ownerTeam->id)
             ->join('students', 'team_players.student_id', '=', 'students.id')
-            ->orderBy('students.last_name')
-            ->orderBy('students.first_name')
+            ->join('users as su', 'su.id', '=', 'students.user_id')
+            ->orderBy('su.last_name')
+            ->orderBy('su.first_name')
             ->select('team_players.*')
             ->paginate(50, ['*'], 'attendance_page');
 

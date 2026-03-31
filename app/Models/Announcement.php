@@ -20,14 +20,12 @@ class Announcement extends Model
         'title',
         'message',
         'type',
-        'is_read',
         'published_at',
         'read_at',
         'created_by',
     ];
 
     protected $casts = [
-        'is_read' => 'boolean',
         'published_at' => 'datetime',
         'read_at' => 'datetime',
     ];

@@ -168,7 +168,6 @@ class CoachTeamController extends Controller
                 'title' => 'Team Position Update',
                 'message' => $message,
                 'type' => 'system',
-                'is_read' => false,
                 'published_at' => now(),
                 'created_by' => $request->user()?->id,
             ]);

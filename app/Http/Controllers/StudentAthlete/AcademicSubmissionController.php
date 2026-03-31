@@ -56,7 +56,7 @@ class AcademicSubmissionController extends Controller
         $openPeriodsQuery = AcademicPeriod::query()
             ->orderByDesc('starts_on');
 
-        $openPeriodsQuery->where('status', 'open');
+        $openPeriodsQuery->open();
 
         $openPeriods = $openPeriodsQuery->get();
         $holdState = $this->holdService->syncStudentStatus($student);
@@ -89,7 +89,7 @@ class AcademicSubmissionController extends Controller
             'hasSubmittedAll' => $holdState['hasSubmittedAll'],
             'openPeriods' => $openPeriods->map(function ($p) use ($evalByPeriod) {
                 $evaluation = $evalByPeriod->get($p->id);
-                $status = $evaluation?->status;
+                $status = AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null);
                 $isEligible = $status === 'eligible';
 
                 return [
@@ -118,7 +118,7 @@ class AcademicSubmissionController extends Controller
                     'notes' => $doc->notes,
                     'evaluation' => $evaluation ? [
                         'gpa' => $evaluation->gpa,
-                        'status' => $evaluation->status,
+                        'status' => AcademicEligibilityEvaluation::statusForGpa($evaluation->gpa !== null ? (float) $evaluation->gpa : null),
                         'remarks' => $evaluation->remarks,
                         'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
                     ] : null,
@@ -145,7 +145,8 @@ class AcademicSubmissionController extends Controller
         $eligible = AcademicEligibilityEvaluation::query()
             ->where('student_id', $student->id)
             ->where('academic_period_id', $period->id)
-            ->where('status', 'eligible')
+            ->whereNotNull('gpa')
+            ->where('gpa', '<=', AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX)
             ->exists();
         if ($eligible) {
             abort(422, 'You are already eligible for this period. Further submissions are locked.');
@@ -217,7 +218,7 @@ class AcademicSubmissionController extends Controller
         $openPeriodsQuery = AcademicPeriod::query()
             ->orderByDesc('starts_on');
 
-        $openPeriodsQuery->where('status', 'open');
+        $openPeriodsQuery->open();
 
         $openPeriods = $openPeriodsQuery->get();
 
@@ -241,7 +242,7 @@ class AcademicSubmissionController extends Controller
 
             return [
                 'label' => $label,
-                'eligibility_status' => $evaluation?->status,
+                'eligibility_status' => AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null),
                 'window' => $window,
             ];
         })->values();
@@ -255,7 +256,7 @@ class AcademicSubmissionController extends Controller
                     : null,
                 'document_type' => $doc->document_type,
                 'uploaded_at' => optional($doc->uploaded_at)->format('M j, Y g:i A'),
-                'status' => $evaluation?->status,
+                'status' => AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null),
                 'gpa' => $evaluation?->gpa,
                 'remarks' => $evaluation?->remarks,
             ];

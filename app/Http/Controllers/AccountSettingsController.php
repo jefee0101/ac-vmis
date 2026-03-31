@@ -90,8 +90,11 @@ class AccountSettingsController extends Controller
             'gender' => ['nullable', 'string', 'max:30'],
         ]);
 
+        $nameParts = $this->splitName($validated['name']);
         $updates = [
-            'name' => $validated['name'],
+            'first_name' => $nameParts['first_name'],
+            'middle_name' => $nameParts['middle_name'],
+            'last_name' => $nameParts['last_name'],
         ];
 
         if ($request->hasFile('avatar')) {
@@ -126,6 +129,29 @@ class AccountSettingsController extends Controller
         }
 
         return back();
+    }
+
+    private function splitName(string $name): array
+    {
+        $raw = trim($name);
+        if ($raw === '') {
+            return [
+                'first_name' => null,
+                'middle_name' => null,
+                'last_name' => null,
+            ];
+        }
+
+        $parts = preg_split('/\s+/', $raw) ?: [];
+        $first = array_shift($parts);
+        $last = count($parts) ? array_pop($parts) : null;
+        $middle = count($parts) ? implode(' ', $parts) : null;
+
+        return [
+            'first_name' => $first,
+            'middle_name' => $middle,
+            'last_name' => $last,
+        ];
     }
 
     public function settings(Request $request)
@@ -263,21 +289,17 @@ class AccountSettingsController extends Controller
                 ->count();
 
             $today = now()->toDateString();
-            $expiredClearances = DB::table('athlete_health_clearances')
-                ->where(function ($query) use ($today) {
-                    $query->where('clearance_status', 'expired')
-                        ->orWhere(function ($sq) use ($today) {
-                            $sq->whereNotNull('valid_until')
-                                ->whereDate('valid_until', '<', $today);
-                        });
-                })
-                ->count();
+            $expiredClearances = (int) (DB::table('athlete_health_clearances')
+                ->selectRaw('COUNT(*) as total')
+                ->whereRaw(\App\Models\AthleteHealthClearance::statusCaseSql() . " = 'expired'", [$today])
+                ->value('total') ?? 0);
 
             $latestPeriodId = AcademicPeriod::query()->orderByDesc('starts_on')->value('id');
             $atRiskAcademic = $latestPeriodId
                 ? AcademicEligibilityEvaluation::query()
                     ->where('academic_period_id', $latestPeriodId)
-                    ->whereIn('status', ['probation', 'ineligible'])
+                    ->whereNotNull('gpa')
+                    ->where('gpa', '>', AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX)
                     ->count()
                 : 0;
 

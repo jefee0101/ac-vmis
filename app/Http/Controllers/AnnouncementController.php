@@ -17,11 +17,11 @@ class AnnouncementController extends Controller
 
         $query = Announcement::query()
             ->where('user_id', $user->id)
-            ->when($filter === 'unread', fn ($q) => $q->where('is_read', false))
-            ->orderBy('is_read')
+            ->when($filter === 'unread', fn ($q) => $q->whereNull('read_at'))
+            ->orderByRaw('read_at IS NULL DESC')
             ->latest('published_at')
             ->latest('created_at')
-            ->with(['creator:id,name,role']);
+            ->with(['creator:id,first_name,middle_name,last_name,role']);
 
         $rows = $query->paginate(12)->withQueryString();
 
@@ -33,7 +33,7 @@ class AnnouncementController extends Controller
                 'message' => $a->message,
                 'type' => $normalizedType,
                 'type_label' => \App\Models\Announcement::labelForType($normalizedType),
-                'is_read' => (bool) $a->is_read,
+                'is_read' => !empty($a->read_at),
                 'published_at' => optional($a->published_at)->toDateTimeString(),
                 'read_at' => optional($a->read_at)->toDateTimeString(),
                 'created_by' => $a->created_by,
@@ -65,9 +65,8 @@ class AnnouncementController extends Controller
         $user = Auth::user();
         abort_unless($announcement->user_id === $user->id, 403, 'Unauthorized announcement action.');
 
-        if (!$announcement->is_read) {
+        if (empty($announcement->read_at)) {
             $announcement->update([
-                'is_read' => true,
                 'read_at' => now(),
             ]);
         }
@@ -84,9 +83,8 @@ class AnnouncementController extends Controller
 
         Announcement::query()
             ->where('user_id', $user->id)
-            ->where('is_read', false)
+            ->whereNull('read_at')
             ->update([
-                'is_read' => true,
                 'read_at' => now(),
             ]);
 

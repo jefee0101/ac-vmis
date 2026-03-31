@@ -37,10 +37,4 @@ class AcademicDocument extends Model
     {
         return $this->belongsTo(User::class, 'uploaded_by');
     }
-
-    public function evaluations()
-    {
-        return $this->hasMany(AcademicEligibilityEvaluation::class, 'document_id');
-    }
 }
-

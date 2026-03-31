@@ -54,6 +54,13 @@ class Team extends Model
 
     public function wellnessLogs()
     {
-        return $this->hasMany(WellnessLog::class, 'team_id');
+        return $this->hasManyThrough(
+            WellnessLog::class,
+            TeamSchedule::class,
+            'team_id',
+            'schedule_id',
+            'id',
+            'id'
+        );
     }
 }

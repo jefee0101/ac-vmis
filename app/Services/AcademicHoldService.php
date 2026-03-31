@@ -12,7 +12,7 @@ class AcademicHoldService
     public function evaluate(Student $student): array
     {
         $openPeriodIds = AcademicPeriod::query()
-            ->where('status', 'open')
+            ->open()
             ->pluck('id');
         $hasActiveWindow = $openPeriodIds->isNotEmpty();
         $hasTeam = TeamPlayer::query()->where('student_id', $student->id)->exists();
