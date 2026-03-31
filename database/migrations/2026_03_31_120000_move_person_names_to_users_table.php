@@ -24,23 +24,35 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('students')) {
-            DB::statement(
-                "UPDATE users u
-                 INNER JOIN students s ON s.user_id = u.id
-                 SET u.first_name = COALESCE(u.first_name, s.first_name),
-                     u.middle_name = COALESCE(u.middle_name, s.middle_name),
-                     u.last_name = COALESCE(u.last_name, s.last_name)"
-            );
+            $students = DB::table('students')
+                ->select('user_id', 'first_name', 'middle_name', 'last_name')
+                ->get();
+
+            foreach ($students as $student) {
+                DB::table('users')
+                    ->where('id', $student->user_id)
+                    ->update([
+                        'first_name' => DB::raw("COALESCE(first_name, " . DB::getPdo()->quote($student->first_name) . ")"),
+                        'middle_name' => DB::raw("COALESCE(middle_name, " . ($student->middle_name !== null ? DB::getPdo()->quote($student->middle_name) : "NULL") . ")"),
+                        'last_name' => DB::raw("COALESCE(last_name, " . DB::getPdo()->quote($student->last_name) . ")"),
+                    ]);
+            }
         }
 
         if (Schema::hasTable('coaches')) {
-            DB::statement(
-                "UPDATE users u
-                 INNER JOIN coaches c ON c.user_id = u.id
-                 SET u.first_name = COALESCE(u.first_name, c.first_name),
-                     u.middle_name = COALESCE(u.middle_name, c.middle_name),
-                     u.last_name = COALESCE(u.last_name, c.last_name)"
-            );
+            $coaches = DB::table('coaches')
+                ->select('user_id', 'first_name', 'middle_name', 'last_name')
+                ->get();
+
+            foreach ($coaches as $coach) {
+                DB::table('users')
+                    ->where('id', $coach->user_id)
+                    ->update([
+                        'first_name' => DB::raw("COALESCE(first_name, " . DB::getPdo()->quote($coach->first_name) . ")"),
+                        'middle_name' => DB::raw("COALESCE(middle_name, " . ($coach->middle_name !== null ? DB::getPdo()->quote($coach->middle_name) : "NULL") . ")"),
+                        'last_name' => DB::raw("COALESCE(last_name, " . DB::getPdo()->quote($coach->last_name) . ")"),
+                    ]);
+            }
         }
 
         if (Schema::hasColumn('users', 'name')) {
@@ -115,29 +127,68 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('users')) {
-            DB::table('users')->whereNull('name')->update([
-                'name' => DB::raw("TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, '')))"),
-            ]);
+            $users = DB::table('users')
+                ->select('id', 'first_name', 'last_name', 'name')
+                ->get();
+
+            foreach ($users as $user) {
+                if (!empty($user->name)) {
+                    continue;
+                }
+
+                $full = trim(implode(' ', array_filter([(string) $user->first_name, (string) $user->last_name])));
+                if ($full === '') {
+                    continue;
+                }
+
+                DB::table('users')
+                    ->where('id', $user->id)
+                    ->update(['name' => $full]);
+            }
         }
 
         if (Schema::hasTable('students')) {
-            DB::statement(
-                "UPDATE students s
-                 INNER JOIN users u ON s.user_id = u.id
-                 SET s.first_name = u.first_name,
-                     s.middle_name = u.middle_name,
-                     s.last_name = u.last_name"
-            );
+            $users = DB::table('users')
+                ->select('id', 'first_name', 'middle_name', 'last_name')
+                ->get()
+                ->keyBy('id');
+
+            $students = DB::table('students')->select('id', 'user_id')->get();
+            foreach ($students as $student) {
+                $user = $users->get($student->user_id);
+                if (!$user) {
+                    continue;
+                }
+                DB::table('students')
+                    ->where('id', $student->id)
+                    ->update([
+                        'first_name' => $user->first_name,
+                        'middle_name' => $user->middle_name,
+                        'last_name' => $user->last_name,
+                    ]);
+            }
         }
 
         if (Schema::hasTable('coaches')) {
-            DB::statement(
-                "UPDATE coaches c
-                 INNER JOIN users u ON c.user_id = u.id
-                 SET c.first_name = u.first_name,
-                     c.middle_name = u.middle_name,
-                     c.last_name = u.last_name"
-            );
+            $users = DB::table('users')
+                ->select('id', 'first_name', 'middle_name', 'last_name')
+                ->get()
+                ->keyBy('id');
+
+            $coaches = DB::table('coaches')->select('id', 'user_id')->get();
+            foreach ($coaches as $coach) {
+                $user = $users->get($coach->user_id);
+                if (!$user) {
+                    continue;
+                }
+                DB::table('coaches')
+                    ->where('id', $coach->id)
+                    ->update([
+                        'first_name' => $user->first_name,
+                        'middle_name' => $user->middle_name,
+                        'last_name' => $user->last_name,
+                    ]);
+            }
         }
 
         if (Schema::hasTable('users') && Schema::hasColumn('users', 'first_name')) {
