@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -10,6 +11,11 @@ return new class extends Migration
     {
         Schema::table('wellness_logs', function (Blueprint $table) {
             if (Schema::hasColumn('wellness_logs', 'team_id')) {
+                $driver = DB::getDriverName();
+                if ($driver === 'sqlite') {
+                    DB::statement('DROP INDEX IF EXISTS wellness_logs_team_id_schedule_id_index');
+                    DB::statement('DROP INDEX IF EXISTS wellness_logs_team_id_index');
+                }
                 $table->dropConstrainedForeignId('team_id');
             }
         });
