@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import CoachPageHeader from '@/components/coach/CoachPageHeader.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
@@ -12,7 +11,7 @@ type Period = {
     id: number
     school_year: string
     term: string
-    is_submission_open: boolean
+    status: 'draft' | 'open' | 'closed' | 'locked'
 }
 
 type Row = {
@@ -66,6 +65,22 @@ function submissionTone(submitted: boolean) {
     return submitted ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
 }
 
+function periodStatusLabel(status: string | null) {
+    const normalized = String(status ?? '').toLowerCase()
+    if (normalized === 'open') return 'Open'
+    if (normalized === 'locked') return 'Locked'
+    if (normalized === 'draft') return 'Draft'
+    return 'Closed'
+}
+
+function periodStatusTone(status: string | null) {
+    const normalized = String(status ?? '').toLowerCase()
+    if (normalized === 'open') return 'bg-emerald-100 text-emerald-700'
+    if (normalized === 'locked') return 'bg-slate-800 text-white'
+    if (normalized === 'draft') return 'bg-slate-100 text-slate-600'
+    return 'bg-rose-100 text-rose-700'
+}
+
 function evaluationLabel(status: string | null) {
     const normalized = String(status ?? '').replace(/_/g, ' ').toLowerCase()
     if (!normalized || normalized === 'pending') return 'Pending'
@@ -98,41 +113,40 @@ function changePeriod() {
     <Head title="Academic Visibility" />
 
     <div class="space-y-5">
-        <CoachPageHeader title="Academic Visibility" subtitle="Read-only monitoring of semestral grade submissions." />
 
-        <div v-if="!team" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
+        <div v-if="!team" class="rounded-xl border border-[#034485]/45 bg-white p-6 text-slate-500">
             You are not assigned to a team yet.
         </div>
 
         <div v-else class="space-y-4">
-            <section class="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/60 p-5 shadow-sm">
+            <section class="rounded-2xl border border-[#034485]/45 bg-[#034485] p-5">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/80">
                             Team Overview
                             <span
                                 v-if="selectedPeriod"
                                 class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                                :class="selectedPeriod.is_submission_open ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                                :class="periodStatusTone(selectedPeriod.status)"
                             >
-                                {{ selectedPeriod.is_submission_open ? 'Submissions Open' : 'Submissions Closed' }}
+                                {{ periodStatusLabel(selectedPeriod.status) }}
                             </span>
                         </div>
-                        <h2 class="mt-2 text-2xl font-bold text-slate-900">{{ team.team_name }}</h2>
-                        <p class="text-sm text-slate-600">Sport: <span class="font-semibold capitalize text-slate-900">{{ team.sport }}</span></p>
+                        <h2 class="mt-2 text-2xl font-bold text-white">{{ team.team_name }}</h2>
+                        <p class="text-sm text-white/80">Sport: <span class="font-semibold capitalize text-white">{{ team.sport }}</span></p>
                     </div>
 
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
                         <div>
-                            <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Period</label>
+                            <label class="text-xs font-semibold uppercase tracking-wide text-white/80">Period</label>
                             <select
                                 v-model="selectedPeriodId"
                                 @change="changePeriod"
-                                class="mt-1 w-full min-w-[220px] rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                                class="mt-1 w-full min-w-[220px] rounded-xl border border-white/50 bg-white/90 px-3 py-2 text-sm text-slate-900"
                             >
                                 <option :value="null" disabled>Select period</option>
                                 <option v-for="p in periods" :key="p.id" :value="p.id">
-                                    {{ p.school_year }} - {{ termLabel(p.term) }} {{ p.is_submission_open ? '(OPEN)' : '(CLOSED)' }}
+                                    {{ p.school_year }} - {{ termLabel(p.term) }} ({{ periodStatusLabel(p.status).toUpperCase() }})
                                 </option>
                             </select>
                         </div>
@@ -151,24 +165,24 @@ function changePeriod() {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Athletes</p>
-                    <p class="mt-2 text-2xl font-bold text-[#1f2937]">{{ totalRows }}</p>
+            <div class="flex flex-wrap gap-3">
+                <div class="stats-pill">
+                    <p class="stats-label">Total Athletes</p>
+                    <p class="stats-value text-[#1f2937]">{{ totalRows }}</p>
                 </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Submitted</p>
-                    <p class="mt-2 text-2xl font-bold text-emerald-600">{{ submittedCount }}</p>
+                <div class="stats-pill">
+                    <p class="stats-label">Submitted</p>
+                    <p class="stats-value text-emerald-600">{{ submittedCount }}</p>
                 </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pending</p>
-                    <p class="mt-2 text-2xl font-bold text-rose-600">{{ pendingCount }}</p>
+                <div class="stats-pill">
+                    <p class="stats-label">Pending</p>
+                    <p class="stats-value text-rose-600">{{ pendingCount }}</p>
                 </div>
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Average GPA</p>
-                    <p class="mt-2 text-2xl font-bold text-slate-900">{{ averageGpa ?? '-' }}</p>
+                <div class="stats-pill">
+                    <p class="stats-label">Average GPA</p>
+                    <p class="stats-value text-slate-900">{{ averageGpa ?? '-' }}</p>
                 </div>
-            </section>
+            </div>
 
             <div class="space-y-3 lg:hidden">
                 <article v-for="row in rows" :key="row.student_id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -215,7 +229,7 @@ function changePeriod() {
 
             <div class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white lg:block">
                 <table class="min-w-full text-sm">
-                    <thead class="sticky top-0 bg-slate-50 text-slate-600">
+                    <thead class="sticky top-0 bg-[#034485] text-white">
                         <tr>
                             <th class="px-4 py-3 text-left">Student</th>
                             <th class="px-4 py-3 text-left">Submission</th>
@@ -255,3 +269,27 @@ function changePeriod() {
         </div>
     </div>
 </template>
+
+<style scoped>
+.stats-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(3, 68, 133, 0.35);
+  background: #ffffff;
+  padding: 0.65rem 1.1rem;
+  min-width: 170px;
+}
+
+.stats-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+}
+
+.stats-value {
+  margin-top: 0.35rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+</style>

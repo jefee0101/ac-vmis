@@ -92,7 +92,7 @@ class AcademicVisibilityController extends Controller
                 'id' => $p->id,
                 'school_year' => $p->school_year,
                 'term' => $p->term,
-                'is_submission_open' => (bool) $p->is_submission_open,
+                'status' => (string) $p->status,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
             'rows' => $rows,

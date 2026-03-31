@@ -15,8 +15,8 @@ const services = [
         description: 'Post practice and game schedules so students and coaches always see the latest plan.',
     },
     {
-        title: 'Attendance Verification',
-        description: 'Verify who attended sessions and keep clear attendance records for each schedule.',
+        title: 'QR Attendance',
+        description: 'Scan QR codes to verify sessions and keep clear attendance records for each schedule.',
     },
     {
         title: 'Wellness Monitoring',
@@ -60,21 +60,6 @@ const services = [
 .services-grid {
     display: grid;
     gap: 0.75rem;
-}
-
-.public-card {
-    border:  1px solid rgba(15, 23, 42, 0.35);
-    border-radius: 14px;
-    background: #ffffff;
-    padding: 1rem;
-    color: #475569;
-}
-
-.section-title {
-    margin-bottom: 0.35rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1f2937;
 }
 
 @media (min-width: 768px) {

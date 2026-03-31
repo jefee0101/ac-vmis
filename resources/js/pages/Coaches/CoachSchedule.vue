@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import CoachPageHeader from '@/components/coach/CoachPageHeader.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { router } from '@inertiajs/vue3'
@@ -58,6 +57,22 @@ const { timezone } = useUserTimezone()
 const deleteDialogOpen = ref(false)
 const pendingDeleteId = ref<number | null>(null)
 
+function tintHex(hex: string, amount: number) {
+    const clean = hex.replace('#', '')
+    if (clean.length !== 6) return hex
+    const r = parseInt(clean.slice(0, 2), 16)
+    const g = parseInt(clean.slice(2, 4), 16)
+    const b = parseInt(clean.slice(4, 6), 16)
+    const mix = (channel: number) => Math.round(channel + (255 - channel) * amount)
+    return `#${mix(r).toString(16).padStart(2, '0')}${mix(g).toString(16).padStart(2, '0')}${mix(b).toString(16).padStart(2, '0')}`
+}
+
+function stripeColors(sport: any) {
+    const base = sportColor(sport)
+    const lighter = tintHex(base, 0.55)
+    return { base, lighter }
+}
+
 let dragPlaceholderObserver: MutationObserver | null = null
 
 function toLocalInput(dt: string | null) {
@@ -68,8 +83,12 @@ function toLocalInput(dt: string | null) {
 /**
  * Calendar events
  */
+const visibleSchedules = computed(() =>
+    ownerSchedules.value.filter((item: any) => scheduleStatus(item) !== 'completed')
+)
+
 const calendarEvents = computed(() =>
-    ownerSchedules.value
+    visibleSchedules.value
         .filter(i => i.start && i.end)
         .map((item: any) => ({
             id: item.id,
@@ -279,17 +298,16 @@ const groupedSchedules = computed(() => {
     const groups = {
         upcoming: [] as any[],
         in_progress: [] as any[],
-        completed: [] as any[],
     }
-    for (const item of ownerSchedules.value) {
+    for (const item of visibleSchedules.value) {
         const status = scheduleStatus(item)
+        if (status === 'completed') continue
         groups[status].push(item)
     }
     const asc = (a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime()
     const desc = (a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime()
     groups.upcoming.sort(asc)
     groups.in_progress.sort(asc)
-    groups.completed.sort(desc)
     return groups
 })
 
@@ -440,7 +458,10 @@ function openViewSchedule(item: any) {
 }
 
 function openAttendance(item: any) {
-    router.get(`/coach/attendance/${item.id}`)
+    const returnTo = typeof window === 'undefined'
+        ? '/coach/schedule'
+        : `${window.location.pathname}${window.location.search}`
+    router.get(`/coach/attendance/${item.id}`, { return_to: returnTo })
 }
 
 function duplicateSchedule(item: any) {
@@ -532,7 +553,6 @@ onBeforeUnmount(() => {
         <!-- Header -->
         <div class="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <CoachPageHeader title="Team Schedule" subtitle="Manage practices, games, and team events." />
                 <div v-if="props.teams.length" class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                     <div v-if="props.teams.length > 1" class="flex items-center gap-2">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team</span>
@@ -550,15 +570,28 @@ onBeforeUnmount(() => {
                 </div>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <button
-                    type="button"
-                    @click="layout = layout === 'calendar' ? 'list' : 'calendar'"
-                    :aria-pressed="layout === 'calendar'"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:border-slate-400 sm:w-auto"
-                >
-                    {{ layout === 'calendar' ? 'List View' : 'Calendar View' }}
-                </button>
+            <div v-if="props.teams.length" class="flex flex-wrap items-center gap-2">
+                <div class="view-toggle" :class="layout === 'calendar' ? 'is-calendar' : 'is-list'">
+                    <span class="view-toggle__indicator" :style="layout === 'calendar' ? { transform: 'translateX(100%)' } : { transform: 'translateX(0%)' }" />
+                    <button
+                        type="button"
+                        class="view-toggle__btn"
+                        :class="layout === 'list' ? 'is-active' : ''"
+                        :aria-pressed="layout === 'list'"
+                        @click="layout = 'list'"
+                    >
+                        List View
+                    </button>
+                    <button
+                        type="button"
+                        class="view-toggle__btn"
+                        :class="layout === 'calendar' ? 'is-active' : ''"
+                        :aria-pressed="layout === 'calendar'"
+                        @click="layout = 'calendar'"
+                    >
+                        Calendar View
+                    </button>
+                </div>
 
                 <button
                     type="button"
@@ -576,139 +609,158 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <!-- ========== LIST ========== -->
-        <section v-if="layout === 'list'" class="space-y-6">
-            <div v-if="ownerSchedules.length === 0" class="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
-                No schedules created yet.
-            </div>
+        <div v-if="!props.teams.length" class="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+            You are not assigned to a team yet.
+        </div>
 
-            <div v-else class="space-y-6">
-                <div v-for="(items, key) in groupedSchedules" :key="key" class="space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-sm font-semibold text-slate-900">{{ statusLabel(key) }}</h3>
-                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ items.length }}</span>
-                        </div>
-                        <span v-if="key === 'completed'" class="text-xs text-slate-500">Past schedules</span>
-                    </div>
+        <transition name="view-slide" mode="out-in">
+            <div v-if="layout === 'list' && props.teams.length" key="list" class="space-y-6">
+                <div v-if="ownerSchedules.length === 0" class="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
+                    No schedules created yet.
+                </div>
 
-                    <div v-if="items.length === 0" class="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                        No {{ statusLabel(key).toLowerCase() }} schedules.
-                    </div>
-
-                    <article v-for="item in items" :key="item.id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <div class="text-base font-semibold text-slate-900">{{ item.title }}</div>
-                                <div class="text-xs text-slate-500">{{ item.type || '-' }} • {{ item.venue || '-' }}</div>
-                                <div class="text-xs text-slate-500">{{ formatPHT(item.start) }} → {{ formatPHT(item.end) }}</div>
+                <div v-else class="space-y-6">
+                    <div v-for="(items, key) in groupedSchedules" :key="key" class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-sm font-semibold text-slate-900">{{ statusLabel(key) }}</h3>
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ items.length }}</span>
                             </div>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(scheduleStatus(item))">
-                                    {{ statusLabel(scheduleStatus(item)) }}
-                                </span>
-                                <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="attendanceTone(item)">
-                                    {{ attendanceLabel(item) }}
-                                </span>
-                                <span v-if="scheduleStatus(item) === 'completed' && Number(item.attendance_count ?? 0) === 0"
-                                    class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                                    Needs attendance
-                                </span>
-                                <span v-if="isLocked(item)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                                    Locked
-                                </span>
-                            </div>
+                            <span v-if="key === 'completed'" class="text-xs text-slate-500">Past schedules</span>
                         </div>
 
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <button
-                                @click="openAttendance(item)"
-                                class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#111827]"
-                            >
-                                {{ attendanceActionLabel(item) }}
-                            </button>
-                            <button
-                                @click="openViewSchedule(item)"
-                                class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400"
-                            >
-                                View Details
-                            </button>
-                            <button
-                                v-if="scheduleStatus(item) === 'completed'"
-                                @click="duplicateSchedule(item)"
-                                class="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
-                            >
-                                Duplicate
-                            </button>
-                            <button
-                                v-if="item.is_owner && !isLocked(item)"
-                                @click="openEditSchedule(item)"
-                                class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:border-indigo-300"
-                            >
-                                Edit
-                            </button>
-                            <button
-                                v-if="item.is_owner && !isLocked(item)"
-                                @click="deleteSchedule(item.id)"
-                                class="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:border-rose-300"
-                            >
-                                Delete
-                            </button>
+                        <div
+                            v-if="items.length === 0"
+                            class="rounded-xl border border-dashed px-4 py-6 text-sm"
+                            :class="(key === 'upcoming' || key === 'in_progress')
+                                ? 'border-[#034485]/40 text-[#034485]'
+                                : 'border-slate-200 bg-white text-slate-500'"
+                            :style="(key === 'upcoming' || key === 'in_progress')
+                                ? {
+                                    backgroundColor: '#f6f9ff',
+                                    backgroundImage: 'repeating-linear-gradient(135deg, rgba(3, 68, 133, 0.12) 0 10px, rgba(255, 255, 255, 0) 10px 20px)',
+                                  }
+                                : {}"
+                        >
+                            No {{ statusLabel(key).toLowerCase() }} schedules.
                         </div>
-                    </article>
+
+                        <article v-for="item in items" :key="item.id" class="relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4">
+                            <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
+                                <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
+                                <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
+                            </div>
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <div class="text-base font-semibold text-slate-900">{{ item.title }}</div>
+                                    <div class="text-xs text-slate-500">{{ item.type || '-' }} • {{ item.venue || '-' }}</div>
+                                    <div class="text-xs text-slate-500">{{ formatPHT(item.start) }} → {{ formatPHT(item.end) }}</div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(scheduleStatus(item))">
+                                        {{ statusLabel(scheduleStatus(item)) }}
+                                    </span>
+                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="attendanceTone(item)">
+                                        {{ attendanceLabel(item) }}
+                                    </span>
+                                    <span v-if="scheduleStatus(item) === 'completed' && Number(item.attendance_count ?? 0) === 0"
+                                        class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                                        Needs attendance
+                                    </span>
+                                    <span v-if="isLocked(item)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                        Locked
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    @click="openAttendance(item)"
+                                    class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#111827]"
+                                >
+                                    {{ attendanceActionLabel(item) }}
+                                </button>
+                                <button
+                                    @click="openViewSchedule(item)"
+                                    class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400"
+                                >
+                                    View Details
+                                </button>
+                                <button
+                                    v-if="scheduleStatus(item) === 'completed'"
+                                    @click="duplicateSchedule(item)"
+                                    class="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
+                                >
+                                    Duplicate
+                                </button>
+                                <button
+                                    v-if="item.is_owner && !isLocked(item)"
+                                    @click="openEditSchedule(item)"
+                                    class="rounded-md border border-indigo-200 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:border-indigo-300"
+                                >
+                                    Edit
+                                </button>
+                                <button
+                                    v-if="item.is_owner && !isLocked(item)"
+                                    @click="deleteSchedule(item.id)"
+                                    class="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:border-rose-300"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </article>
+                    </div>
                 </div>
             </div>
-        </section>
-        <!-- ========== CALENDAR ========== -->
-        <div v-if="layout === 'calendar'" class="mb-3 flex flex-wrap gap-4 text-xs">
-            <div class="flex items-center gap-1 text-slate-700">
-                <span class="w-3 h-3 rounded bg-orange-500"></span> Basketball
-            </div>
-            <div class="flex items-center gap-1 text-slate-700">
-                <span class="w-3 h-3 rounded bg-slate-500"></span> Volleyball
-            </div>
-            <div class="flex items-center gap-1 text-slate-700">
-                <span class="w-3 h-3 rounded bg-green-500"></span> Football
-            </div>
-            <div class="flex items-center gap-1 text-slate-700">
-                <span class="w-3 h-3 rounded bg-yellow-400"></span> Badminton
-            </div>
-            <div class="flex items-center gap-1 text-slate-700">
-                <span class="w-3 h-3 rounded bg-red-500"></span> Table Tennis
-            </div>
-        </div>
-        <p v-if="layout === 'calendar'" class="mb-3 text-xs text-slate-500">
-            Tip: Drag on an empty calendar time slot to quickly create a schedule.
-        </p>
-        <div v-if="layout === 'calendar'" ref="calendarContainer"
-            class="flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
-
-            <VueCal sm style="height: 500px; width: 100%; max-width: 1150px;" :events="calendarEvents"
-                default-view="month" :time="true" :twelve-hour="true" time-format="h:mm {am}" events-on-month-view
-                :editable-events="canManage" :event-create-min-drag="15" @event-create="onCalendarCreate"
-                @event-click="onEventClick" @cell-click="onCellClick" @event-drop="onEventDrag"
-                @event-duration-change="onEventResize">
-                <!-- CUSTOM EVENT DISPLAY -->
-                <template #event="{ event }">
-                    <div class="relative text-sm group pr-5">
-                        <button v-if="isOwnerSchedule(event.id) && !event.is_locked"
-                            class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-xs font-bold leading-none opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
-                            title="Delete schedule" @mousedown.stop @click.stop="deleteSchedule(event.id)">
-                            ×
-                        </button>
-
-                        <div class="text-xs font-medium leading-tight">
-                            {{ event.title }}
-                        </div>
-
-                        <div class="text-[10px] opacity-70 leading-tight">
-                            {{ formatPHTime(event.start) }} – {{ formatPHTime(event.end) }}
-                        </div>
+            <div v-else-if="layout === 'calendar' && props.teams.length" key="calendar">
+                <div class="mb-3 flex flex-wrap gap-4 text-xs">
+                    <div class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded bg-orange-500"></span> Basketball
                     </div>
-                </template>
-            </VueCal>
+                    <div class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded bg-blue-500"></span> Volleyball
+                    </div>
+                    <div class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded bg-green-500"></span> Football
+                    </div>
+                    <div class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded bg-yellow-400"></span> Badminton
+                    </div>
+                    <div class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded bg-red-500"></span> Table Tennis
+                    </div>
+                </div>
+                <p class="mb-3 text-xs text-slate-500">
+                    Tip: Drag on an empty calendar time slot to quickly create a schedule.
+                </p>
+                <div ref="calendarContainer" class="flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+                    <VueCal sm style="height: 500px; width: 100%; max-width: 1150px;" :events="calendarEvents"
+                        default-view="month" :time="true" :twelve-hour="true" time-format="h:mm {am}" events-on-month-view
+                        :editable-events="canManage" :event-create-min-drag="15" @event-create="onCalendarCreate"
+                        @event-click="onEventClick" @cell-click="onCellClick" @event-drop="onEventDrag"
+                        @event-duration-change="onEventResize">
+                        <!-- CUSTOM EVENT DISPLAY -->
+                        <template #event="{ event }">
+                            <div class="relative text-sm group pr-5">
+                                <button v-if="isOwnerSchedule(event.id) && !event.is_locked"
+                                    class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-xs font-bold leading-none opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700"
+                                    title="Delete schedule" @mousedown.stop @click.stop="deleteSchedule(event.id)">
+                                    ×
+                                </button>
 
-        </div>
+                                <div class="text-xs font-medium leading-tight">
+                                    {{ event.title }}
+                                </div>
+
+                                <div class="text-[10px] opacity-70 leading-tight">
+                                    {{ formatPHTime(event.start) }} – {{ formatPHTime(event.end) }}
+                                </div>
+                            </div>
+                        </template>
+                    </VueCal>
+                </div>
+            </div>
+        </transition>
 
         <!-- ========== MODAL ========== -->
         <div v-if="showModal" @click.self="closeModal"
@@ -719,7 +771,7 @@ onBeforeUnmount(() => {
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule</p>
-                        <h2 class="text-lg font-semibold text-slate-900">
+                        <h2 class="text-lg font-semibold" :class="modalMode === 'view' ? 'text-[#034485]' : 'text-slate-900'">
                             {{ modalMode === 'view' ? 'Schedule Details' : (editingId ? 'Edit Schedule' : 'Add Schedule') }}
                         </h2>
                     </div>
@@ -877,3 +929,57 @@ onBeforeUnmount(() => {
         @confirm="confirmDeleteSchedule"
     />
 </template>
+
+<style scoped>
+.view-slide-enter-active,
+.view-slide-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.view-slide-enter-from,
+.view-slide-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.view-toggle {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(3, 68, 133, 0.35);
+  background: #ffffff;
+  padding: 4px;
+  min-width: 220px;
+}
+
+.view-toggle__indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: calc(50% - 4px);
+  height: calc(100% - 8px);
+  border-radius: 999px;
+  background: #034485;
+  transition: transform 0.25s ease;
+  z-index: 0;
+}
+
+.view-toggle__btn {
+  position: relative;
+  z-index: 1;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  transition: color 0.2s ease;
+}
+
+.view-toggle__btn.is-active {
+  color: #ffffff;
+}
+</style>

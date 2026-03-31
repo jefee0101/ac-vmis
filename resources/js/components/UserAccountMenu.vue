@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 
 const page = usePage()
 const menuOpen = ref(false)
+const closeTimer = ref<number | null>(null)
 
 const user = computed(() => page.props.auth?.user ?? null)
 
@@ -28,12 +29,12 @@ const avatarUrl = computed(() => {
 const fullName = computed(() => String(user.value?.name ?? 'User'))
 const menuPanelClass = computed(() => {
   if (props.menuPlacement === 'top') {
-    return 'absolute right-0 bottom-full mb-2 w-48 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
+    return 'absolute right-0 bottom-full mb-2 w-56 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
   }
   if (props.menuPlacement === 'right') {
-    return 'absolute left-full -top-2 ml-2 w-48 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
+    return 'absolute left-full -top-2 ml-2 w-56 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
   }
-  return 'absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
+  return 'absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
 })
 
 function goProfile() {
@@ -50,10 +51,34 @@ function logout() {
   menuOpen.value = false
   router.post('/logout')
 }
+
+function openMenu() {
+  if (closeTimer.value) {
+    window.clearTimeout(closeTimer.value)
+    closeTimer.value = null
+  }
+  menuOpen.value = true
+}
+
+function scheduleClose() {
+  if (closeTimer.value) {
+    window.clearTimeout(closeTimer.value)
+  }
+  closeTimer.value = window.setTimeout(() => {
+    menuOpen.value = false
+    closeTimer.value = null
+  }, 180)
+}
 </script>
 
 <template>
-  <div class="relative">
+  <div
+    class="relative account-menu"
+    @mouseenter="openMenu"
+    @mouseleave="scheduleClose"
+    @focusin="openMenu"
+    @focusout="scheduleClose"
+  >
     <button
       type="button"
       class="account-card"
@@ -64,7 +89,7 @@ function logout() {
       @click="menuOpen = !menuOpen"
       :title="compact ? fullName : ''"
     >
-      <img :src="avatarUrl" alt="Profile" class="account-avatar h-9 w-9 rounded-full object-cover border border-white/40" />
+      <img :src="avatarUrl" alt="Profile" class="account-avatar h-9 w-9 rounded-full object-cover" />
       <div v-if="!compact" class="min-w-0 text-left">
         <p class="text-xs opacity-70 leading-none">Account</p>
         <p class="text-sm font-semibold truncate leading-tight">{{ fullName }}</p>
@@ -77,7 +102,7 @@ function logout() {
     >
       <button @click="goProfile" class="menu-item">Profile</button>
       <button @click="goSettings" class="menu-item">Settings</button>
-      <button @click="logout" class="menu-item text-red-600">Logout</button>
+      <button @click="logout" class="menu-item menu-item-danger">Logout</button>
     </div>
   </div>
 </template>
@@ -103,7 +128,10 @@ function logout() {
   min-width: 0;
   max-width: 44px;
   justify-content: center;
-  padding: 4px;
+  padding: 0;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .account-card-dark {
@@ -119,9 +147,25 @@ function logout() {
   padding: 10px 12px;
   font-size: 14px;
   color: #1e293b;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .menu-item:hover {
   background: #f8fafc;
+}
+
+.menu-item-danger {
+  width: calc(100% - 16px);
+  margin: 6px 8px 8px;
+  border-radius: 10px;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+  font-weight: 600;
+  background: #ffffff;
+}
+
+.menu-item-danger:hover {
+  background: #fff1f2;
+  border-color: #fda4af;
 }
 </style>

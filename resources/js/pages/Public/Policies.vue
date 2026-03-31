@@ -22,23 +22,16 @@ import PublicLayout from '@/components/Public/PublicLayout.vue';
 </template>
 
 <style scoped>
-.public-card {
-    border:  1px solid rgba(15, 23, 42, 0.35);
-    border-radius: 14px;
-    background: #ffffff;
-    padding: 1rem;
-}
-
 .policy-intro {
-    color: #475569;
+    color: var(--page-text-muted);
 }
 
 .link-btn {
     display: inline-flex;
     padding: 0.5rem 0.75rem;
-    border-radius: 0.55rem;
-    background: #1f2937;
-    color: #fff;
+    border-radius: 999px;
+    background: var(--page-accent);
+    color: #ffffff;
     font-size: 0.875rem;
     text-decoration: none;
 }

@@ -83,6 +83,10 @@ class CoachOperationsController extends Controller
         $attendanceSchedules = TeamSchedule::where('team_id', $ownerTeam->id)
             ->orderBy('start_time')
             ->get()
+            ->filter(function ($schedule) {
+                if (!$schedule->end_time) return false;
+                return Carbon::parse($schedule->end_time)->lt(now());
+            })
             ->map(function ($schedule) {
                 $windowMinutes = max(1, (int) ($schedule->qr_window_minutes ?? 20));
                 $qrClosesAt = Carbon::parse($schedule->start_time)->addMinutes($windowMinutes);

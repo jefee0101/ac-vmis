@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import CoachPageHeader from '@/components/coach/CoachPageHeader.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
 
@@ -107,7 +106,10 @@ function statusLabel(status: string) {
 <template>
     <Head title="Wellness Monitoring" />
     <div class="space-y-4">
-        <CoachPageHeader title="Wellness Monitoring" subtitle="Post-practice or game logs for athletes who attended." />
+        <div class="flex flex-col gap-1">
+            <h1 class="text-2xl font-bold text-slate-900">Wellness Monitoring</h1>
+            <p class="text-sm text-slate-500">Post-practice or game logs for athletes who attended.</p>
+        </div>
 
         <div v-if="!team" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
             You are not assigned to a team yet.

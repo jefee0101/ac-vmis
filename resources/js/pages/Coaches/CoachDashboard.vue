@@ -110,10 +110,9 @@ const nextCountdown = computed(() => {
     <section v-else class="space-y-5">
       <Head title="Coach Dashboard" />
 
-      <section class="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/60 p-6 shadow-sm">
+      <section class="rounded-2xl border border-[#034485]/30 bg-white p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Coach Command</p>
             <h1 class="mt-2 text-2xl font-bold text-slate-900">
               {{ props.team?.team_name ? `${props.team.team_name} Hub` : 'Coach Hub' }}
             </h1>
@@ -124,14 +123,14 @@ const nextCountdown = computed(() => {
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
-              class="rounded-lg bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#111827]"
+              class="rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#033a70]"
               @click="goTo('/coach/operations?tab=attendance0')"
             >
               Take Attendance
             </button>
             <button
               type="button"
-              class="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-[#1f2937] hover:border-slate-300"
+              class="rounded-full border border-[#034485]/40 px-4 py-2 text-sm font-semibold text-[#034485] hover:border-[#034485]/70 hover:bg-[#034485]/5"
               @click="goTo('/coach/schedule0')"
             >
               Add Schedule
@@ -140,7 +139,7 @@ const nextCountdown = computed(() => {
         </div>
 
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr]">
-          <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Next Schedule</p>
             <p class="mt-2 text-lg font-semibold text-slate-900">{{ props.nextSchedule?.title ?? 'No upcoming schedule' }}</p>
             <p class="text-xs text-slate-500">
@@ -149,12 +148,12 @@ const nextCountdown = computed(() => {
             </p>
             <p v-if="nextCountdown" class="mt-2 text-xs font-semibold text-[#1f2937]">{{ nextCountdown }}</p>
           </div>
-          <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Attendance Checks</p>
             <p class="mt-2 text-lg font-semibold text-[#1f2937]">{{ safeMetrics.attendance_needs_review }}</p>
             <p class="text-xs text-slate-500">Past schedules without attendance.</p>
           </div>
-          <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Wellness Pending</p>
             <p class="mt-2 text-lg font-semibold text-rose-600">{{ safeMetrics.wellness_pending }}</p>
             <p class="text-xs text-slate-500">Sessions needing wellness logs.</p>
@@ -162,7 +161,7 @@ const nextCountdown = computed(() => {
         </div>
       </section>
 
-      <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section class="rounded-2xl border border-[#034485]/30 bg-white p-5">
         <div class="flex items-center justify-between">
           <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Action Board</h2>
           <span class="text-xs text-slate-500">Primary workflows</span>
@@ -171,10 +170,10 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/schedule0')"
-            class="group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-slate-200 hover:bg-white"
+            class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-center gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-[#1f2937]">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <path d="M8 2v3M16 2v3M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
                 </svg>
@@ -189,10 +188,10 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/operations?tab=attendance0')"
-            class="group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-rose-200 hover:bg-white"
+            class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-center gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <path d="M9 3h6M9 1h6a2 2 0 0 1 2 2v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a2 2 0 0 1 2-2zm-1 11l2 2 4-4" />
                 </svg>
@@ -210,10 +209,10 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/academics0')"
-            class="group flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left shadow-sm transition hover:border-emerald-200 hover:bg-white"
+            class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-center gap-3">
-              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <path d="M2 9l10-5 10 5-10 5-10-5zM6 11v5c0 1.6 2.7 3 6 3s6-1.4 6-3v-5" />
                 </svg>
@@ -231,28 +230,28 @@ const nextCountdown = computed(() => {
       </section>
 
       <section class="grid gap-4 lg:grid-cols-2">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="rounded-2xl border border-[#034485]/30 bg-white p-5">
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Roster Signals</h3>
             <span class="text-xs text-slate-500">Total: {{ safeMetrics.roster_total }}</span>
           </div>
           <div class="mt-4 grid gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
               <p class="text-xs text-slate-500">Injured</p>
               <p class="mt-1 text-lg font-semibold text-rose-600">{{ safeMetrics.roster_injured }}</p>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
               <p class="text-xs text-slate-500">Missing Positions</p>
               <p class="mt-1 text-lg font-semibold text-amber-600">{{ safeMetrics.roster_missing_positions }}</p>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
               <p class="text-xs text-slate-500">Jersey Pending</p>
               <p class="mt-1 text-lg font-semibold text-slate-900">{{ safeMetrics.roster_jersey_pending }}</p>
             </div>
           </div>
         </div>
 
-        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="rounded-2xl border border-[#034485]/30 bg-white p-5">
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Attendance Snapshot (7 days)</h3>
             <span class="text-xs text-slate-500">Team trend</span>
@@ -279,9 +278,9 @@ const nextCountdown = computed(() => {
       </section>
 
       <div class="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.2rem)] z-30 px-4 md:hidden">
-        <div class="mx-auto flex max-w-md gap-2 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur">
-          <button type="button" class="flex-1 rounded-md bg-[#1f2937] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/operations?tab=attendance')">Take Attendance</button>
-          <button type="button" class="flex-1 rounded-md bg-[#f53003] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/schedule')">Add Schedule</button>
+        <div class="mx-auto flex max-w-md gap-2 rounded-xl border border-[#034485]/30 bg-white/95 p-2 backdrop-blur">
+          <button type="button" class="flex-1 rounded-md bg-[#034485] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/operations?tab=attendance')">Take Attendance</button>
+          <button type="button" class="flex-1 rounded-md border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-[#034485]" @click="goTo('/coach/schedule')">Add Schedule</button>
         </div>
       </div>
     </section>  

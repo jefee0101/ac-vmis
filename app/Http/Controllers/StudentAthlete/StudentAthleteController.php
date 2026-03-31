@@ -6,13 +6,27 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Models\AcademicDocument;
+use App\Models\AcademicEligibilityEvaluation;
+use App\Models\AcademicPeriod;
 use App\Models\Team;
 use App\Models\TeamPlayer;
+use App\Models\TeamSchedule;
 use App\Models\Student;
+use App\Models\WellnessLog;
 use Illuminate\Validation\Rule;
 
 class StudentAthleteController extends Controller
 {
+    public function dashboard()
+    {
+        $student = Student::where('user_id', Auth::id())->first();
+
+        return Inertia::render('StudentAthletes/StudentAthleteDashboard', [
+            'dashboard' => $this->buildDashboard($student),
+        ]);
+    }
+
     public function index(Request $request)
     {
         // Get the logged-in student-athlete
@@ -33,7 +47,7 @@ class StudentAthleteController extends Controller
             'sport',
             'coach.user',
             'assistantCoach.user',
-            'players.student'
+            'players.student.user'
         ])
             ->whereHas('players', function($q) use ($student) {
                 $q->where('student_id', $student->id);
@@ -124,5 +138,155 @@ class StudentAthleteController extends Controller
         ]);
 
         return back()->with('success', 'Desired jersey number updated.');
+    }
+
+    private function buildDashboard(?Student $student): array
+    {
+        $now = now();
+        $today = $now->copy()->startOfDay();
+        $sevenDaysStart = $today->copy()->subDays(6);
+        $nextWeekEnd = $today->copy()->addDays(6)->endOfDay();
+        $lastThirtyDays = $now->copy()->subDays(30)->startOfDay();
+
+        $teamIds = collect();
+        if ($student) {
+            $teamIds = TeamPlayer::query()
+                ->where('student_id', $student->id)
+                ->pluck('team_id');
+        }
+
+        $attendanceBreakdown = [
+            'present' => 0,
+            'absent' => 0,
+            'excused' => 0,
+            'no_response' => 0,
+        ];
+
+        if ($student && $teamIds->isNotEmpty()) {
+            $attendanceRows = TeamSchedule::query()
+                ->whereIn('team_id', $teamIds)
+                ->whereBetween('start_time', [$lastThirtyDays, $now])
+                ->leftJoin('schedule_attendances as sa', function ($join) use ($student) {
+                    $join->on('sa.schedule_id', '=', 'team_schedules.id')
+                        ->where('sa.student_id', $student->id);
+                })
+                ->selectRaw("COALESCE(sa.status, 'no_response') as status")
+                ->get();
+
+            $attendanceBreakdown['present'] = $attendanceRows->where('status', 'present')->count();
+            $attendanceBreakdown['absent'] = $attendanceRows->where('status', 'absent')->count();
+            $attendanceBreakdown['excused'] = $attendanceRows->where('status', 'excused')->count();
+            $attendanceBreakdown['no_response'] = $attendanceRows->where('status', 'no_response')->count();
+        }
+
+        $attendanceTotal = array_sum($attendanceBreakdown);
+        $attendanceRate = $attendanceTotal > 0
+            ? (int) round((($attendanceBreakdown['present'] + $attendanceBreakdown['excused']) / $attendanceTotal) * 100)
+            : null;
+
+        $pendingResponses = 0;
+        if ($student && $teamIds->isNotEmpty()) {
+            $pendingResponses = TeamSchedule::query()
+                ->whereIn('team_id', $teamIds)
+                ->where('start_time', '>=', $now)
+                ->leftJoin('schedule_attendances as sa', function ($join) use ($student) {
+                    $join->on('sa.schedule_id', '=', 'team_schedules.id')
+                        ->where('sa.student_id', $student->id);
+                })
+                ->whereNull('sa.id')
+                ->count();
+        }
+
+        $wellnessLogsCount = 0;
+        if ($student) {
+            $wellnessLogsCount = WellnessLog::query()
+                ->where('student_id', $student->id)
+                ->whereDate('log_date', '>=', $lastThirtyDays->toDateString())
+                ->count();
+        }
+
+        $latestEvaluationStatus = null;
+        if ($student) {
+            $latestEvaluationStatus = AcademicEligibilityEvaluation::query()
+                ->where('student_id', $student->id)
+                ->orderByDesc('evaluated_at')
+                ->orderByDesc('id')
+                ->value('status');
+        }
+
+        $upcomingSeries = [];
+        $upcomingCounts = collect();
+        if ($student && $teamIds->isNotEmpty()) {
+            $upcomingCounts = TeamSchedule::query()
+                ->whereIn('team_id', $teamIds)
+                ->whereBetween('start_time', [$today, $nextWeekEnd])
+                ->selectRaw('DATE(start_time) as day, COUNT(*) as total')
+                ->groupBy('day')
+                ->pluck('total', 'day');
+        }
+
+        for ($i = 0; $i < 7; $i++) {
+            $day = $today->copy()->addDays($i);
+            $key = $day->toDateString();
+            $upcomingSeries[] = [
+                'label' => $day->format('M j'),
+                'count' => (int) ($upcomingCounts[$key] ?? 0),
+            ];
+        }
+
+        $wellnessSeries = [];
+        $wellnessCounts = collect();
+        if ($student) {
+            $wellnessCounts = WellnessLog::query()
+                ->where('student_id', $student->id)
+                ->whereDate('log_date', '>=', $sevenDaysStart->toDateString())
+                ->selectRaw('DATE(log_date) as day, AVG(fatigue_level) as value')
+                ->groupBy('day')
+                ->pluck('value', 'day');
+        }
+
+        for ($i = 0; $i < 7; $i++) {
+            $day = $sevenDaysStart->copy()->addDays($i);
+            $key = $day->toDateString();
+            $value = $wellnessCounts[$key] ?? 0;
+            $wellnessSeries[] = [
+                'label' => $day->format('M j'),
+                'value' => $value !== null ? round((float) $value, 1) : 0,
+            ];
+        }
+
+        $openPeriodIds = AcademicPeriod::query()
+            ->where('status', 'open')
+            ->pluck('id');
+        $openPeriodCount = $openPeriodIds->count();
+        $submittedCount = 0;
+
+        if ($student && $openPeriodCount > 0) {
+            $submittedCount = AcademicDocument::query()
+                ->where('student_id', $student->id)
+                ->whereIn('academic_period_id', $openPeriodIds)
+                ->distinct('academic_period_id')
+                ->count('academic_period_id');
+        }
+
+        $pendingCount = max($openPeriodCount - $submittedCount, 0);
+
+        return [
+            'kpis' => [
+                'attendance_rate' => $attendanceRate,
+                'pending_responses' => $pendingResponses,
+                'wellness_logs_30d' => $wellnessLogsCount,
+                'academic_status' => $latestEvaluationStatus,
+            ],
+            'charts' => [
+                'upcoming_sessions' => $upcomingSeries,
+                'wellness_trend' => $wellnessSeries,
+                'attendance_breakdown' => $attendanceBreakdown,
+                'academic_submissions' => [
+                    'submitted' => $submittedCount,
+                    'pending' => $pendingCount,
+                ],
+            ],
+        ];
     }
 }   

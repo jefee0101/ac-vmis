@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head } from '@inertiajs/vue3'
+import { Head, Link } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 defineOptions({
@@ -29,10 +29,12 @@ const props = defineProps<{
         name: string
     } | null
     logs: WellnessLog[]
+    accessLocked?: boolean
+    lockStatus?: string | null
+    lockMessage?: string | null
 }>()
 
 const search = ref('')
-const showTable = ref(false)
 const selectedLogId = ref<number | null>(null)
 const showInjuryOnly = ref(false)
 
@@ -71,59 +73,64 @@ function toggleDetails(id: number) {
                 <h1 class="text-2xl font-bold text-slate-900">Wellness History</h1>
                 <p class="text-sm text-slate-500 mt-1">Your coach-recorded post-session wellness logs.</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    @click="showTable = !showTable"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                    {{ showTable ? 'Hide Table' : 'Show Table' }}
-                </button>
+            <div v-if="!accessLocked" class="flex flex-wrap gap-2">
                 <button
                     @click="showInjuryOnly = !showInjuryOnly"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold"
-                    :class="showInjuryOnly ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-slate-600 hover:bg-slate-50'"
+                    class="rounded-full border border-[#034485]/40 bg-white px-4 py-2 text-xs font-semibold"
+                    :class="showInjuryOnly ? 'text-white bg-[#034485] border-[#034485]' : 'text-[#034485] hover:bg-[#034485]/10'"
                 >
                     {{ showInjuryOnly ? 'Showing Injury Only' : 'Filter Injury Only' }}
                 </button>
             </div>
         </div>
 
-        <div v-if="!student" class="bg-white border border-slate-200 rounded-lg p-4 text-slate-600">
+        <div v-if="accessLocked" class="rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700">
+            <h2 class="text-sm font-semibold text-slate-800">Wellness Access Paused</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Wellness access is paused during the academic submission window.' }}</p>
+            <div class="mt-3 text-xs text-slate-600">
+                Status:
+                <span class="ml-2 inline-flex rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {{ lockStatus || 'Suspended' }}
+                </span>
+            </div>
+            <Link href="/AcademicSubmissions" class="mt-4 inline-flex rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] hover:bg-[#034485]/10">
+                Go to Academic Submissions
+            </Link>
+        </div>
+
+        <template v-else>
+        <div v-if="!student" class="bg-white border border-[#034485]/35 rounded-3xl p-4 text-slate-600">
             Student profile not found.
         </div>
 
         <template v-else>
-            <div class="bg-white border border-slate-200 rounded-lg p-4 text-sm text-slate-700">
-                <span class="font-medium">{{ student.name }}</span>
-                <span class="text-slate-500"> • {{ student.student_id_number || '-' }}</span>
-            </div>
 
             <section class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Total logs</p>
                     <p class="text-2xl font-semibold text-[#1f2937] mt-1">{{ totalLogs }}</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Injury flags</p>
                     <p class="text-2xl font-semibold text-rose-600 mt-1">{{ injuryCount }}</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Avg fatigue</p>
                     <p class="text-2xl font-semibold text-slate-900 mt-1">{{ avgFatigue ?? '-' }}</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Latest log</p>
                     <p class="text-sm font-semibold text-slate-900 mt-1">{{ latestLog?.log_date || '—' }}</p>
                     <p class="text-xs text-slate-500">{{ latestLog?.schedule_title || 'No entries yet' }}</p>
                 </div>
             </section>
 
-            <div class="bg-white border border-slate-200 rounded-lg p-3">
+            <div class="bg-white border border-[#034485]/35 rounded-full p-2">
                 <input
                     v-model="search"
                     type="text"
                     placeholder="Search team, schedule, coach..."
-                    class="w-full bg-white border border-slate-200 rounded px-3 py-2 text-slate-700"
+                    class="w-full bg-white border border-[#034485]/30 rounded-full px-4 py-2 text-slate-700"
                 />
             </div>
 
@@ -131,7 +138,7 @@ function toggleDetails(id: number) {
                 <button
                     v-for="row in filteredLogs"
                     :key="row.id"
-                    class="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm"
+                    class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-left"
                     @click="toggleDetails(row.id)"
                 >
                     <div class="flex items-center justify-between gap-2">
@@ -159,14 +166,14 @@ function toggleDetails(id: number) {
                 </button>
             </section>
 
-            <div v-else-if="filteredLogs.length === 0" class="bg-white border border-slate-200 rounded-xl p-6 text-slate-500 text-center">
+            <div v-else-if="filteredLogs.length === 0" class="bg-white border border-[#034485]/35 rounded-3xl p-6 text-slate-500 text-center">
                 No wellness logs available yet.
             </div>
 
-            <div v-if="showTable" class="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div class="bg-white border border-[#034485]/35 rounded-3xl overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
+                        <thead class="bg-[#034485] text-white">
                             <tr>
                                 <th class="px-4 py-3 text-left">Date</th>
                                 <th class="px-4 py-3 text-left">Schedule</th>
@@ -175,7 +182,7 @@ function toggleDetails(id: number) {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="row in filteredLogs" :key="row.id" class="border-t border-slate-200 text-slate-700">
+                            <tr v-for="row in filteredLogs" :key="row.id" class="border-t border-[#034485]/20 text-slate-700">
                                 <td class="px-4 py-3">{{ row.log_date || '-' }}</td>
                                 <td class="px-4 py-3">
                                     <div>{{ row.team_name || '-' }}</div>
@@ -199,6 +206,7 @@ function toggleDetails(id: number) {
                     </table>
                 </div>
             </div>
+        </template>
         </template>
     </div>
 </template>

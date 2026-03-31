@@ -1,6 +1,12 @@
 export function useSportColors() {
     function normalizeSport(sport: unknown) {
-        if (typeof sport === 'string') return sport.toLowerCase().trim()
+        if (typeof sport === 'string') {
+            return sport
+                .toLowerCase()
+                .replace(/[_-]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+        }
         if (sport == null) return ''
         return String(sport).toLowerCase().trim()
     }

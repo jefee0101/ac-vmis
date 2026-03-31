@@ -9,18 +9,19 @@ use App\Models\AcademicPeriod;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
+use App\Services\AcademicHoldService;
 use App\Services\AnnouncementService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class AcademicSubmissionController extends Controller
 {
     public function __construct(
         private AnnouncementService $announcements,
-        private SecureUploadService $secureUpload
+        private SecureUploadService $secureUpload,
+        private AcademicHoldService $holdService,
     )
     {
     }
@@ -37,19 +38,29 @@ class AcademicSubmissionController extends Controller
             ]);
         }
 
+        return Inertia::render('StudentAthletes/AcademicSubmissions', $this->buildPayload($student));
+    }
+
+    public function create(Request $request)
+    {
+        $student = Student::where('user_id', Auth::id())->firstOrFail();
+
+        $payload = $this->buildPayload($student);
+        $payload['selectedPeriodId'] = (int) $request->query('period_id', 0);
+
+        return Inertia::render('StudentAthletes/AcademicSubmissionForm', $payload);
+    }
+
+    private function buildPayload(Student $student): array
+    {
         $openPeriodsQuery = AcademicPeriod::query()
             ->orderByDesc('starts_on');
 
-        // Backward-compatible guard: if migration adding this column has not run yet,
-        // skip the open-window filter instead of crashing.
-        if (Schema::hasColumn('academic_periods', 'is_submission_open')) {
-            $openPeriodsQuery->where('is_submission_open', true);
-        }
-        if (Schema::hasColumn('academic_periods', 'is_locked')) {
-            $openPeriodsQuery->where('is_locked', false);
-        }
+        $openPeriodsQuery->where('status', 'open');
 
         $openPeriods = $openPeriodsQuery->get();
+        $holdState = $this->holdService->syncStudentStatus($student);
+        $submissionHoldStatus = $holdState['status'];
 
         $submissions = AcademicDocument::query()
             ->with('academicPeriod')
@@ -64,12 +75,18 @@ class AcademicSubmissionController extends Controller
             ->get()
             ->keyBy('academic_period_id');
 
-        return Inertia::render('StudentAthletes/AcademicSubmissions', [
+        return [
             'student' => [
                 'id' => $student->id,
                 'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                 'student_id_number' => $student->student_id_number,
+                'course_or_strand' => $student->course_or_strand,
+                'current_grade_level' => $student->current_grade_level,
             ],
+            'submissionHoldStatus' => $submissionHoldStatus,
+            'hasActiveWindow' => $holdState['hasActiveWindow'],
+            'hasTeam' => $holdState['hasTeam'],
+            'hasSubmittedAll' => $holdState['hasSubmittedAll'],
             'openPeriods' => $openPeriods->map(function ($p) use ($evalByPeriod) {
                 $evaluation = $evalByPeriod->get($p->id);
                 $status = $evaluation?->status;
@@ -107,7 +124,7 @@ class AcademicSubmissionController extends Controller
                     ] : null,
                 ];
             }),
-        ]);
+        ];
     }
 
     public function store(Request $request)
@@ -123,12 +140,7 @@ class AcademicSubmissionController extends Controller
         ]);
 
         $period = AcademicPeriod::findOrFail((int) $validated['academic_period_id']);
-        if (Schema::hasColumn('academic_periods', 'is_submission_open')) {
-            abort_unless((bool) $period->is_submission_open, 422, 'Submission window is closed for this period.');
-        }
-        if (Schema::hasColumn('academic_periods', 'is_locked')) {
-            abort_unless(!(bool) $period->is_locked, 422, 'This period is locked and no longer accepts submissions.');
-        }
+        abort_unless($period->status === 'open', 422, 'Submission window is closed for this period.');
 
         $eligible = AcademicEligibilityEvaluation::query()
             ->where('student_id', $student->id)
@@ -205,12 +217,7 @@ class AcademicSubmissionController extends Controller
         $openPeriodsQuery = AcademicPeriod::query()
             ->orderByDesc('starts_on');
 
-        if (Schema::hasColumn('academic_periods', 'is_submission_open')) {
-            $openPeriodsQuery->where('is_submission_open', true);
-        }
-        if (Schema::hasColumn('academic_periods', 'is_locked')) {
-            $openPeriodsQuery->where('is_locked', false);
-        }
+        $openPeriodsQuery->where('status', 'open');
 
         $openPeriods = $openPeriodsQuery->get();
 

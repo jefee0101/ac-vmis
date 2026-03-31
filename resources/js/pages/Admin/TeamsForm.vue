@@ -5,6 +5,7 @@ import SingleSelectSearch from '@/components/SingleSelectSearch.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import { router } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useSportColors } from '@/composables/useSportColors'
 
 defineOptions({
     layout: AdminDashboard,
@@ -22,9 +23,17 @@ type TeamPayload = {
     player_ids: number[]
 }
 
+type PlayerOption = {
+    id: number
+    name: string
+    student_id_number: string | null
+    education_level?: string | null
+    current_grade_level?: string | null
+}
+
 const props = defineProps<{
     coaches: { id: number; name: string }[]
-    players: { id: number; name: string; student_id_number: string }[]
+    players: PlayerOption[]
     sports: { id: number; name: string; max_players: number }[]
     selectedTeam?: TeamPayload | null
     coachWorkloads?: Record<number, { team_id: number; role: string; team_name: string; sport_id: number; year: string | number }[]>
@@ -44,6 +53,8 @@ const errors = ref<Record<string, string>>({})
 const isSaving = ref(false)
 const isOptionLoading = ref(false)
 const draftMessage = ref('')
+const playerRoleFilter = ref('all')
+const playerGradeFilter = ref('all')
 let optionLoadingTimer: ReturnType<typeof setTimeout> | null = null
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -59,8 +70,60 @@ const selectedSport = computed(() => allSports.value.find((s) => String(s.id) ==
 const maxPlayersForSelectedSport = computed(() => selectedSport.value?.max_players ?? 0)
 const sportSelected = computed(() => !!sport.value)
 const selectableCoaches = computed(() => allCoaches.value)
-const selectablePlayers = computed(() => allPlayers.value)
+const playerRoleOptions = computed(() => {
+    const set = new Set<string>()
+    allPlayers.value.forEach((player) => {
+        if (player.education_level) set.add(String(player.education_level))
+    })
+    return Array.from(set).sort()
+})
+const playerGradeOptions = computed(() => {
+    const set = new Set<string>()
+    allPlayers.value.forEach((player) => {
+        if (player.current_grade_level) set.add(String(player.current_grade_level))
+    })
+    return Array.from(set).sort()
+})
+const selectablePlayers = computed(() => {
+    const filtered = allPlayers.value.filter((player) => {
+        if (playerRoleFilter.value !== 'all' && player.education_level !== playerRoleFilter.value) return false
+        if (playerGradeFilter.value !== 'all' && String(player.current_grade_level ?? '') !== playerGradeFilter.value) return false
+        return true
+    })
+    const selectedSet = new Set(players.value)
+    const selectedOptions = allPlayers.value.filter((player) => selectedSet.has(player.id))
+    return [
+        ...selectedOptions,
+        ...filtered.filter((player) => !selectedSet.has(player.id)),
+    ]
+})
 const draftKey = computed(() => `ac-vmis:teams:draft:${isEditMode.value ? `edit:${props.selectedTeam?.id}` : 'create'}`)
+const isOverLimit = computed(() => maxPlayersForSelectedSport.value > 0 && selectedPlayerCount.value > maxPlayersForSelectedSport.value)
+const isAtLimit = computed(() => maxPlayersForSelectedSport.value > 0 && selectedPlayerCount.value === maxPlayersForSelectedSport.value)
+const remainingSlots = computed(() => {
+    if (!maxPlayersForSelectedSport.value) return 0
+    return Math.max(0, maxPlayersForSelectedSport.value - selectedPlayerCount.value)
+})
+const previewCoachName = computed(() => allCoaches.value.find((c) => c.id === coach.value)?.name || 'Unassigned')
+const previewAssistantName = computed(() => allCoaches.value.find((c) => c.id === assistantCoach.value)?.name || 'Unassigned')
+const { sportColor, sportTextColor } = useSportColors()
+const playerTagStyle = () => {
+    if (!sportSelected.value) {
+        return {
+            backgroundColor: '#e2e8f0',
+            color: '#1f2937',
+            borderColor: '#cbd5e1',
+        }
+    }
+    const sportValue = selectedSport.value?.name ?? selectedSport.value?.id ?? ''
+    const bg = sportColor(sportValue)
+    const text = sportTextColor(sportValue)
+    return {
+        backgroundColor: bg,
+        color: text,
+        borderColor: bg,
+    }
+}
 
 const coachAssignments = computed(() => {
     if (!coach.value || !props.coachWorkloads) return []
@@ -187,12 +250,8 @@ watch(sport, (newSport, oldSport) => {
     }
 })
 
-watch(players, (selected) => {
-    const maxPlayers = maxPlayersForSelectedSport.value
-    if (!maxPlayers) return
-    if (selected.length > maxPlayers) {
-        players.value = selected.slice(0, maxPlayers)
-    }
+watch(players, () => {
+    errors.value = { ...errors.value, players: '' }
 })
 
 function goBack() {
@@ -306,116 +365,195 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <section class="space-y-5 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                <div class="space-y-4 lg:col-span-2">
+        <section class="space-y-5 rounded-xl border border-[#034485]/45 bg-white p-5">
+            <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div class="space-y-5">
+                    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                        <div class="space-y-4 lg:col-span-2">
+                            <div>
+                                <label class="mb-1 block text-sm font-medium text-slate-700">Team Name</label>
+                                <input
+                                    v-model="teamName"
+                                    type="text"
+                                    placeholder="e.g., Falcons A-Team"
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                />
+                                <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
+                                    <select v-model="sport" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="" disabled>Select sport</option>
+                                        <option v-for="s in allSports" :key="s.id" :value="String(s.id)">
+                                            {{ s.name }} (Max {{ s.max_players }})
+                                        </option>
+                                    </select>
+                                    <p v-if="errors.sport_id" class="mt-1 text-xs text-red-600">{{ errors.sport_id }}</p>
+                                </div>
+
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
+                                    <select v-model="year" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="" disabled>Select year</option>
+                                        <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                                    </select>
+                                    <p v-if="errors.year" class="mt-1 text-xs text-red-600">{{ errors.year }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-slate-700">Team Avatar</label>
+                            <input type="file" accept="image/*" @change="handleAvatarUpload" class="w-full text-sm text-slate-600" />
+                            <div class="flex h-40 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                                <img
+                                    v-if="avatarPreview"
+                                    :src="avatarPreview"
+                                    alt="Avatar Preview"
+                                    class="h-full w-full object-cover"
+                                />
+                                <span v-else class="text-xs text-slate-400">No image selected</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700">Team Name</label>
-                        <input
-                            v-model="teamName"
-                            type="text"
-                            placeholder="e.g., Falcons A-Team"
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Head Coach</label>
+                        <SingleSelectSearch
+                            v-model="coach"
+                            :options="selectableCoaches"
+                            :loading="isOptionLoading"
+                            :placeholder="sportSelected ? 'Search head coach...' : 'Select sport first'"
+                            badge-class="bg-[#034485] text-white"
+                            remove-class="text-white/80 hover:text-white"
+                        />
+                        <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first for conflict-aware guidance.</p>
+                        <p v-if="sportSelected && selectableCoaches.length === 0" class="mt-1 text-xs text-amber-700">No coaches loaded. Check coach records in People.</p>
+                        <p v-else-if="headCoachConflictHint.length" class="mt-1 text-xs text-amber-700">
+                            Coach conflict hint: already assigned to {{ headCoachConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
+                        </p>
+                        <p v-if="errors.coach_id" class="mt-1 text-xs text-red-600">{{ errors.coach_id }}</p>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Assistant Coach (Optional)</label>
+                        <SingleSelectSearch
+                            v-model="assistantCoach"
+                            :options="selectableCoaches"
+                            :loading="isOptionLoading"
+                            :placeholder="sportSelected ? 'Search assistant coach...' : 'Select sport first'"
+                            badge-class="bg-[#034485] text-white"
+                            remove-class="text-white/80 hover:text-white"
+                        />
+                        <p v-if="coach && assistantCoach && coach === assistantCoach" class="mt-1 text-xs text-amber-700">
+                            Assistant coach cannot be the same as head coach.
+                        </p>
+                        <p v-else-if="assistantConflictHint.length" class="mt-1 text-xs text-amber-700">
+                            Assistant conflict hint: already assigned to {{ assistantConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
+                        </p>
+                        <p v-if="errors.assistant_coach_id" class="mt-1 text-xs text-red-600">{{ errors.assistant_coach_id }}</p>
+                    </div>
+
+                    <div>
+                        <div class="mb-1 flex items-center justify-between">
+                            <label class="block text-sm font-medium text-slate-700">Players</label>
+                            <span class="text-xs text-slate-500">
+                                {{ selectedPlayerCount }} / {{ maxPlayersForSelectedSport || 0 }} selected
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600">Education Level</label>
+                                <select v-model="playerRoleFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
+                                    <option value="all">All Levels</option>
+                                    <option v-for="level in playerRoleOptions" :key="level" :value="level">
+                                        {{ level }}
+                                    </option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600">Grade / Year Level</label>
+                                <select v-model="playerGradeFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
+                                    <option value="all">All Grades</option>
+                                    <option v-for="grade in playerGradeOptions" :key="grade" :value="grade">
+                                        {{ grade }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <MultiSelectSearch
+                            v-model="players"
+                            :options="selectablePlayers"
+                            :loading="isOptionLoading"
+                            :placeholder="sportSelected ? `Search players (max ${maxPlayersForSelectedSport})...` : 'Select sport first'"
+                            :tag-style="playerTagStyle"
+                        />
+                        <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first to apply roster limits correctly.</p>
+                        <p v-if="sportSelected && selectablePlayers.length === 0" class="mt-1 text-xs text-amber-700">No players loaded. Check student-athlete records in People.</p>
+                        <p v-else class="mt-1 text-xs text-slate-500">
+                            Max players for {{ selectedSport?.name }}: {{ maxPlayersForSelectedSport }}.
+                        </p>
+                        <p v-if="isOverLimit" class="mt-1 text-xs font-semibold text-rose-600">
+                            Over limit by {{ selectedPlayerCount - maxPlayersForSelectedSport }} players. Please remove extras.
+                        </p>
+                        <p v-else-if="isAtLimit && maxPlayersForSelectedSport" class="mt-1 text-xs text-amber-600">
+                            Max capacity reached. Remove a player to add a new one.
+                        </p>
+                        <p v-if="errors.players" class="mt-1 text-xs text-red-600">{{ errors.players }}</p>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Description (Optional)</label>
+                        <textarea
+                            v-model="description"
+                            rows="3"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Team description..."
                         />
-                        <p v-if="errors.team_name" class="mt-1 text-xs text-red-600">{{ errors.team_name }}</p>
                     </div>
+                </div>
 
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-sm font-medium text-slate-700">Sport</label>
-                            <select v-model="sport" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                <option value="" disabled>Select sport</option>
-                                <option v-for="s in allSports" :key="s.id" :value="String(s.id)">
-                                    {{ s.name }} (Max {{ s.max_players }})
-                                </option>
-                            </select>
-                            <p v-if="errors.sport_id" class="mt-1 text-xs text-red-600">{{ errors.sport_id }}</p>
+                <aside class="rounded-xl border border-[#034485]/45 bg-[#034485] p-4 text-white">
+                    <h2 class="text-sm font-semibold text-white/90">Live Preview</h2>
+                    <div class="mt-3 flex items-center gap-3">
+                        <div class="h-12 w-12 overflow-hidden rounded-lg border border-white/20 bg-white/10">
+                            <img v-if="avatarPreview" :src="avatarPreview" alt="Team Avatar" class="h-full w-full object-cover" />
+                            <div v-else class="flex h-full w-full items-center justify-center text-xs text-white/70">Logo</div>
                         </div>
-
-                        <div>
-                            <label class="mb-1 block text-sm font-medium text-slate-700">Year</label>
-                            <select v-model="year" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                                <option value="" disabled>Select year</option>
-                                <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
-                            </select>
-                            <p v-if="errors.year" class="mt-1 text-xs text-red-600">{{ errors.year }}</p>
+                        <div class="min-w-0">
+                            <p class="truncate text-base font-semibold text-white">{{ teamName || 'Team Name' }}</p>
+                            <span class="mt-1 inline-flex rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold text-white">
+                                {{ selectedSport?.name || 'Select sport' }}
+                            </span>
                         </div>
                     </div>
-                </div>
 
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Team Avatar</label>
-                    <input type="file" accept="image/*" @change="handleAvatarUpload" class="w-full text-sm text-slate-600" />
-                    <div class="flex h-40 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                        <img
-                            v-if="avatarPreview"
-                            :src="avatarPreview"
-                            alt="Avatar Preview"
-                            class="h-full w-full object-cover"
-                        />
-                        <span v-else class="text-xs text-slate-400">No image selected</span>
+                    <div class="mt-4 space-y-2 text-xs text-white/80">
+                        <p><span class="font-semibold text-white/90">Year:</span> {{ year || 'Unassigned' }}</p>
+                        <p><span class="font-semibold text-white/90">Head Coach:</span> {{ previewCoachName }}</p>
+                        <p><span class="font-semibold text-white/90">Assistant:</span> {{ previewAssistantName }}</p>
                     </div>
-                </div>
-            </div>
 
-            <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Head Coach</label>
-                <SingleSelectSearch v-model="coach" :options="selectableCoaches" :loading="isOptionLoading" :placeholder="sportSelected ? 'Search head coach...' : 'Select sport first'" />
-                <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first for conflict-aware guidance.</p>
-                <p v-if="sportSelected && selectableCoaches.length === 0" class="mt-1 text-xs text-amber-700">No coaches loaded. Check coach records in People.</p>
-                <p v-else-if="headCoachConflictHint.length" class="mt-1 text-xs text-amber-700">
-                    Coach conflict hint: already assigned to {{ headCoachConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
-                </p>
-                <p v-if="errors.coach_id" class="mt-1 text-xs text-red-600">{{ errors.coach_id }}</p>
-            </div>
-
-            <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Assistant Coach (Optional)</label>
-                <SingleSelectSearch v-model="assistantCoach" :options="selectableCoaches" :loading="isOptionLoading" :placeholder="sportSelected ? 'Search assistant coach...' : 'Select sport first'" />
-                <p v-if="coach && assistantCoach && coach === assistantCoach" class="mt-1 text-xs text-amber-700">
-                    Assistant coach cannot be the same as head coach.
-                </p>
-                <p v-else-if="assistantConflictHint.length" class="mt-1 text-xs text-amber-700">
-                    Assistant conflict hint: already assigned to {{ assistantConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
-                </p>
-                <p v-if="errors.assistant_coach_id" class="mt-1 text-xs text-red-600">{{ errors.assistant_coach_id }}</p>
-            </div>
-
-            <div>
-                <div class="mb-1 flex items-center justify-between">
-                    <label class="block text-sm font-medium text-slate-700">Players</label>
-                    <span class="text-xs text-slate-500">
-                        {{ selectedPlayerCount }} / {{ maxPlayersForSelectedSport || 0 }} selected
-                    </span>
-                </div>
-                <MultiSelectSearch
-                    v-model="players"
-                    :options="selectablePlayers"
-                    :loading="isOptionLoading"
-                    :placeholder="sportSelected ? `Search players (max ${maxPlayersForSelectedSport})...` : 'Select sport first'"
-                />
-                <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first to apply roster limits correctly.</p>
-                <p v-if="sportSelected && selectablePlayers.length === 0" class="mt-1 text-xs text-amber-700">No players loaded. Check student-athlete records in People.</p>
-                <p v-else class="mt-1 text-xs text-slate-500">
-                    Max players for {{ selectedSport?.name }}: {{ maxPlayersForSelectedSport }}. The form prevents over-limit selection.
-                </p>
-                <p v-if="errors.players" class="mt-1 text-xs text-red-600">{{ errors.players }}</p>
-            </div>
-
-            <div>
-                <label class="mb-1 block text-sm font-medium text-slate-700">Description (Optional)</label>
-                <textarea
-                    v-model="description"
-                    rows="3"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    placeholder="Team description..."
-                />
+                    <div class="mt-4 rounded-lg border border-white/20 bg-white/10 p-3 text-xs text-white/80">
+                        <p class="font-semibold text-white/90">Roster Capacity</p>
+                        <p class="mt-1">Selected: {{ selectedPlayerCount }}</p>
+                        <p>Max Players: {{ maxPlayersForSelectedSport || 0 }}</p>
+                        <p>Open Slots: {{ remainingSlots }}</p>
+                        <p v-if="isOverLimit" class="mt-2 font-semibold text-rose-200">Over limit — adjust roster.</p>
+                        <p v-else-if="isAtLimit && maxPlayersForSelectedSport" class="mt-2 font-semibold text-amber-200">At max capacity.</p>
+                        <p v-else class="mt-2 text-white/70">Capacity available.</p>
+                    </div>
+                </aside>
             </div>
 
             <div class="flex justify-end border-t border-slate-200 pt-2">
                 <button
                     @click="submitTeam"
-                    :disabled="isSaving"
+                    :disabled="isSaving || isOverLimit"
                     class="rounded-lg bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <span class="inline-flex items-center gap-2">

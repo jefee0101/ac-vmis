@@ -33,20 +33,3 @@ import PublicLayout from '@/components/Public/PublicLayout.vue';
         </section>
     </PublicLayout>
 </template>
-
-<style scoped>
-.public-card {
-    border:  1px solid rgba(15, 23, 42, 0.35);
-    border-radius: 14px;
-    background: #ffffff;
-    padding: 1rem;
-    color: #475569;
-}
-
-.section-title {
-    margin-bottom: 0.45rem;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #1f2937;
-}
-</style>

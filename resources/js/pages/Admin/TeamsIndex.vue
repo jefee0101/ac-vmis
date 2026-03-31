@@ -3,6 +3,7 @@ import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { computed, reactive, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { useSportColors } from '@/composables/useSportColors'
 
 defineOptions({
     layout: AdminDashboard,
@@ -83,6 +84,7 @@ const rosterCache = ref<Record<number, any[]>>({})
 const rosterLoading = ref<Record<number, boolean>>({})
 const teamActionDialogOpen = ref(false)
 const pendingTeamAction = ref<{ type: 'archive' | 'reactivate'; team: TeamRow } | null>(null)
+const { sportColor } = useSportColors()
 
 const seasonSnapshots = computed(() => {
     const buckets: Record<string, TeamRow[]> = {}
@@ -119,6 +121,27 @@ const seasonSnapshots = computed(() => {
             return Number(b.year) - Number(a.year)
         })
 })
+
+function hexToRgba(hex: string, alpha: number) {
+    const sanitized = hex.replace('#', '')
+    const normalized = sanitized.length === 3
+        ? sanitized.split('').map((c) => `${c}${c}`).join('')
+        : sanitized
+    const int = Number.parseInt(normalized, 16)
+    if (Number.isNaN(int)) return `rgba(15, 23, 42, ${alpha})`
+    const r = (int >> 16) & 255
+    const g = (int >> 8) & 255
+    const b = int & 255
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function teamCardStyle(team: TeamRow) {
+    const color = sportColor(team.sport?.name ?? team.sport?.id ?? '')
+    return {
+        borderColor: color,
+        backgroundColor: hexToRgba(color, 0.08),
+    }
+}
 
 function fullName(person: any): string {
     const first = person?.first_name ?? ''
@@ -193,6 +216,13 @@ function goToEditTeam(teamId: number) {
 
 function printRoster(teamId: number) {
     window.open(`/teams/${teamId}/print`, '_blank')
+}
+
+function goToTeamSchedules(teamId: number) {
+    router.get('/operations', {
+        tab: 'calendar',
+        team_id: teamId,
+    })
 }
 
 async function toggleTeamExpanded(teamId: number) {
@@ -295,12 +325,9 @@ function formatTimestamp(value: string | null) {
 
 <template>
     <div class="space-y-5">
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Teams Workspace</h1>
-                    <p class="text-sm text-slate-600">Manage team records and season planning in one timeline view.</p>
-                </div>
+
                 <button
                     type="button"
                     class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155]"
@@ -371,78 +398,93 @@ function formatTimestamp(value: string | null) {
             </div>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-slate-900">Team Change Requests</h2>
-                    <p class="text-sm text-slate-500">Coach-initiated changes waiting for admin review.</p>
+        <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-900">Team Change Requests</h2>
+                        <p class="text-sm text-slate-500">Coach-initiated changes waiting for admin review.</p>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                        Unread: {{ unreadRequestCount }}
+                    </span>
                 </div>
-                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    Unread: {{ unreadRequestCount }}
-                </span>
-            </div>
 
-            <div v-if="teamChangeRequests.length === 0" class="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                No team change requests right now.
-            </div>
+                <div v-if="teamChangeRequests.length === 0" class="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    No team change requests right now.
+                </div>
 
-            <div v-else class="mt-4 grid gap-3 lg:grid-cols-2">
-                <article
-                    v-for="req in teamChangeRequests"
-                    :key="req.id"
-                    class="rounded-xl border border-slate-200 bg-slate-50 p-4"
-                >
-                    <div class="flex items-start justify-between gap-2">
-                        <div>
-                            <p class="text-sm font-semibold text-slate-900">{{ req.title }}</p>
-                            <p class="text-xs text-slate-500">{{ formatTimestamp(req.published_at) }}</p>
+                <div v-else class="mt-4 grid gap-3 lg:grid-cols-2">
+                    <article
+                        v-for="req in teamChangeRequests"
+                        :key="req.id"
+                        class="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    >
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">{{ req.title }}</p>
+                                <p class="text-xs text-slate-500">{{ formatTimestamp(req.published_at) }}</p>
+                            </div>
+                            <span
+                                class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                :class="req.is_read ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-700'"
+                            >
+                                {{ req.is_read ? 'Read' : 'Unread' }}
+                            </span>
                         </div>
-                        <span
-                            class="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                            :class="req.is_read ? 'bg-slate-200 text-slate-700' : 'bg-amber-100 text-amber-700'"
-                        >
-                            {{ req.is_read ? 'Read' : 'Unread' }}
-                        </span>
-                    </div>
 
-                    <div class="mt-3 space-y-1 text-xs text-slate-600">
-                        <p v-if="parseRequestMessage(req.message).team">
-                            <span class="font-semibold text-slate-700">Team:</span> {{ parseRequestMessage(req.message).team }}
-                        </p>
-                        <p v-if="req.requested_by || parseRequestMessage(req.message).requestedBy">
-                            <span class="font-semibold text-slate-700">Requested by:</span>
-                            {{ req.requested_by || parseRequestMessage(req.message).requestedBy }}
-                        </p>
-                        <p v-if="parseRequestMessage(req.message).target">
-                            <span class="font-semibold text-slate-700">Target:</span> {{ parseRequestMessage(req.message).target }}
-                        </p>
-                        <p v-if="parseRequestMessage(req.message).notes">
-                            <span class="font-semibold text-slate-700">Notes:</span> {{ parseRequestMessage(req.message).notes }}
-                        </p>
-                    </div>
+                        <div class="mt-3 space-y-1 text-xs text-slate-600">
+                            <p v-if="parseRequestMessage(req.message).team">
+                                <span class="font-semibold text-slate-700">Team:</span> {{ parseRequestMessage(req.message).team }}
+                            </p>
+                            <p v-if="req.requested_by || parseRequestMessage(req.message).requestedBy">
+                                <span class="font-semibold text-slate-700">Requested by:</span>
+                                {{ req.requested_by || parseRequestMessage(req.message).requestedBy }}
+                            </p>
+                            <p v-if="parseRequestMessage(req.message).target">
+                                <span class="font-semibold text-slate-700">Target:</span> {{ parseRequestMessage(req.message).target }}
+                            </p>
+                            <p v-if="parseRequestMessage(req.message).notes">
+                                <span class="font-semibold text-slate-700">Notes:</span> {{ parseRequestMessage(req.message).notes }}
+                            </p>
+                        </div>
 
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <button
-                            type="button"
-                            class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700"
-                            @click="searchTeamFromRequest(parseRequestMessage(req.message).team)"
-                        >
-                            Find Team
-                        </button>
-                        <button
-                            v-if="!req.is_read"
-                            type="button"
-                            class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
-                            @click="markRequestRead(req.id)"
-                        >
-                            Mark Read
-                        </button>
-                    </div>
-                </article>
-            </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700"
+                                @click="searchTeamFromRequest(parseRequestMessage(req.message).team)"
+                            >
+                                Find Team
+                            </button>
+                            <button
+                                v-if="!req.is_read"
+                                type="button"
+                                class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
+                                @click="markRequestRead(req.id)"
+                            >
+                                Mark Read
+                            </button>
+                        </div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <h3 class="text-base font-semibold text-slate-900">Coach Time Conflicts</h3>
+                <p class="text-xs text-slate-500">Same coach assigned to overlapping team schedule windows.</p>
+                <ul v-if="conflicts.coach?.length" class="mt-3 space-y-2 text-sm">
+                    <li v-for="item in conflicts.coach" :key="`${item.coach_id}-${item.team_a_id}-${item.team_b_id}-${item.window}`" class="rounded-md border border-slate-200 bg-slate-50 p-2">
+                        <p class="font-medium text-slate-900">{{ item.coach_name }}</p>
+                        <p class="text-xs text-slate-600">{{ item.team_a_name }} vs {{ item.team_b_name }}</p>
+                        <p class="text-xs text-amber-700">{{ item.window }}</p>
+                    </li>
+                </ul>
+                <p v-else class="mt-3 text-sm text-slate-500">No coach conflicts detected.</p>
+            </section>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section class="rounded-xl border border-[#034485]/45 bg-white">
             <div v-if="seasonSnapshots.length === 0" class="p-6 text-sm text-slate-500">
                 No teams found for the selected filters.
             </div>
@@ -455,7 +497,7 @@ function formatTimestamp(value: string | null) {
                 >
                     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <h3 class="text-lg font-bold text-slate-900">Season {{ season.year }}</h3>
+                            <h3 class="text-lg font-bold text-slate-900">{{ season.year }}</h3>
                             <p class="text-xs text-slate-500">{{ season.kpis.total }} teams</p>
                         </div>
                         <div class="flex flex-wrap gap-1.5 text-xs">
@@ -472,7 +514,8 @@ function formatTimestamp(value: string | null) {
                         <article
                             v-for="team in season.teams"
                             :key="team.id"
-                            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                            class="rounded-xl border p-4"
+                            :style="teamCardStyle(team)"
                         >
                             <div class="mb-2 flex items-start justify-end">
                                 <p v-if="team.is_archived" class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">Archived</p>
@@ -508,6 +551,7 @@ function formatTimestamp(value: string | null) {
                             <div class="mt-3 flex flex-wrap gap-2">
                                 <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="goToEditTeam(team.id)">Edit</button>
                                 <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="toggleTeamExpanded(team.id)">View Roster</button>
+                                <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="goToTeamSchedules(team.id)">Schedules</button>
                                 <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="printRoster(team.id)">Print Roster</button>
                                 <button
                                     v-if="!readOnly && !team.is_archived"
@@ -540,34 +584,6 @@ function formatTimestamp(value: string | null) {
                     </div>
                 </article>
             </div>
-        </section>
-
-        <section class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h3 class="text-base font-semibold text-slate-900">Coach Time Conflicts</h3>
-                <p class="text-xs text-slate-500">Same coach assigned to overlapping team schedule windows.</p>
-                <ul v-if="conflicts.coach?.length" class="mt-3 space-y-2 text-sm">
-                    <li v-for="item in conflicts.coach" :key="`${item.coach_id}-${item.team_a_id}-${item.team_b_id}-${item.window}`" class="rounded-md border border-slate-200 bg-slate-50 p-2">
-                        <p class="font-medium text-slate-900">{{ item.coach_name }}</p>
-                        <p class="text-xs text-slate-600">{{ item.team_a_name }} vs {{ item.team_b_name }}</p>
-                        <p class="text-xs text-amber-700">{{ item.window }}</p>
-                    </li>
-                </ul>
-                <p v-else class="mt-3 text-sm text-slate-500">No coach conflicts detected.</p>
-            </article>
-
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h3 class="text-base font-semibold text-slate-900">Player Same-Sport Conflicts</h3>
-                <p class="text-xs text-slate-500">Players appearing in multiple active teams for the same sport.</p>
-                <ul v-if="conflicts.player?.length" class="mt-3 space-y-2 text-sm">
-                    <li v-for="item in conflicts.player" :key="`${item.student_id}-${item.sport_id}`" class="rounded-md border border-slate-200 bg-slate-50 p-2">
-                        <p class="font-medium text-slate-900">{{ item.student_name }}</p>
-                        <p class="text-xs text-slate-600">{{ item.sport_name }} • {{ item.teams_count }} teams</p>
-                        <p class="text-xs text-red-700">{{ (item.teams || []).map((t: any) => t.team_name).join(', ') }}</p>
-                    </li>
-                </ul>
-                <p v-else class="mt-3 text-sm text-slate-500">No player conflicts detected.</p>
-            </article>
         </section>
 
         <ConfirmDialog

@@ -300,7 +300,7 @@ class AdminController extends Controller
         $queueQuery = (clone $baseQuery)
             ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,first_name,last_name,course,current_grade_level',
+                'student:id,user_id,student_id_number,first_name,last_name,course_or_strand,current_grade_level',
                 'student.latestHealthClearance' => function ($query) {
                     $query->select(
                         'athlete_health_clearances.id',
@@ -412,7 +412,7 @@ class AdminController extends Controller
         $users = (clone $baseQuery)
             ->select(['id', 'name', 'email', 'role', 'status', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course,education_level,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight',
+                'student:id,user_id,student_id_number,course_or_strand,education_level,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
                 'coach:id,user_id,first_name,middle_name,last_name,coach_status,phone_number,date_of_birth,gender',
             ])
             ->orderBy($sort, $direction)

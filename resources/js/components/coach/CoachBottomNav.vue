@@ -65,11 +65,13 @@ function iconPath(icon: string) {
   padding: 0.35rem 0.2rem;
   font-size: 0.68rem;
   font-weight: 600;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .coach-bottom-nav__item--active {
-  color: #1f2937;
-  background: #e2e8f0;
+  color: #ffffff;
+  background: #034485;
+  transform: translateY(-1px);
 }
 
 @media (min-width: 768px) {

@@ -12,6 +12,8 @@ const props = defineProps<{
     options: Option[];
     placeholder?: string;
     loading?: boolean;
+    badgeClass?: string;
+    removeClass?: string;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -71,10 +73,10 @@ onBeforeUnmount(() => {
     <div ref="rootRef" class="relative w-full">
         <!-- Selected Badge -->
         <div v-if="selectedOption" class="flex items-center gap-2 mb-2">
-            <span class="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm">
+            <span class="px-3 py-1 rounded-full text-sm" :class="badgeClass || 'bg-slate-100 text-slate-700'">
                 {{ selectedOption.name }}
             </span>
-            <button @click="removeSelection" class="text-red-500 font-bold">
+            <button @click="removeSelection" class="font-bold" :class="removeClass || 'text-red-500'">
                 ×
             </button>
         </div>

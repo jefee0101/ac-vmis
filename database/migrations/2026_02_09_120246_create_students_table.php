@@ -32,7 +32,7 @@ return new class extends Migration {
             $table->string('current_grade_level');
 
             // Status
-            $table->enum('student_status', ['Enrolled', 'Dropped', 'Graduated'])
+            $table->enum('student_status', ['Enrolled', 'Dropped', 'Graduated', 'Suspended', 'Unenrolled'])
                 ->default('Enrolled');
 
             // Contact info

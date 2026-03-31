@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import AnnouncementBellButton from '@/components/AnnouncementBellButton.vue'
 import UserAccountMenu from '@/components/UserAccountMenu.vue'
 import CoachBottomNav from '@/components/coach/CoachBottomNav.vue'
 import RoleFooter from '@/components/ui/RoleFooter.vue'
@@ -16,6 +15,41 @@ const currentPath = computed(() => String(page.url || ''))
 const unreadCount = computed(() => Number(page.props.auth?.announcements?.unread_count ?? 0))
 const mobileMenuOpen = ref(false)
 const isNavCollapsed = ref(false)
+const notificationsOpen = ref(false)
+const notificationsCloseTimer = ref<number | null>(null)
+
+const coachNotifications = ref<Array<{
+  id: number
+  title: string
+  message: string
+  type: string
+  is_read: boolean
+  published_at: string | null
+}>>([])
+const bellProcessingIds = ref<number[]>([])
+
+watch(
+  () => (page.props.auth as any)?.coach_notifications?.recent,
+  (items) => {
+    coachNotifications.value = Array.isArray(items)
+      ? items.map((item: any) => ({ ...item }))
+      : []
+  },
+  { immediate: true }
+)
+
+const notificationsCount = computed(() => {
+  if (coachNotifications.value.length) {
+    return coachNotifications.value.filter((item) => !item.is_read).length
+  }
+  const unread = (page.props.auth as any)?.announcements?.unread_count
+  if (typeof unread === 'number') return unread
+  const fallback = (page.props.auth as any)?.coach_notifications?.items
+  if (Array.isArray(fallback)) {
+    return fallback.reduce((sum, item) => sum + Number(item.count || 0), 0)
+  }
+  return 0
+})
 
 const primaryItems = coachPrimaryNav
 const secondaryItems = coachSecondaryNav
@@ -25,7 +59,7 @@ const navToggleLabel = computed(() => (isNavCollapsed.value ? 'Expand sidebar' :
 const footerLinks = [
   { label: 'Dashboard', href: '/coach/dashboard' },
   { label: 'Schedule', href: '/coach/schedule' },
-  { label: 'Operations', href: '/coach/operations' },
+  { label: 'Attendance', href: '/coach/operations' },
   { label: 'Team', href: '/coach/team' },
   { label: 'Academics', href: '/coach/academics' },
   { label: 'Announcements', href: '/announcements' },
@@ -51,6 +85,45 @@ function go(route: string) {
 function logout() {
   mobileMenuOpen.value = false
   router.post('/logout')
+}
+
+function openNotifications() {
+  if (notificationsCloseTimer.value) {
+    window.clearTimeout(notificationsCloseTimer.value)
+    notificationsCloseTimer.value = null
+  }
+  notificationsOpen.value = true
+}
+
+function scheduleNotificationsClose() {
+  if (notificationsCloseTimer.value) {
+    window.clearTimeout(notificationsCloseTimer.value)
+  }
+  notificationsCloseTimer.value = window.setTimeout(() => {
+    notificationsOpen.value = false
+    notificationsCloseTimer.value = null
+  }, 180)
+}
+
+function isBellProcessing(id: number) {
+  return bellProcessingIds.value.includes(id)
+}
+
+function markBellRead(item: { id: number; is_read: boolean }) {
+  if (item.is_read || isBellProcessing(item.id)) return
+  const previous = item.is_read
+  item.is_read = true
+  bellProcessingIds.value = [...bellProcessingIds.value, item.id]
+
+  router.put(`/announcements/${item.id}/read`, {}, {
+    preserveScroll: true,
+    onError: () => {
+      item.is_read = previous
+    },
+    onFinish: () => {
+      bellProcessingIds.value = bellProcessingIds.value.filter((id) => id !== item.id)
+    },
+  })
 }
 
 function toggleNav() {
@@ -125,7 +198,69 @@ watch(isNavCollapsed, (collapsed) => {
           </div>
 
           <div class="flex items-center gap-2">
-            <AnnouncementBellButton :unread-count="unreadCount" :dark="false" @click="go('/announcements')" />
+            <div
+              class="relative"
+              @mouseenter="openNotifications"
+              @mouseleave="scheduleNotificationsClose"
+              @focusin="openNotifications"
+              @focusout="scheduleNotificationsClose"
+            >
+              <button
+                type="button"
+                class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                aria-label="Open announcements"
+              >
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                  <path d="M9 17a3 3 0 0 0 6 0" />
+                </svg>
+                <span
+                  v-if="notificationsCount > 0"
+                  class="absolute -right-1 -top-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
+                >
+                  {{ notificationsCount }}
+                </span>
+              </button>
+
+              <div
+                v-if="notificationsOpen"
+                class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+              >
+                <div class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Announcements
+                  <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ notificationsCount }}</span>
+                </div>
+                <div class="max-h-72 overflow-y-auto">
+                  <button
+                    v-for="item in coachNotifications"
+                    :key="item.id ?? item.title"
+                    type="button"
+                    class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
+                    :class="item.is_read ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50' : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'"
+                    @click="markBellRead(item); go('/announcements')"
+                  >
+                    <span class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full" :class="item.is_read ? 'bg-[#034485]' : 'bg-white'" />
+                    <span class="flex-1">
+                      <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{ item.title }}</span>
+                      <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{ item.message }}</span>
+                    </span>
+                    <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
+                  </button>
+                  <div v-if="coachNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">
+                    No announcements right now.
+                  </div>
+                </div>
+                <div class="border-t border-slate-200 px-3 py-2">
+                  <button
+                    type="button"
+                    class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                    @click="go('/announcements')"
+                  >
+                    View all
+                  </button>
+                </div>
+              </div>
+            </div>
             <UserAccountMenu :dark="false" menu-placement="bottom" compact />
           </div>
         </div>
@@ -199,7 +334,33 @@ watch(isNavCollapsed, (collapsed) => {
 
         <button
           type="button"
-          class="coach-side-link text-red-600"
+          class="coach-side-link"
+          :class="isNavCollapsed ? 'coach-side-link--collapsed' : ''"
+          @click="go('/account/settings')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.2a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.2a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
+          <span v-if="!isNavCollapsed">Settings</span>
+        </button>
+
+        <button
+          type="button"
+          class="coach-side-link"
+          :class="isNavCollapsed ? 'coach-side-link--collapsed' : ''"
+          @click="go('/account/help')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 17v.01" />
+            <path d="M12 13a2 2 0 1 0-2-2" />
+          </svg>
+          <span v-if="!isNavCollapsed">Help &amp; Support</span>
+        </button>
+
+        <button
+          type="button"
+          class="coach-side-link coach-side-link--logout"
           :class="isNavCollapsed ? 'coach-side-link--collapsed' : ''"
           @click="logout"
         >
@@ -237,7 +398,23 @@ watch(isNavCollapsed, (collapsed) => {
           <span>{{ item.label }}</span>
         </button>
 
-        <button type="button" class="coach-side-link w-full text-red-600" @click="logout">
+        <button type="button" class="coach-side-link w-full" @click="go('/account/settings')">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 0 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.2a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.2a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
+          <span>Settings</span>
+        </button>
+
+        <button type="button" class="coach-side-link w-full" @click="go('/account/help')">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 17v.01" />
+            <path d="M12 13a2 2 0 1 0-2-2" />
+          </svg>
+          <span>Help &amp; Support</span>
+        </button>
+
+        <button type="button" class="coach-side-link coach-side-link--logout w-full" @click="logout">
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <path d="M16 17l5-5-5-5" />
@@ -277,20 +454,39 @@ watch(isNavCollapsed, (collapsed) => {
   font-size: 0.83rem;
   font-weight: 600;
   color: #334155;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .coach-side-link:hover {
-  background: #f1f5f9;
+  background: #f8fbff;
+  color: #034485;
 }
 
 .coach-side-link--active {
-  background: #e2e8f0;
-  color: #1f2937;
+  background: #034485;
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.coach-side-link--active:hover {
+  background: #033a70;
+  color: #ffffff;
 }
 
 .coach-side-link--collapsed {
   justify-content: center;
   padding: 0.6rem;
+}
+
+.coach-side-link--logout {
+  border: 1px solid transparent;
+  color: #e11d48;
+}
+
+.coach-side-link--logout:hover {
+  border-color: #fecdd3;
+  background: #fff1f2;
+  color: #e11d48;
+  transform: none;
 }
 </style>

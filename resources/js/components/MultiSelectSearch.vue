@@ -5,6 +5,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 interface Option {
     id: number;
     name: string;
+    [key: string]: any;
 }
 
 const props = defineProps<{
@@ -12,6 +13,7 @@ const props = defineProps<{
     options: Option[];
     placeholder?: string;
     loading?: boolean;
+    tagStyle?: (option: Option) => Record<string, string>;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -26,6 +28,12 @@ const filteredOptions = computed(() => {
         !props.modelValue.includes(option.id)
     );
 });
+
+const selectedOptions = computed(() =>
+    props.modelValue
+        .map((id) => props.options.find((option) => option.id === id))
+        .filter((option): option is Option => Boolean(option))
+);
 
 function addOption(option: Option) {
     emit('update:modelValue', [...props.modelValue, option.id]);
@@ -58,12 +66,20 @@ onBeforeUnmount(() => {
         <!-- Selected Tags -->
         <div class="flex flex-wrap gap-2 mb-2">
             <span
-                v-for="id in modelValue"
-                :key="id"
-                class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm flex items-center gap-2"
+                v-for="option in selectedOptions"
+                :key="option.id"
+                class="flex items-center gap-2 rounded-full border px-3 py-1 text-sm"
+                :class="tagStyle ? 'border-white/30' : 'bg-green-100 text-green-700 border-green-200'"
+                :style="tagStyle ? tagStyle(option) : undefined"
             >
-                {{ options.find(o => o.id === id)?.name }}
-                <button @click="removeOption(id)" class="text-red-500 font-bold">×</button>
+                {{ option.name }}
+                <button
+                    @click="removeOption(option.id)"
+                    class="font-bold"
+                    :class="tagStyle ? 'opacity-70 hover:opacity-100' : 'text-red-500'"
+                >
+                    ×
+                </button>
             </span>
         </div>
 

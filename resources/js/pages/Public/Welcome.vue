@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { useInertiaLoading } from '@/composables/useInertiaLoading'
 
@@ -9,18 +9,16 @@ const featureTitles = [
     'Account Onboarding',
     'Team Management',
     'Schedule Management',
-    'Attendance Verification',
+    'QR Attendance',
     'Wellness Monitoring',
     'Academic Eligibility',
     'Announcements & Alerts',
 ]
-const selectedFeature = ref<number | null>(null)
-const scrollY = ref(0)
-const viewportWidth = ref(0)
 const prefersReducedMotion = ref(false)
 let motionQuery: MediaQueryList | null = null
 let revealObserver: IntersectionObserver | null = null
 const { isLoading } = useInertiaLoading()
+const mobileMenuOpen = ref(false)
 
 function toLogin() {
     router.visit('Login')
@@ -40,54 +38,14 @@ function onSealError(event: Event) {
     target.src = fallbackLogo
 }
 
-function onScroll() {
-    scrollY.value = window.scrollY || 0
-}
-
-function onResize() {
-    viewportWidth.value = window.innerWidth || 0
-}
-
-function onGlobalClick(event: MouseEvent) {
-    const target = event.target as HTMLElement | null
-
-    if (!target?.closest('.floating-feature-card')) {
-        selectedFeature.value = null
-    }
-}
-
 function onMotionPreferenceChange(event: MediaQueryListEvent) {
     prefersReducedMotion.value = event.matches
 }
 
-function cardFloatStyle(index: number, side: 'left' | 'right') {
-    if (viewportWidth.value <= 1024 || prefersReducedMotion.value) {
-        return { transform: 'none' }
-    }
-
-    const sideFactor = side === 'left' ? -1 : 1
-    const vertical = Math.sin((scrollY.value / 120) + index) * 10
-    const horizontal = sideFactor * (6 + (index % 2) * 4)
-    const leftRotations = [-5, 4, -3]
-    const rightRotations = [6, -4, 3, -6]
-    const rotation = side === 'left'
-        ? leftRotations[index] ?? -2
-        : rightRotations[index - 3] ?? 2
-
-    return {
-        transform: `translate3d(${horizontal}px, ${vertical}px, 0) rotate(${rotation}deg)`,
-    }
-}
-
 onMounted(() => {
-    onScroll()
-    onResize()
     motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     prefersReducedMotion.value = motionQuery.matches
 
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onResize, { passive: true })
-    window.addEventListener('click', onGlobalClick)
     motionQuery.addEventListener('change', onMotionPreferenceChange)
 
     const revealTargets = document.querySelectorAll<HTMLElement>('.welcome-reveal')
@@ -110,11 +68,13 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-    window.removeEventListener('scroll', onScroll)
-    window.removeEventListener('resize', onResize)
-    window.removeEventListener('click', onGlobalClick)
     motionQuery?.removeEventListener('change', onMotionPreferenceChange)
     revealObserver?.disconnect()
+    document.body.style.overflow = ''
+})
+
+watch(mobileMenuOpen, (open) => {
+    document.body.style.overflow = open ? 'hidden' : ''
 })
 </script>
 
@@ -122,94 +82,113 @@ onBeforeUnmount(() => {
     <Head title="Welcome" />
 
     <div class="min-h-screen page">
-        <div class="corner-badge" aria-hidden="true">
-            <div class="logo-triangle">
-                <img
-                    src="/images/aclogo.svg"
-                    alt="Asian College Logo"
-                    class="logo-inside-triangle"
-                />
-            </div>
-        </div>
-
-        <header class="site-header px-3 py-2 sm:px-4 lg:px-6">
+        <header class="site-header px-3 py-0 sm:px-4 lg:px-6">
             <div v-if="isLoading" class="loading-strip" />
             <div class="mx-auto max-w-6xl nav-shell">
-                <div class="flex items-center gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-[0.22em] text-slate-500">Asian College</p>
-                        <p class="brand text-sm sm:text-base">Varsity Management Information System</p>
-                    </div>
-                    <img src="/images/aclogo.svg" alt="Asian College Logo" class="mobile-nav-logo" />
+                <button
+                    type="button"
+                    class="mobile-menu-toggle"
+                    aria-label="Open menu"
+                    @click="mobileMenuOpen = true"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+
+                <div class="flex items-center gap-3 header-actions">
+                    <button @click="toLogin" class="btn-outline" :disabled="isLoading">Login</button>
+                    <button @click="toRegister" class="btn-fill" :disabled="isLoading">Register</button>
                 </div>
 
-                <nav class="header-links" aria-label="Public pages">
+                <div class="header-logo-slot" aria-hidden="true">
+                    <div class="corner-badge">
+                        <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                            <path
+                                d="M46 12H214
+                                   Q222 12 226 18
+                                   L170 124
+                                   Q166 128 160 128
+                                   H100
+                                   Q94 128 90 124
+                                   L34 18
+                                   Q38 12 46 12Z"
+                            />
+
+                        </svg>
+                        <img
+                            src="/images/aclogo.svg"
+                            alt="Asian College Logo"
+                            class="logo-inside-triangle"
+                        />
+                    </div>
+                </div>
+
+                <nav class="header-links header-actions" aria-label="Public pages">
                     <Link href="/" class="header-link">Home</Link>
-                    <Link href="/services" class="header-link">Services</Link>
-                    <Link href="/about" class="header-link">About Us</Link>
                     <Link href="/how-it-works" class="header-link">How It Works</Link>
+                    <Link href="/about" class="header-link">About Us</Link>
+                    <Link href="/services" class="header-link">Services</Link>
                     <Link href="/faq" class="header-link">FAQ</Link>
                     <Link href="/policies" class="header-link">Policies</Link>
                     <Link href="/contact" class="header-link">Contact</Link>
                 </nav>
 
-                <div class="auth-actions grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:gap-2.5">
-                    <button @click="toLogin" class="btn-outline" :disabled="isLoading">Login</button>
-                    <button @click="toRegister" class="btn-fill" :disabled="isLoading">Register</button>
+                <div class="mobile-brand">
+                    <img src="/images/aclogo.svg" alt="Asian College Logo" class="mobile-brand-logo" />
                 </div>
             </div>
         </header>
 
-        <main class="pb-10">
-            <section class="definition-hero welcome-reveal">
-                <img
-                    src="/images/f4787fe8-4054-4031-8bd3-bcb959e2723d.webp"
-                    alt="Basketball close-up"
-                    class="hero-image"
-                />
+        <div v-if="mobileMenuOpen" class="mobile-menu-overlay" @click="mobileMenuOpen = false"></div>
+        <aside class="mobile-menu" :class="{ 'is-open': mobileMenuOpen }" aria-label="Mobile menu">
+            <div class="mobile-menu-header">
+                <span class="mobile-menu-title">Menu</span>
+                <button type="button" class="mobile-menu-close" @click="mobileMenuOpen = false">Close</button>
+            </div>
+            <div class="mobile-menu-actions">
+                <button @click="toLogin(); mobileMenuOpen = false" class="btn-outline w-full">Login</button>
+                <button @click="toRegister(); mobileMenuOpen = false" class="btn-fill w-full">Register</button>
+            </div>
+            <nav class="mobile-menu-links">
+                <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
+                <Link href="/how-it-works" class="mobile-menu-link" @click="mobileMenuOpen = false">How It Works</Link>
+                <Link href="/about" class="mobile-menu-link" @click="mobileMenuOpen = false">About Us</Link>
+                <Link href="/services" class="mobile-menu-link" @click="mobileMenuOpen = false">Services</Link>
+                <Link href="/faq" class="mobile-menu-link" @click="mobileMenuOpen = false">FAQ</Link>
+                <Link href="/policies" class="mobile-menu-link" @click="mobileMenuOpen = false">Policies</Link>
+                <Link href="/contact" class="mobile-menu-link" @click="mobileMenuOpen = false">Contact</Link>
+            </nav>
+        </aside>
 
-                <div class="definition-copy">
-                    <div class="hero-title">
+        <main class="pb-10">
+            <section class="image-strip-hero" aria-label="Sports highlights">
+                <div class="image-strip">
+                    <div class="strip-col strip-col-1" aria-hidden="true"></div>
+                    <div class="strip-col strip-col-2" aria-hidden="true"></div>
+                    <div class="strip-col strip-col-3" aria-hidden="true"></div>
+                    <div class="strip-col strip-col-4" aria-hidden="true"></div>
+                    <div class="strip-col strip-col-5" aria-hidden="true"></div>
+                </div>
+
+                <div class="strip-overlay">
+                    <div class="strip-overlay-inner">
+                        <span class="strip-kicker">Asian College Varsity Management Information System</span>
                         <h1>Manage Your Varsity Day in One Place</h1>
-                        <div class="hero-version">Version 1.0 · First Release</div>
-                    </div>
-                    <div class="hero-description">
                         <p>
                             AC-VMIS helps student-athletes and coaches handle daily varsity work faster. Use one system to check schedules,
                             verify attendance, monitor wellness, submit academic requirements, and receive updates.
                         </p>
+                        <div class="strip-version">Version 2.0</div>
                     </div>
                 </div>
             </section>
 
-            <section class="workspace-stats-wrap px-4 sm:px-6 lg:px-10 welcome-reveal">
-                <div class="mx-auto grid max-w-6xl gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <article class="workspace-stat-card">
-                        <p class="workspace-stat-label">Unified Modules</p>
-                        <p class="workspace-stat-value">7</p>
-                        <p class="workspace-stat-desc">Operations, health, academics, and account lifecycle in one platform.</p>
-                    </article>
-                    <article class="workspace-stat-card">
-                        <p class="workspace-stat-label">Attendance Flow</p>
-                        <p class="workspace-stat-value">Real-Time</p>
-                        <p class="workspace-stat-desc">Schedule-to-attendance visibility with verification and exceptions.</p>
-                    </article>
-                    <article class="workspace-stat-card">
-                        <p class="workspace-stat-label">Health Monitoring</p>
-                        <p class="workspace-stat-value">Daily</p>
-                        <p class="workspace-stat-desc">Track injuries, fatigue, and athlete readiness after sessions.</p>
-                    </article>
-                    <article class="workspace-stat-card">
-                        <p class="workspace-stat-label">Academic Compliance</p>
-                        <p class="workspace-stat-value">Period-Based</p>
-                        <p class="workspace-stat-desc">Submission windows, evaluations, and risk tracking by term.</p>
-                    </article>
-                </div>
-            </section>
+            <div class="hero-divider" aria-hidden="true"></div>
 
-            <section class="role-strip-wrap px-4 sm:px-6 lg:px-10 welcome-reveal">
+            <section class="role-strip-wrap section-shell welcome-reveal">
                 <div class="mx-auto max-w-6xl role-strip">
-                    <article class="role-card">
+                    <article class="role-card role-card-left">
                         <div class="role-icon student-icon" aria-hidden="true"></div>
                         <div>
                             <h3>Student-Athletes</h3>
@@ -218,23 +197,25 @@ onBeforeUnmount(() => {
                             </p>
                         </div>
                     </article>
-
-                    <article class="role-card">
-                        <div class="role-icon coach-icon" aria-hidden="true"></div>
-                        <div>
-                            <h3>Coaches</h3>
-                            <p>
-                                Manage team schedules, verify attendance, monitor player condition, and review athlete compliance status.
-                            </p>
-                        </div>
-                    </article>
+                    <div class="coach-card-wrap">
+                        <article class="role-card role-card-right">
+                            <div class="role-icon coach-icon" aria-hidden="true"></div>
+                            <div>
+                                <h3>Coaches</h3>
+                                <p>
+                                    Manage team schedules, verify attendance, monitor player condition, and review athlete compliance status.
+                                </p>
+                            </div>
+                        </article>
+                    </div>
                 </div>
             </section>
 
-            <section class="mobile-first-wrap px-4 sm:px-6 lg:px-10 welcome-reveal">
+            <section class="mobile-first-wrap section-shell welcome-reveal">
                 <div class="mx-auto max-w-6xl mobile-first">
-                    <p class="mobile-first-kicker">Mobile-First Experience</p>
-                    <h2>Built for quick use on your phone during training days.</h2>
+                    <p class="mobile-first-kicker"><span class="title-chip">Mobile-First Experience</span></p>
+                    <h2><span class="title-chip title-chip-blue">Built for quick use on your phone during training days.</span></h2>
+                    <div class="mobile-first-media" aria-hidden="true"></div>
                     <p>
                         Open AC-VMIS from your mobile browser to view sessions, verify attendance, and log wellness right after practice or games.
                         The same flow also works on tablet and desktop.
@@ -242,13 +223,13 @@ onBeforeUnmount(() => {
                 </div>
             </section>
 
-            <div class="full-divider" aria-hidden="true"></div>
+            <div class="full-divider mobile-divider" aria-hidden="true"></div>
 
-            <section class="pathway-wrap px-4 sm:px-6 lg:px-10 welcome-reveal">
+            <section class="pathway-wrap section-shell welcome-reveal">
                 <div class="mx-auto max-w-6xl pathway-grid">
                     <div class="departments-showcase">
-                        <p class="pathway-kicker">Department Pathway</p>
-                        <h2>From Senior High to College, managed in one unified varsity platform.</h2>
+                        <p class="pathway-kicker"><span class="title-chip">Department Pathway</span></p>
+                        <h2><span class="title-chip">From Senior High to College, managed in one unified varsity platform.</span></h2>
 
                         <div class="department-logos" role="list" aria-label="Asian College Departments">
                             <div class="dept-item" role="listitem" tabindex="0">
@@ -279,65 +260,37 @@ onBeforeUnmount(() => {
                         </p>
                     </div>
                 </div>
-            </section>
 
-            <div class="full-divider features-divider" aria-hidden="true"></div>
-
-            <section class="features-wrap welcome-reveal">
-                <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-10 features-inner">
-                    <div class="features-scene">
-                        <div class="feature-column">
-                            <button
-                                v-for="(title, idx) in featureTitles.slice(0, 3)"
-                                :key="title"
-                                type="button"
-                                class="floating-feature-card"
-                                :class="{ active: selectedFeature === idx }"
-                                :style="cardFloatStyle(idx, 'left')"
-                                @click="selectedFeature = selectedFeature === idx ? null : idx"
-                            >
-                                <span class="feature-number-id">{{ idx + 1 }}</span>
-                                <transition name="fade-title">
-                                    <span v-if="selectedFeature === idx" class="feature-card-title">{{ title }}</span>
-                                </transition>
-                            </button>
-                        </div>
-
-                        <div class="features-word" aria-label="Features">
-                            <span>F</span>
-                            <span>E</span>
-                            <span>A</span>
-                            <span>T</span>
-                            <span>U</span>
-                            <span>R</span>
-                            <span>E</span>
-                            <span>S</span>
-                        </div>
-
-                        <div class="feature-column">
-                            <button
-                                v-for="(title, idx) in featureTitles.slice(3)"
-                                :key="title"
-                                type="button"
-                                class="floating-feature-card"
-                                :class="{ active: selectedFeature === idx + 3 }"
-                                :style="cardFloatStyle(idx + 3, 'right')"
-                                @click="selectedFeature = selectedFeature === idx + 3 ? null : idx + 3"
-                            >
-                                <span class="feature-number-id">{{ idx + 4 }}</span>
-                                <transition name="fade-title">
-                                    <span v-if="selectedFeature === idx + 3" class="feature-card-title">{{ title }}</span>
-                                </transition>
-                            </button>
+                <div class="mx-auto max-w-6xl pathway-footer">
+                    <div class="pathway-footer-inner">
+                        <div class="pathway-divider" aria-hidden="true"></div>
+                        <div class="pathway-note">
+                        <h3><span class="title-chip title-chip-blue">Eligibility Checklist</span></h3>
+                            <div class="eligibility-media" aria-hidden="true"></div>
+                            <p>Required docs, grades, and attendance thresholds—tracked in one place.</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="register-cta-wrap px-4 pt-8 sm:px-6 lg:px-10 welcome-reveal">
+            <section class="features-wrap welcome-reveal">
+                <div class="mx-auto max-w-6xl section-shell features-minimal">
+                    <p class="features-kicker"><span class="title-chip">Core Features</span></p>
+                    <h2><span class="title-chip">Everything you need to run varsity operations.</span></h2>
+
+                    <div class="feature-list" role="list">
+                        <div v-for="(title, idx) in featureTitles" :key="title" class="feature-item" role="listitem">
+                            <span class="feature-chip">{{ idx + 1 }}</span>
+                            <span class="feature-text">{{ title }}</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="register-cta-wrap section-shell welcome-reveal">
                 <div class="mx-auto max-w-6xl register-cta">
-                    <p class="cta-kicker">Ready To Start?</p>
-                    <h2>Create your account and start using AC-VMIS today.</h2>
+                    <p class="cta-kicker"><span class="title-chip">Ready To Start?</span></p>
+                    <h2><span class="title-chip title-chip-blue">Create your account and start using AC-VMIS today.</span></h2>
                     <p>
                         Register as a student-athlete or coach, submit your required documents, then wait for approval.
                         Once approved, log in and use your daily varsity tools.
@@ -351,7 +304,7 @@ onBeforeUnmount(() => {
             </section>
         </main>
 
-        <footer class="site-footer relative z-10 px-4 pb-5 sm:px-6 lg:px-10">
+        <footer class="site-footer relative z-10 section-shell">
             <div class="mx-auto max-w-6xl footer-shell">
                 <div class="footer-grid">
                     <section class="footer-col footer-col-brand">
@@ -382,7 +335,7 @@ onBeforeUnmount(() => {
                     </section>
 
                     <nav class="footer-col" aria-label="Public Pages">
-                        <p class="footer-heading">Public Pages</p>
+                        <p class="footer-heading"><span class="title-chip">Public Pages</span></p>
                         <div class="footer-link-list">
                             <Link href="/" class="footer-link">Home</Link>
                             <Link href="/services" class="footer-link">Services</Link>
@@ -394,7 +347,7 @@ onBeforeUnmount(() => {
                     </nav>
 
                     <nav class="footer-col" aria-label="Legal Pages">
-                        <p class="footer-heading">Legal</p>
+                        <p class="footer-heading"><span class="title-chip">Legal</span></p>
                         <div class="footer-link-list">
                             <Link href="/policies" class="footer-link">Policies</Link>
                             <Link href="/privacy-policy" class="footer-link">Privacy Policy</Link>
@@ -403,7 +356,7 @@ onBeforeUnmount(() => {
                     </nav>
 
                     <nav class="footer-col" aria-label="Access Links">
-                        <p class="footer-heading">Access</p>
+                        <p class="footer-heading"><span class="title-chip">Access</span></p>
                         <div class="footer-link-list">
                             <button @click="toRegister" class="footer-link footer-link-btn">Register</button>
                             <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
@@ -411,20 +364,20 @@ onBeforeUnmount(() => {
                     </nav>
 
                     <section class="footer-col" aria-label="Institution">
-                        <p class="footer-heading">Institution</p>
+                        <p class="footer-heading"><span class="title-chip">Institution</span></p>
                         <div class="footer-info">
                             <div>
-                                <p class="footer-info-title">Vision</p>
+                                <p class="footer-info-title"><span class="title-chip">Vision</span></p>
                                 <p class="footer-info-text">
                                     To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.
                                 </p>
                             </div>
                             <div>
-                                <p class="footer-info-title">Mission</p>
+                                <p class="footer-info-title"><span class="title-chip">Mission</span></p>
                                 <p class="footer-info-text">To educate and develop globally competitive future leaders.</p>
                             </div>
                             <div>
-                                <p class="footer-info-title">Core Values</p>
+                                <p class="footer-info-title"><span class="title-chip">Core Values</span></p>
                                 <p class="footer-info-text">Academic Excellence</p>
                                 <p class="footer-info-text">Integrity</p>
                                 <p class="footer-info-text">Self-Leadership</p>
@@ -434,7 +387,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="footer-bottom-row">
-                    <p>v1.0 • © {{ currentYear }} Asian College</p>
+                    <p>v2.0 • © {{ currentYear }} Asian College</p>
                 </div>
             </div>
         </footer>
@@ -471,16 +424,24 @@ onBeforeUnmount(() => {
     --feature-bg-2: #0f3b73;
     --feature-bg-3: #145aa6;
     --feature-bg-4: #1b6ec2;
+    --title-chip-bg: #ffffff;
+    --title-chip-text: #0b1b2b;
     --feature-glow-1: rgba(96, 165, 250, 0.35);
     --feature-glow-2: rgba(3, 20, 40, 0.45);
     --feature-card-bg: var(--page-surface);
     --feature-card-text: var(--page-text-muted);
     --feature-card-title: var(--page-text);
+    --space-page-x: clamp(1rem, 3.2vw, 2.5rem);
+    --space-section-y: clamp(1.6rem, 4.5vw, 3.6rem);
+    --title-xl: clamp(1.7rem, 3.4vw, 2.6rem);
+    --title-lg: clamp(1.35rem, 2.6vw, 1.9rem);
+    --body-md: clamp(0.95rem, 1.6vw, 1.05rem);
     background: var(--page-bg);
     color: var(--page-text);
     font-family: 'Poppins', 'Segoe UI', sans-serif;
     font-size: 1rem;
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
 :global(html.theme-dark) .page {
@@ -528,6 +489,11 @@ onBeforeUnmount(() => {
     transform: translateY(0);
 }
 
+.section-shell {
+    padding-left: var(--space-page-x);
+    padding-right: var(--space-page-x);
+}
+
 .brand {
     font-family: inherit;
     font-weight: 800;
@@ -540,41 +506,46 @@ onBeforeUnmount(() => {
 }
 
 .corner-badge {
-    position: fixed;
-    top: 0;
-    left: 0;
+    position: absolute;
+    top: -54px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 40;
-    width: 138px;
-    height: 138px;
+    width: 260px;
+    height: 105px;
     pointer-events: none;
 }
 
 .logo-triangle {
     position: relative;
-    width: 138px;
-    height: 138px;
-    background: var(--brand-blue);
-    clip-path: polygon(0 0, 100% 0, 0 100%);
+    width: 100%;
+    height: 100%;
+}
+
+.logo-triangle path {
+    fill: #ffffff;
 }
 
 .logo-inside-triangle {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 58px;
     height: 58px;
     border-radius: 999px;
     background: #fff;
-    padding: 6px;
+    padding: 5px;
     object-fit: contain;
+    box-shadow: none;
 }
 
 .site-header {
     position: sticky;
     top: 0;
     z-index: 35;
-    background: var(--page-header-bg);
-    border-bottom:  1px solid var(--brand-line);
+    background: #ffffff;
+    border-bottom: none;
     backdrop-filter: blur(2px);
 }
 
@@ -589,66 +560,185 @@ onBeforeUnmount(() => {
 }
 
 .nav-shell {
-    border: 1px solid var(--brand-line);
-    border-radius: 9999px;
-    background: var(--page-surface);
-}
-
-.nav-shell {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 4px 14px;
+}
+
+.mobile-brand {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-brand-logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 999px;
+    background: #ffffff;
+    padding: 4px;
+    border: 1px solid var(--brand-line);
+    object-fit: contain;
+}
+
+.header-actions {
+    display: flex;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--brand-line);
+    background: #ffffff;
+}
+
+.mobile-menu-toggle span {
+    width: 18px;
+    height: 2px;
+    background: var(--brand-blue);
+    border-radius: 999px;
+}
+
+.header-logo-slot {
+    position: relative;
+    flex: 0 0 260px;
+    height: 0;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
 }
 
 .header-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px 10px;
+    gap: 10px 18px;
     justify-content: center;
+    width: auto;
 }
 
 .header-link {
-    color: var(--page-text-muted);
+    color: #ffffff;
     font-size: 12px;
     font-weight: 600;
     text-decoration: none;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--brand-blue);
+    white-space: nowrap;
 }
 
 .header-link:hover {
-    color: var(--page-accent);
+    color: #ffffff;
+    background: var(--page-accent-strong);
 }
 
-.mobile-nav-logo {
-    display: none;
-    width: 40px;
-    height: 40px;
-    margin-left: auto;
-    border-radius: 999px;
-    background: var(--page-surface);
-    border: 1px solid var(--brand-line);
-    padding: 4px;
-    object-fit: contain;
+.mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 20, 40, 0.45);
+    z-index: 60;
 }
+
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: min(86vw, 340px);
+    background: #ffffff;
+    border-right: 1px solid var(--brand-line-soft);
+    padding: 1.2rem 1rem;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+}
+
+.mobile-menu.is-open {
+    transform: translateX(0);
+}
+
+.mobile-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-menu-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0b1b2b;
+}
+
+.mobile-menu-close {
+    border: 1px solid var(--brand-line);
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--brand-blue);
+}
+
+.mobile-menu-actions {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.mobile-menu-links {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.mobile-menu-link {
+    padding: 0.6rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-line-soft);
+    color: var(--brand-blue);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.mobile-menu-link:hover {
+    background: rgba(3, 68, 133, 0.08);
+    border-color: var(--brand-blue);
+}
+
 
 .btn-fill,
 .btn-outline {
-    padding: 10px 14px;
-    border-radius: 10px;
-    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
     font-weight: 700;
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid var(--brand-blue);
 }
 
 .btn-fill {
-    color: var(--page-btn-text);
-    border: 1px solid var(--page-accent);
-    background: var(--page-accent);
+    color: var(--brand-blue);
+    border-color: var(--brand-blue);
+    background: #ffffff;
 }
 
 .btn-outline {
-    color: var(--page-accent);
-    border: 1px solid var(--brand-line);
-    background: var(--page-surface);
+    color: var(--brand-blue);
+    border-color: var(--brand-blue);
+    background: #ffffff;
 }
 
 .btn-fill:disabled,
@@ -657,150 +747,167 @@ onBeforeUnmount(() => {
     cursor: not-allowed;
 }
 
-.definition-hero {
+.image-strip-hero {
     position: relative;
-    min-height: calc(100vh - 210px);
-    overflow: hidden;
+    min-height: 72vh;
     border-top: 1px solid var(--brand-line);
-    border-bottom:  1px solid var(--brand-line);
+    border-bottom: 1px solid var(--brand-line);
+    overflow: hidden;
+    background: #0f172a;
+    margin: 0 clamp(0.75rem, 2.6vw, 1.5rem);
+    border-radius: 18px;
+    scrollbar-width: none;
+}
+
+.image-strip-hero::-webkit-scrollbar {
+    display: none;
+}
+
+.hero-divider {
+    height: 1px;
+    background: rgba(3, 68, 133, 0.45);
+    width: 50%;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 0.85rem;
+    margin-bottom: 1.1rem;
+}
+
+.image-strip {
     display: flex;
-    align-items: center;
-}
-
-.definition-hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    pointer-events: none;
-    background: linear-gradient(90deg, var(--page-hero-overlay-strong) 0%, var(--page-hero-overlay-mid) 55%, var(--page-hero-overlay-soft) 100%);
-}
-
-.definition-hero::before {
-    content: '';
-    position: absolute;
-    inset: -12%;
-    z-index: 1;
-    pointer-events: none;
-    background:
-        radial-gradient(circle at 20% 20%, var(--page-hero-glow-1), transparent 45%),
-        radial-gradient(circle at 80% 30%, var(--page-hero-glow-2), transparent 50%),
-        radial-gradient(circle at 40% 80%, var(--page-hero-glow-3), transparent 55%);
-    opacity: 0.55;
-    mix-blend-mode: screen;
-    animation: heroGlow 18s ease-in-out infinite;
-}
-
-.hero-image {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: center;
+    min-height: 72vh;
+}
+
+.strip-col {
+    flex: 1 1 0%;
+    min-height: 72vh;
+    background-size: cover;
+    background-position: center;
     filter: saturate(1.05) contrast(1.02);
-    animation: heroDrift 18s ease-in-out infinite;
-    will-change: transform;
+    transform: scale(1.04);
+    opacity: 0.82;
+    animation: heroStripReveal 900ms ease forwards;
+    will-change: transform, opacity;
 }
 
-.workspace-stats-wrap {
-    margin-top: 1.15rem;
+.strip-col-1 {
+    background-image: url('/images/hero-basketball.webp');
+    animation-delay: 60ms;
 }
 
-.workspace-stat-card {
-    border-radius: 14px;
-    border: 1px solid var(--brand-line-soft);
-    background: var(--page-surface);
-    padding: 14px 14px 13px;
-    box-shadow: 0 10px 20px -16px var(--page-card-shadow);
+.strip-col-2 {
+    background-image: url('/images/hero-volleyball.webp');
+    animation-delay: 120ms;
 }
 
-.workspace-stat-label {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--page-text-muted);
+.strip-col-3 {
+    background-image: url('/images/hero-soccer.webp');
+    animation-delay: 180ms;
 }
 
-.workspace-stat-value {
-    margin-top: 3px;
-    font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 1.18rem;
-    font-weight: 700;
-    color: var(--page-text);
+.strip-col-4 {
+    background-image: url('/images/hero-shuttlecock.jpg');
+    animation-delay: 240ms;
 }
 
-.workspace-stat-desc {
-    margin-top: 4px;
-    font-size: 0.82rem;
-    line-height: 1.42;
-    color: var(--page-text-muted);
+.strip-col-5 {
+    background-image: url('/images/hero-tabletennis.webp');
+    animation-delay: 300ms;
 }
 
-.definition-copy {
-    position: relative;
-    z-index: 3;
+.strip-overlay {
+    position: absolute;
+    inset: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: center;
-    gap: 2.5rem;
-    width: min(1100px, 100%);
-    margin: 0 auto;
-    padding: 2.4rem 1.5rem 3.2rem;
-    background: transparent;
-    color: #ffffff;
-    text-align: left;
-    animation: heroCopyIn 520ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+    padding: clamp(1.6rem, 4vw, 2.6rem) clamp(1rem, 3vw, 1.75rem);
+    background: linear-gradient(90deg, rgba(3, 20, 40, 0.75) 0%, rgba(3, 20, 40, 0.2) 60%, rgba(3, 20, 40, 0.05) 100%);
 }
 
-.hero-title h1 {
+.strip-overlay-inner {
+    max-width: min(100%, 560px);
+    color: #fff;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: heroTextReveal 700ms ease forwards;
+    animation-delay: 260ms;
+    will-change: transform, opacity;
+}
+
+.strip-kicker {
+    display: inline-flex;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+}
+
+.strip-overlay-inner h1 {
+    margin: 0.9rem 0 0.6rem;
+    font-size: var(--title-xl);
+    line-height: 1.15;
+    font-weight: 800;
+}
+
+.strip-overlay-inner p {
     margin: 0;
-    color: #ffffff !important;
+    font-size: var(--body-md);
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.88);
 }
 
-.hero-title {
-    max-width: 480px;
-}
-
-.hero-version {
-    margin-top: 0.65rem;
+.strip-version {
+    margin-top: 1rem;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #e2e8f0;
-    font-weight: 700;
-    text-shadow: 0 10px 20px rgba(3, 20, 40, 0.35);
-}
-
-.hero-description {
-    justify-self: end;
-    max-width: 520px;
-}
-
-.definition-kicker {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: #e2e8f0;
+    color: rgba(255, 255, 255, 0.7);
     font-weight: 700;
 }
 
-.definition-copy h1 {
-    margin-top: 0.4rem;
-    font-size: 2.35rem;
+@keyframes heroStripReveal {
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes heroTextReveal {
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .strip-col,
+    .strip-overlay-inner {
+        animation: none;
+        transform: none;
+        opacity: 1;
+    }
+}
+
+.title-chip {
+    display: inline-block;
+    padding: 0.22rem 0.7rem;
+    border-radius: 999px;
+    background: var(--title-chip-bg);
+    color: var(--title-chip-text);
     line-height: 1.2;
-    color: #ffffff !important;
-    font-weight: 800;
-    text-shadow: 0 10px 24px rgba(3, 20, 40, 0.35);
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
 }
 
-.definition-copy p {
-    margin-top: 0.8rem;
-    color: #ffffff !important;
-    line-height: 1.6;
-    text-shadow: 0 10px 22px rgba(3, 20, 40, 0.28);
+.title-chip-blue {
+    background: var(--brand-blue);
+    color: #ffffff;
 }
+
+
+
 
 .role-strip-wrap {
     margin-top: 1rem;
@@ -808,22 +915,35 @@ onBeforeUnmount(() => {
 }
 
 .role-strip {
-    border-top: 1px solid var(--brand-line);
-    border-bottom: 1px solid var(--brand-line);
-    background: var(--page-surface);
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 2rem;
     width: 100%;
+}
+
+.coach-card-wrap {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 2.4rem;
+    margin-left: auto;
+    flex: 1;
 }
 
 .role-card {
     display: flex;
     gap: 0.85rem;
-    padding: 1.25rem 0.25rem;
+    padding: clamp(1rem, 2.6vw, 1.35rem) clamp(1.1rem, 3vw, 1.6rem);
     align-items: flex-start;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 0;
+    background: #0b2f5f;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 18px;
+    box-shadow: 0 14px 26px -20px rgba(3, 20, 40, 0.6);
     transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    flex: 1;
+    max-width: 520px;
 }
 
 .role-card:hover {
@@ -831,16 +951,16 @@ onBeforeUnmount(() => {
     box-shadow: 0 10px 20px var(--page-card-shadow);
 }
 
-.role-card + .role-card {
-    border-top: 1px solid var(--brand-line-soft);
+.role-card-right {
+    margin-top: 0;
 }
 
 .role-icon {
     width: 40px;
     height: 40px;
     border-radius: 10px;
-    border: 1px solid var(--brand-line);
-    background: var(--page-surface);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -857,7 +977,7 @@ onBeforeUnmount(() => {
 .student-icon::before {
     width: 14px;
     height: 14px;
-    border:  1px solid var(--brand-blue);
+    border:  1px solid rgba(255, 255, 255, 0.8);
     border-radius: 999px;
     top: 6px;
     left: 11px;
@@ -866,7 +986,7 @@ onBeforeUnmount(() => {
 .student-icon::after {
     width: 18px;
     height: 10px;
-    border: 1px solid var(--brand-blue);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     border-top: none;
     border-radius: 0 0 10px 10px;
     bottom: 6px;
@@ -876,7 +996,7 @@ onBeforeUnmount(() => {
 .coach-icon::before {
     width: 18px;
     height: 2px;
-    background: var(--brand-blue);
+    background: rgba(255, 255, 255, 0.8);
     transform: rotate(-24deg);
     top: 13px;
     left: 10px;
@@ -885,30 +1005,31 @@ onBeforeUnmount(() => {
 .coach-icon::after {
     width: 8px;
     height: 8px;
-    border: 1px solid var(--brand-blue);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 999px;
     bottom: 7px;
     left: 15px;
 }
 
 .role-card h3 {
-    font-size: 1.1rem;
-    color: var(--page-text);
+    font-size: clamp(1rem, 2.2vw, 1.2rem);
+    color: #ffffff;
     font-weight: 700;
 }
 
 .role-card p {
     margin-top: 0.3rem;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.8);
     line-height: 1.5;
 }
 
 .mobile-first-wrap {
-    padding-top: 1.25rem;
+    padding-top: var(--space-section-y);
 }
 
 .mobile-first {
     padding-top: 1rem;
+    margin: 1.5rem 0;
 }
 
 .mobile-first-kicker {
@@ -921,7 +1042,7 @@ onBeforeUnmount(() => {
 
 .mobile-first h2 {
     margin-top: 0.4rem;
-    font-size: 1.45rem;
+    font-size: var(--title-lg);
     color: var(--page-text);
     line-height: 1.25;
     font-weight: 800;
@@ -932,7 +1053,22 @@ onBeforeUnmount(() => {
     color: var(--page-text-muted);
     line-height: 1.6;
     max-width: 72ch;
+    font-size: var(--body-md);
 }
+
+.mobile-first-media {
+    margin-top: 0.9rem;
+    border-radius: 18px;
+    border: 1px solid var(--brand-blue);
+    background-image: url('/images/mobile-messaging-modern-communication-technology-online-chatting-sms-texting-modern-leisure-activity-guy-checking-email-inbox-with-smartphone_335657-3526.avif');
+    background-size: cover;
+    background-position: center;
+    position: relative;
+    overflow: hidden;
+    width: min(240px, 70vw);
+    aspect-ratio: 1 / 1;
+}
+
 
 .full-divider {
     width: 100%;
@@ -941,16 +1077,37 @@ onBeforeUnmount(() => {
     margin-top: 1.25rem;
 }
 
+.mobile-divider {
+    width: 75%;
+    height: 1px;
+    background: rgba(3, 68, 133, 0.45);
+    margin: 1.6rem 0 0 1.25rem;
+}
+
 .pathway-wrap {
-    padding-top: 1.25rem;
+    padding-top: clamp(1rem, 2vw, 1.5rem);
 }
 
 .pathway-grid {
     display: block;
     border: 1px solid var(--brand-line);
     border-radius: 18px;
-    background: linear-gradient(180deg, var(--page-surface) 0%, var(--page-surface-alt) 100%);
-    padding: 1rem;
+    background: var(--brand-blue);
+    padding: clamp(1.6rem, 3.6vw, 2.6rem) clamp(1.4rem, 4vw, 2.6rem);
+    margin: clamp(2rem, 5vw, 3rem) auto;
+    width: min(100%, 980px);
+}
+
+.pathway-footer {
+    width: min(100%, 980px);
+    margin: 1.5rem auto 3.2rem;
+}
+
+.pathway-footer-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-right: 2.4rem;
 }
 
 .pathway-kicker {
@@ -963,11 +1120,16 @@ onBeforeUnmount(() => {
 
 .departments-showcase h2 {
     margin-top: 0.4rem;
-    font-size: 1.55rem;
+    font-size: var(--title-lg);
     line-height: 1.25;
-    color: var(--page-text);
+    color: #ffffff;
     font-weight: 800;
     text-align: center;
+}
+
+.departments-showcase {
+    text-align: center;
+    color: #ffffff;
 }
 
 .department-logos {
@@ -975,7 +1137,7 @@ onBeforeUnmount(() => {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 0.8rem 1.05rem;
+    gap: clamp(0.6rem, 2.4vw, 1.05rem);
 }
 
 .dept-item {
@@ -1018,6 +1180,7 @@ onBeforeUnmount(() => {
     padding: 0.4rem 0.55rem;
     border-radius: 9px;
     background: var(--page-accent);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     color: #ffffff;
     font-size: 0.74rem;
     line-height: 1.25;
@@ -1040,10 +1203,48 @@ onBeforeUnmount(() => {
 
 .departments-desc {
     margin: 1rem auto 0;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.6;
     max-width: 76ch;
     text-align: center;
+    font-size: var(--body-md);
+}
+
+.pathway-divider {
+    height: 1px;
+    width: 70%;
+    margin: 1.4rem 0 1.6rem;
+    background: rgba(3, 68, 133, 0.6);
+}
+
+.pathway-note {
+    max-width: 320px;
+    text-align: right;
+}
+
+.pathway-note h3 {
+    margin: 0;
+    font-size: clamp(1.1rem, 2.4vw, 1.3rem);
+    font-weight: 700;
+    color: #0b1b2b;
+}
+
+.pathway-note p {
+    margin-top: 0.4rem;
+    font-size: var(--body-md);
+    line-height: 1.5;
+    color: rgba(11, 27, 43, 0.75);
+}
+
+.eligibility-media {
+    margin-top: 0.85rem;
+    width: min(240px, 70vw);
+    aspect-ratio: 1 / 1;
+    border-radius: 16px;
+    border: 1px solid var(--brand-blue);
+    background-image: url('/images/checking-inventory-flat-style-design-vector-illustration-stock-illustration_357500-43.avif');
+    background-size: cover;
+    background-position: center;
 }
 
 .features-divider {
@@ -1051,256 +1252,108 @@ onBeforeUnmount(() => {
 }
 
 .features-wrap {
-    position: relative;
-    padding-top: 1rem;
+    padding: clamp(2rem, 5vw, 3rem) 0;
+    background: var(--brand-blue);
+    color: #ffffff;
+    margin: 0 0.75rem;
+    border-radius: 18px;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--feature-bg-1) 0%, var(--feature-bg-2) 35%, var(--feature-bg-3) 70%, var(--feature-bg-4) 100%);
-    background-size: 260% 260%;
-    animation: featureBlueShift 8s ease-in-out infinite;
+    --title-chip-bg: #ffffff;
+    --title-chip-text: #0b1b2b;
+    background-image: url('/images/Maximizing-Oracle-Apps-Technical-Tips-and-Tricks-for-Developers.webp');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    position: relative;
 }
 
 .features-wrap::before {
     content: '';
     position: absolute;
     inset: 0;
-    pointer-events: none;
-    background:
-        radial-gradient(circle at 12% 22%, var(--feature-glow-1), transparent 34%),
-        radial-gradient(circle at 84% 76%, var(--feature-glow-2), transparent 40%);
+    background: rgba(3, 20, 40, 0.72);
     z-index: 0;
-    animation: featureGlowDrift 10s ease-in-out infinite alternate;
 }
 
-.features-wrap::after {
-    content: '';
-    position: absolute;
-    inset: -10% -5%;
-    pointer-events: none;
-    background:
-        repeating-linear-gradient(
-            120deg,
-            transparent 0 28px,
-            rgba(203, 213, 225, 0.08) 28px 31px,
-            transparent 31px 60px
-        );
-    z-index: 0;
-    animation: featureLineSweep 7s linear infinite;
-}
-
-.features-inner {
+.features-minimal {
     position: relative;
     z-index: 1;
 }
 
-.features-scene {
+.features-minimal {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 1rem;
-    align-items: center;
-    min-height: 460px;
+    gap: 1.5rem;
 }
 
-
-
-.feature-column {
-    position: relative;
-    min-height: 420px;
+.features-kicker {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.75);
 }
 
-.floating-feature-card {
-    position: absolute;
-    min-height: 66px;
-    width: 124px;
-    border-radius: 14px;
-    border: 1px solid var(--brand-line);
-    background: var(--feature-card-bg);
-    color: var(--feature-card-text);
-    box-shadow: 0 10px 18px var(--page-card-shadow);
-    padding: 0.4rem 0.45rem;
-    text-align: center;
+.features-minimal h2 {
+    margin: 0;
+    font-size: var(--title-lg);
+    line-height: 1.2;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.85rem 1.2rem;
+}
+
+.feature-item {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.feature-chip {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
-}
-
-.floating-feature-card:hover {
-    border-color: var(--brand-blue);
-    box-shadow: 0 14px 22px var(--page-card-shadow-strong);
-}
-
-.floating-feature-card.active {
-    border-color: var(--brand-blue);
-    box-shadow: 0 14px 24px var(--page-card-shadow-strong);
-}
-
-.feature-number-id {
-    font-size: 0.95rem;
-    font-weight: 800;
-    line-height: 1;
-}
-
-.feature-card-title {
-    margin-top: 0.42rem;
-    font-size: 0.92rem;
-    line-height: 1.25;
-    font-weight: 800;
-    color: var(--feature-card-title);
-    max-width: 18ch;
-}
-
-.floating-feature-card.active .feature-number-id {
-    display: none;
-}
-
-.feature-column:first-child .floating-feature-card:nth-child(1) {
-    top: 8px;
-    left: 10px;
-}
-
-.feature-column:first-child .floating-feature-card:nth-child(2) {
-    top: 145px;
-    right: 14px;
-}
-
-.feature-column:first-child .floating-feature-card:nth-child(3) {
-    top: 290px;
-    left: 38px;
-}
-
-.feature-column:last-child .floating-feature-card:nth-child(1) {
-    top: 24px;
-    right: 26px;
-}
-
-.feature-column:last-child .floating-feature-card:nth-child(2) {
-    top: 128px;
-    left: 18px;
-}
-
-.feature-column:last-child .floating-feature-card:nth-child(3) {
-    top: 242px;
-    right: 4px;
-}
-
-.feature-column:last-child .floating-feature-card:nth-child(4) {
-    top: 336px;
-    left: 44px;
-}
-
-.fade-title-enter-active,
-.fade-title-leave-active {
-    transition: opacity 0.18s ease, transform 0.18s ease;
-}
-
-.fade-title-enter-from,
-.fade-title-leave-to {
-    opacity: 0;
-    transform: translateY(3px);
-}
-
-@keyframes featureBlueShift {
-    0% {
-        background-position: 0% 35%;
-    }
-    50% {
-        background-position: 100% 65%;
-    }
-    100% {
-        background-position: 0% 35%;
-    }
-}
-
-@keyframes featureGlowDrift {
-    0% {
-        transform: translate3d(-1.5%, -1%, 0) scale(1);
-    }
-    100% {
-        transform: translate3d(1.5%, 1%, 0) scale(1.04);
-    }
-}
-
-@keyframes featureLineSweep {
-    0% {
-        transform: translateX(-2.5%);
-        opacity: 0.55;
-    }
-    50% {
-        opacity: 0.9;
-    }
-    100% {
-        transform: translateX(2.5%);
-        opacity: 0.55;
-    }
-}
-
-@keyframes heroCopyIn {
-    0% {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-    100% {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes heroDrift {
-    0% {
-        transform: scale(1.04) translate3d(0, 0, 0);
-    }
-    50% {
-        transform: scale(1.08) translate3d(-1.5%, -1%, 0);
-    }
-    100% {
-        transform: scale(1.04) translate3d(1.5%, 1%, 0);
-    }
-}
-
-@keyframes heroGlow {
-    0% {
-        transform: translate3d(-2%, -1%, 0) scale(1);
-        opacity: 0.45;
-    }
-    50% {
-        transform: translate3d(2%, 1.5%, 0) scale(1.04);
-        opacity: 0.6;
-    }
-    100% {
-        transform: translate3d(-1%, 1%, 0) scale(1.02);
-        opacity: 0.5;
-    }
-}
-
-.features-word {
-    display: grid;
-    justify-items: center;
-    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.9rem;
     color: #ffffff;
-    font-size: 3.2rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    padding: 0.4rem 1rem;
-    text-shadow: 0 10px 24px rgba(2, 23, 46, 0.35);
+    flex-shrink: 0;
+}
+
+.feature-text {
+    font-size: clamp(0.92rem, 1.6vw, 1rem);
+    font-weight: 600;
+    color: #ffffff;
 }
 
 .register-cta-wrap {
+    padding-top: clamp(1.6rem, 4vw, 2.5rem);
     padding-bottom: 1rem;
 }
 
 .register-cta {
-    border: 1px solid var(--brand-line);
-    border-radius: 16px;
-    background: linear-gradient(180deg, var(--page-surface) 0%, var(--page-surface-alt) 100%);
-    padding: 1.2rem;
-    text-align: center;
-    transition: box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    max-width: 720px;
+    transition: none;
 }
 
 .register-cta:hover {
-    box-shadow: 0 14px 28px var(--page-card-shadow-strong);
+    box-shadow: none;
 }
 
 .cta-kicker {
@@ -1313,37 +1366,46 @@ onBeforeUnmount(() => {
 
 .register-cta h2 {
     margin-top: 0.45rem;
-    font-size: 1.55rem;
+    font-size: var(--title-lg);
     line-height: 1.25;
     color: var(--page-text);
     font-weight: 800;
 }
 
 .register-cta p {
-    margin: 0.75rem auto 0;
+    margin: 0.75rem 0 0;
     color: var(--page-text-muted);
     line-height: 1.6;
-    max-width: 74ch;
+    max-width: 60ch;
+    font-size: var(--body-md);
 }
 
 .cta-actions {
     margin-top: 1rem;
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.6rem;
+    justify-content: flex-start;
+    gap: clamp(0.5rem, 1.8vw, 0.8rem);
 }
 
 .site-footer {
     margin-top: 1rem;
-    padding-top: 1.2rem;
-    border-top: 1px solid var(--brand-line);
-    background: linear-gradient(180deg, var(--page-surface) 0%, var(--page-surface-alt) 100%);
+    padding-top: clamp(1rem, 3vw, 1.5rem);
+    padding-bottom: 1.3rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: #0b2f5f;
+    border-radius: 18px 18px 0 0;
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    overflow: hidden;
+    color: #ffffff;
+    --title-chip-bg: #ffffff;
+    --title-chip-text: #0b1b2b;
 }
 
 .footer-shell {
     padding: 0.2rem 0 0;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .footer-grid {
@@ -1361,21 +1423,21 @@ onBeforeUnmount(() => {
 }
 
 .footer-brand {
-    color: var(--page-text);
+    color: #ffffff;
     font-size: 0.96rem;
     font-weight: 800;
 }
 
 .footer-copy {
     margin-top: 0.55rem;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.72);
     line-height: 1.6;
     font-size: 0.92rem;
 }
 
 .footer-contact {
     margin-top: 0.45rem;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.72);
     font-size: 0.84rem;
     display: inline-flex;
     align-items: center;
@@ -1385,7 +1447,7 @@ onBeforeUnmount(() => {
 .contact-icon {
     width: 0.92rem;
     height: 0.92rem;
-    color: var(--page-accent);
+    color: rgba(255, 255, 255, 0.85);
     flex-shrink: 0;
 }
 
@@ -1409,13 +1471,13 @@ onBeforeUnmount(() => {
     width: 2.1rem;
     height: 2.1rem;
     border-radius: 999px;
-    border: 1px solid var(--brand-line);
-    color: var(--page-accent);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
     text-decoration: none;
 }
 
 .social-icon-link:hover {
-    background: var(--page-hover-bg);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .social-icon {
@@ -1424,7 +1486,7 @@ onBeforeUnmount(() => {
 }
 
 .footer-heading {
-    color: var(--page-text);
+    color: rgba(255, 255, 255, 0.9);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-size: 0.72rem;
@@ -1439,14 +1501,14 @@ onBeforeUnmount(() => {
 }
 
 .footer-link {
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.72);
     text-decoration: none;
     font-size: 0.9rem;
     overflow-wrap: anywhere;
 }
 
 .footer-link:hover {
-    color: var(--page-accent);
+    color: #ffffff;
 }
 
 .footer-link-btn {
@@ -1461,13 +1523,13 @@ onBeforeUnmount(() => {
     margin-top: 0.65rem;
     display: grid;
     gap: 0.7rem;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.72);
     font-size: 0.84rem;
     line-height: 1.5;
 }
 
 .footer-info-title {
-    color: var(--page-text);
+    color: rgba(255, 255, 255, 0.9);
     font-weight: 700;
     font-size: 0.76rem;
     text-transform: uppercase;
@@ -1480,34 +1542,30 @@ onBeforeUnmount(() => {
 
 .footer-bottom-row {
     margin-top: 1rem;
-    border-top: 1px solid var(--brand-line-soft);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
     padding-top: 0.75rem;
-    color: var(--page-text-muted);
+    color: rgba(255, 255, 255, 0.7);
     font-size: 0.78rem;
 }
 
 @media (min-width: 640px) {
+    .hero-divider {
+        margin-top: 1rem;
+        margin-bottom: 1.2rem;
+    }
+
     .nav-shell {
-        display: grid;
-        grid-template-columns: minmax(220px, 1fr) auto minmax(180px, 1fr);
+        display: flex;
+        flex-direction: row;
         align-items: center;
-        gap: 10px;
-        padding: 10px 18px;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 4px 18px;
     }
 
     .header-links {
-        grid-column: 2;
+        justify-content: flex-end;
         margin: 0;
-    }
-
-    .nav-shell > :first-child {
-        grid-column: 1;
-        justify-self: start;
-    }
-
-    .nav-shell > :last-child {
-        grid-column: 3;
-        justify-self: end;
     }
 
     .footer-bottom-row {
@@ -1523,52 +1581,27 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 1024px) {
-    .nav-shell {
-        margin-left: 96px;
+    .hero-divider {
+        margin-top: 1.2rem;
+        margin-bottom: 1.4rem;
     }
 }
 
 @media (max-width: 1024px) {
-    .definition-copy {
-        grid-template-columns: 1fr;
-        align-items: center;
-        gap: 1.2rem;
+    .strip-overlay {
+        padding: 2rem 1.25rem;
     }
 
-    .hero-description {
-        justify-self: start;
+    .strip-overlay-inner {
+        max-width: 460px;
     }
 
-    .features-scene {
-        grid-template-columns: 1fr;
-        gap: 0.8rem;
-        min-height: auto;
+    .strip-overlay-inner h1 {
+        font-size: 2.05rem;
     }
 
-    .feature-column {
-        min-height: auto;
-        display: grid;
-        gap: 0.5rem;
-    }
-
-    .feature-column:first-child {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .feature-column:last-child {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .floating-feature-card {
-        position: static;
-        width: 100%;
-        min-height: 60px;
-        transform: none !important;
-        padding: 0.45rem 0.35rem;
-    }
-
-    .feature-card-title {
-        font-size: 0.78rem;
+    .features-minimal h2 {
+        font-size: 1.55rem;
     }
 
     .footer-grid {
@@ -1577,53 +1610,80 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-    .logo-triangle,
+    .nav-shell {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 64px;
+    }
+
+    .header-actions {
+        display: none;
+    }
+
+    .header-logo-slot {
+        display: flex;
+        position: absolute;
+        left: 50%;
+        top: 64%;
+        transform: translate(-50%, -50%);
+        height: 88px;
+        width: min(240px, 70vw);
+    }
+
+    .mobile-brand {
+        display: none;
+    }
+
+    .mobile-menu-toggle {
+        display: inline-flex;
+    }
+
     .corner-badge {
-        width: 116px;
-        height: 116px;
+        top: 6px;
+        width: 220px;
+        height: 90px;
+    }
+
+    .header-logo-slot {
+        flex-basis: 200px;
     }
 
     .logo-inside-triangle {
-        top: 8px;
-        left: 8px;
+        top: 30px;
         width: 46px;
         height: 46px;
-        padding: 5px;
+        padding: 4px;
     }
 
-    .definition-hero {
-        min-height: 72vh;
+    .image-strip-hero,
+    .image-strip,
+    .strip-col {
+        min-height: 60vh;
     }
 
-    .definition-copy {
-        width: 100%;
-        padding: 1.8rem 1.2rem 2.4rem;
-        text-align: left;
-    }
-
-    .definition-copy h1 {
+    .strip-overlay-inner h1 {
         font-size: 1.7rem;
     }
 
-    .hero-title,
-    .hero-description {
-        max-width: none;
+    .strip-overlay-inner p {
+        font-size: 0.95rem;
     }
 
-    .hero-image {
-        object-position: 60% 50%;
-        animation-duration: 22s;
+    .strip-kicker,
+    .strip-version {
+        font-size: 0.7rem;
     }
 }
 
 @media (min-width: 900px) {
     .role-strip {
-        grid-template-columns: 1fr 1fr;
+        flex-direction: row;
     }
 
     .role-card + .role-card {
         border-top: none;
-        border-left: 1px solid var(--brand-line-soft);
+        border-left: none;
     }
 
     .pathway-grid {
@@ -1632,40 +1692,79 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-    .corner-badge {
-        display: none;
+    .image-strip-hero {
+        margin: 0 1rem;
+        border-radius: 16px;
     }
 
-    .mobile-nav-logo {
-        display: block;
+    .features-wrap {
+        margin: 0 1rem;
+        border-radius: 16px;
+    }
+
+    .site-footer {
+        border-radius: 16px 16px 0 0;
+        margin-left: 1.25rem;
+        margin-right: 1.25rem;
+    }
+
+    .mobile-divider {
+        margin-left: 1.5rem;
+    }
+
+    .hero-divider {
+        margin-top: 0.9rem;
+        margin-bottom: 1.1rem;
+    }
+    .corner-badge {
+        top: 8px;
+        width: 200px;
+        height: 82px;
+    }
+
+    .header-logo-slot {
+        flex-basis: 190px;
     }
 
     .nav-shell {
         border-radius: 20px;
     }
 
-    .corner-badge,
-    .logo-triangle {
-        width: 96px;
-        height: 96px;
-    }
-
     .logo-inside-triangle {
-        top: 8px;
-        left: 8px;
-        width: 34px;
-        height: 34px;
+        top: 26px;
+        width: 42px;
+        height: 42px;
         padding: 4px;
-    }
+        }
 
     .dept-item {
         width: 88px;
         height: 88px;
     }
 
-    .features-word {
-        font-size: 2.1rem;
-        gap: 0.35rem;
+    .pathway-divider {
+        width: 85%;
+        margin: 1.2rem auto 1.4rem 0;
+    }
+
+    .pathway-note {
+        margin-left: 0;
+        text-align: left;
+        max-width: none;
+    }
+
+    .pathway-footer-inner {
+        align-items: flex-start;
+        padding-right: 0;
+        padding-left: 1rem;
+    }
+
+    .feature-list {
+        grid-template-columns: 1fr;
+    }
+
+    .features-minimal h2 {
+        font-size: 1.4rem;
     }
 
     .footer-grid {
@@ -1681,21 +1780,32 @@ onBeforeUnmount(() => {
         font-size: 1.25rem;
     }
 
-    .feature-card-title {
-        font-size: 0.76rem;
+    .role-strip {
+        flex-direction: column;
+        gap: 1rem;
     }
-    .definition-copy {
-        padding: 1.6rem 1rem 2.2rem;
+
+    .coach-card-wrap {
+        margin-top: 0;
+    }
+
+    .image-strip-hero {
+        overflow-x: auto;
+    }
+
+    .image-strip {
+        min-width: 900px;
+    }
+
+    .strip-overlay {
+        padding: 1.6rem 1rem;
+        background: linear-gradient(180deg, rgba(3, 20, 40, 0.85) 0%, rgba(3, 20, 40, 0.35) 70%, rgba(3, 20, 40, 0.1) 100%);
     }
 }
 
 @media (max-width: 480px) {
-    .definition-hero {
-        min-height: 68vh;
-    }
-
-    .definition-copy h1 {
-        font-size: 1.55rem;
+    .strip-overlay-inner h1 {
+        font-size: 1.5rem;
     }
 }
 
@@ -1714,27 +1824,24 @@ onBeforeUnmount(() => {
         font-size: 13px;
     }
 
-    .definition-copy p,
+    .strip-overlay-inner p,
     .departments-desc,
     .register-cta p {
         font-size: 0.9rem;
     }
 
-    .feature-number-id {
-        font-size: 0.85rem;
+    .feature-chip {
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .welcome-reveal,
     .features-wrap,
-    .features-wrap::before,
-    .features-wrap::after,
-    .definition-hero::before,
-    .hero-image,
-    .definition-copy,
+    .image-strip,
     .role-card,
-    .floating-feature-card,
     .register-cta,
     .dept-item,
     .fade-title-enter-active,

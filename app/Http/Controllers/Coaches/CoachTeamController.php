@@ -33,7 +33,7 @@ class CoachTeamController extends Controller
             'sport',
             'coach',
             'assistantCoach',
-            'players.student'
+            'players.student.user'
         ])
         ->where('coach_id', $coach->id)
         ->orWhere('assistant_coach_id', $coach->id)
@@ -90,7 +90,7 @@ class CoachTeamController extends Controller
             'sport',
             'coach',
             'assistantCoach',
-            'players.student',
+            'players.student.user',
         ])
             ->where('coach_id', $coach->id)
             ->orWhere('assistant_coach_id', $coach->id)

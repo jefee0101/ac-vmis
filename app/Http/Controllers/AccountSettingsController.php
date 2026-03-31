@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AccountSettingsController extends Controller
@@ -53,10 +54,9 @@ class AccountSettingsController extends Controller
                     'gender' => $user->student->gender,
                     'phone_number' => $user->student->phone_number,
                     'home_address' => $user->student->home_address,
-                    'course' => $user->student->course,
+                    'course_or_strand' => $user->student->course_or_strand,
                     'education_level' => $user->student->education_level,
                     'current_grade_level' => $user->student->current_grade_level,
-                    'year_level' => $user->student->year_level,
                     'student_status' => $user->student->student_status,
                     'emergency_contact_name' => $user->student->emergency_contact_name,
                     'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
@@ -132,44 +132,35 @@ class AccountSettingsController extends Controller
     {
         $user = $request->user()->load(['student', 'coach']);
 
-        $settings = UserSetting::firstOrCreate(
-            ['user_id' => $user->id],
-            [
-                'notification_email_enabled' => true,
-                'notification_in_app_enabled' => true,
-                'notify_approvals' => true,
-                'notify_schedule_changes' => true,
-                'notify_attendance_changes' => true,
-                'notify_wellness_alerts' => true,
-                'notify_academic_alerts' => true,
-                'notify_attendance_exceptions' => true,
-                'notify_wellness_injury_threshold' => true,
-                'wellness_injury_threshold_level' => 3,
-                'theme_preference' => 'light',
-                'timezone' => 'Asia/Manila',
-                'language' => 'en',
-            ]
-        );
+        return Inertia::render('Account/Settings', $this->buildSettingsPayload($user));
+    }
 
-        return Inertia::render('Account/Settings', [
-            'settings' => [
-                'notification_email_enabled' => (bool) $settings->notification_email_enabled,
-                'notification_in_app_enabled' => (bool) $settings->notification_in_app_enabled,
-                'notify_approvals' => (bool) $settings->notify_approvals,
-                'notify_schedule_changes' => (bool) $settings->notify_schedule_changes,
-                'notify_attendance_changes' => (bool) $settings->notify_attendance_changes,
-                'notify_wellness_alerts' => (bool) $settings->notify_wellness_alerts,
-                'notify_academic_alerts' => (bool) $settings->notify_academic_alerts,
-                'notify_attendance_exceptions' => (bool) $settings->notify_attendance_exceptions,
-                'notify_wellness_injury_threshold' => (bool) $settings->notify_wellness_injury_threshold,
-                'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
-                'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
-                'timezone' => $settings->timezone,
-                'language' => $settings->language,
-            ],
-            'scope' => $this->settingsScopeForRole((string) $user->role),
-            'compliance' => $this->buildCompliance($user),
-        ]);
+    public function accountSettings(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        return Inertia::render('Account/AccountSettings', $this->buildSettingsPayload($user));
+    }
+
+    public function notifications(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        return Inertia::render('Account/Notifications', $this->buildSettingsPayload($user));
+    }
+
+    public function preferences(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        return Inertia::render('Account/Preferences', $this->buildSettingsPayload($user));
+    }
+
+    public function help(Request $request)
+    {
+        $user = $request->user()->load(['student', 'coach']);
+
+        return Inertia::render('Account/Help', $this->buildSettingsPayload($user));
     }
 
     public function updateSettings(Request $request)
@@ -226,6 +217,41 @@ class AccountSettingsController extends Controller
         ]);
 
         return back();
+    }
+
+    public function updateAccountSettings(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+        ]);
+
+        $user->update([
+            'email' => $validated['email'],
+        ]);
+
+        return back();
+    }
+
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+
+        $user->update([
+            'status' => 'deactivated',
+        ]);
+
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/login');
     }
 
     private function buildCompliance($user): array
@@ -391,10 +417,53 @@ class AccountSettingsController extends Controller
                 'notify_attendance_changes',
                 'notify_wellness_alerts',
                 'notify_academic_alerts',
+                'notify_attendance_exceptions',
                 'notification_email_enabled',
                 'notification_in_app_enabled',
             ],
             'coach_preferences' => false,
+        ];
+    }
+
+    private function buildSettingsPayload($user): array
+    {
+        $settings = UserSetting::firstOrCreate(
+            ['user_id' => $user->id],
+            [
+                'notification_email_enabled' => true,
+                'notification_in_app_enabled' => true,
+                'notify_approvals' => true,
+                'notify_schedule_changes' => true,
+                'notify_attendance_changes' => true,
+                'notify_wellness_alerts' => true,
+                'notify_academic_alerts' => true,
+                'notify_attendance_exceptions' => true,
+                'notify_wellness_injury_threshold' => true,
+                'wellness_injury_threshold_level' => 3,
+                'theme_preference' => 'light',
+                'timezone' => 'Asia/Manila',
+                'language' => 'en',
+            ]
+        );
+
+        return [
+            'settings' => [
+                'notification_email_enabled' => (bool) $settings->notification_email_enabled,
+                'notification_in_app_enabled' => (bool) $settings->notification_in_app_enabled,
+                'notify_approvals' => (bool) $settings->notify_approvals,
+                'notify_schedule_changes' => (bool) $settings->notify_schedule_changes,
+                'notify_attendance_changes' => (bool) $settings->notify_attendance_changes,
+                'notify_wellness_alerts' => (bool) $settings->notify_wellness_alerts,
+                'notify_academic_alerts' => (bool) $settings->notify_academic_alerts,
+                'notify_attendance_exceptions' => (bool) $settings->notify_attendance_exceptions,
+                'notify_wellness_injury_threshold' => (bool) $settings->notify_wellness_injury_threshold,
+                'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
+                'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
+                'timezone' => $settings->timezone,
+                'language' => $settings->language,
+            ],
+            'scope' => $this->settingsScopeForRole((string) $user->role),
+            'compliance' => $this->buildCompliance($user),
         ];
     }
 }

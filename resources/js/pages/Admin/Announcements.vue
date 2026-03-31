@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 defineOptions({
@@ -189,23 +189,30 @@ function formatRelative(value: string | null) {
     <div class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
+                <Link href="/AdminDashboard" class="mb-2 inline-flex items-center rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/10">
+                    Back to Dashboard
+                </Link>
                 <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
                 <p class="text-sm text-slate-500">System and admin notices delivered to users.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-                <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
+                <div class="relative grid grid-cols-2 items-center rounded-full border border-[#034485]/50 bg-white p-1 text-xs font-semibold">
+                    <span
+                        class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-[#034485] transition-transform duration-200 ease-out"
+                        :style="activeFilter === 'unread' ? 'transform: translateX(100%);' : 'transform: translateX(0);'"
+                    />
                     <button
                         type="button"
-                        class="rounded-full px-3 py-1 transition"
-                        :class="activeFilter === 'all' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
+                        class="relative z-10 rounded-full px-3 py-1 transition-all duration-200 ease-out"
+                        :class="activeFilter === 'all' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'"
                         @click="setFilter('all')"
                     >
                         All
                     </button>
                     <button
                         type="button"
-                        class="rounded-full px-3 py-1 transition"
-                        :class="activeFilter === 'unread' ? 'bg-[#1f2937] text-white' : 'text-slate-600 hover:bg-slate-100'"
+                        class="relative z-10 rounded-full px-3 py-1 transition-all duration-200 ease-out"
+                        :class="activeFilter === 'unread' ? 'text-white' : 'text-slate-600 hover:bg-slate-100'"
                         @click="setFilter('unread')"
                     >
                         Unread
@@ -213,7 +220,7 @@ function formatRelative(value: string | null) {
                 </div>
                 <button
                     type="button"
-                    class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="processingAll || unreadCount === 0"
                     @click="markAllRead"
                 >
@@ -226,39 +233,43 @@ function formatRelative(value: string | null) {
             {{ actionMessage }}
         </p>
 
-        <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
+        <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-[#034485]/40 bg-white p-6 text-slate-500">
             No announcements yet.
         </div>
 
         <div
             v-for="item in localAnnouncements"
             :key="item.id"
-            class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition"
-            :class="!item.is_read ? 'border-l-4 border-[#1f2937]' : ''"
+            class="rounded-xl border p-4 transition"
+            :class="item.is_read
+                ? 'border-[#034485]/40 bg-white text-slate-900'
+                : 'cursor-pointer border-[#034485] bg-[#034485] text-white'"
+            @click="markRead(item)"
         >
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
-                    <span v-if="!item.is_read" class="h-2 w-2 rounded-full bg-[#1f2937]" />
-                    <h2 class="font-semibold text-slate-900">{{ item.title }}</h2>
+                    <span v-if="!item.is_read" class="h-2 w-2 rounded-full bg-white" />
+                    <h2 class="font-semibold" :class="item.is_read ? 'text-slate-900' : 'text-white'">{{ item.title }}</h2>
                 </div>
                 <button
                     v-if="!item.is_read"
                     type="button"
-                    class="rounded-full bg-[#1f2937] px-3 py-1 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                    class="rounded-full border border-white/70 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="isProcessing(item.id) || processingAll"
-                    @click="markRead(item)"
+                    @click.stop="markRead(item)"
                 >
                     {{ isProcessing(item.id) ? 'Marking...' : 'Mark Read' }}
                 </button>
             </div>
-            <p class="mt-2 text-sm text-slate-700">{{ item.message }}</p>
-            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            <p class="mt-2 text-sm" :class="item.is_read ? 'text-slate-700' : 'text-white/90'">{{ item.message }}</p>
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">
                 <span>{{ formatDateTime(item.published_at) }}</span>
                 <span v-if="formatRelative(item.published_at)">• {{ formatRelative(item.published_at) }}</span>
                 <span>• {{ item.source_label || 'System' }}</span>
                 <span
                     v-if="item.type_label"
-                    class="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500"
+                    class="rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                    :class="item.is_read ? 'border-[#034485]/35 bg-white text-[#034485]' : 'border-white/60 bg-white/10 text-white'"
                 >
                     {{ item.type_label }}
                 </span>
@@ -267,7 +278,7 @@ function formatRelative(value: string | null) {
 
         <div
             v-if="props.announcements.links.length > 1"
-            class="flex flex-col gap-3 border-t border-slate-200 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-3 border-t border-[#034485]/30 pt-4 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
         >
             <p>{{ pageSummary }}</p>
             <nav class="flex flex-wrap items-center gap-1" aria-label="Announcement pagination">

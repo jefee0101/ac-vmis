@@ -480,7 +480,7 @@ class CreateTeamController extends Controller
             ])->values();
 
         $players = Student::query()
-            ->select('id', 'first_name', 'middle_name', 'last_name', 'student_id_number')
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'student_id_number', 'education_level', 'current_grade_level')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get()
@@ -488,6 +488,8 @@ class CreateTeamController extends Controller
                 'id' => $p->id,
                 'name' => trim($p->first_name . ' ' . ($p->middle_name ?? '') . ' ' . $p->last_name),
                 'student_id_number' => $p->student_id_number,
+                'education_level' => $p->education_level,
+                'current_grade_level' => $p->current_grade_level,
             ])->values();
 
         $coachTeamLoad = Team::query()
@@ -539,6 +541,8 @@ class CreateTeamController extends Controller
                         'id' => $player->student->id,
                         'name' => trim($player->student->first_name . ' ' . ($player->student->middle_name ?? '') . ' ' . $player->student->last_name),
                         'student_id_number' => $player->student->student_id_number,
+                        'education_level' => $player->student->education_level,
+                        'current_grade_level' => $player->student->current_grade_level,
                     ]);
                 }
             }
@@ -637,6 +641,23 @@ class CreateTeamController extends Controller
                 "You were added to team {$this->teamLabel($team)}."
             );
         }
+
+        $coachUserIds = collect([
+            Coach::where('id', $team->coach_id)->value('user_id'),
+            $team->assistant_coach_id ? Coach::where('id', $team->assistant_coach_id)->value('user_id') : null,
+        ])->filter()->unique()->values();
+
+        if ($coachUserIds->isNotEmpty()) {
+            $count = count($studentIds);
+            $label = $count === 1 ? 'athlete' : 'athletes';
+            foreach ($coachUserIds as $coachUserId) {
+                $this->createAnnouncement(
+                    (int) $coachUserId,
+                    'Roster Updated',
+                    "{$count} {$label} were added to {$this->teamLabel($team)}."
+                );
+            }
+        }
     }
 
     private function notifyPlayersRemoved(Team $team, array $studentIds): void
@@ -652,6 +673,23 @@ class CreateTeamController extends Controller
                 'Team Assignment Updated',
                 "You were removed from team {$this->teamLabel($team)}."
             );
+        }
+
+        $coachUserIds = collect([
+            Coach::where('id', $team->coach_id)->value('user_id'),
+            $team->assistant_coach_id ? Coach::where('id', $team->assistant_coach_id)->value('user_id') : null,
+        ])->filter()->unique()->values();
+
+        if ($coachUserIds->isNotEmpty()) {
+            $count = count($studentIds);
+            $label = $count === 1 ? 'athlete' : 'athletes';
+            foreach ($coachUserIds as $coachUserId) {
+                $this->createAnnouncement(
+                    (int) $coachUserId,
+                    'Roster Updated',
+                    "{$count} {$label} were removed from {$this->teamLabel($team)}."
+                );
+            }
         }
     }
 

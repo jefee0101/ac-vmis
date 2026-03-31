@@ -155,25 +155,65 @@ function resetWellness() {
     <Head title="Health Workspace" />
 
     <div class="space-y-5">
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Health Workspace</h1>
-                    <p class="text-sm text-slate-600">Unified monitoring for athlete clearance and wellness indicators.</p>
+        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-center" :class="isClearance ? 'lg:justify-between' : 'lg:justify-between'">
+                <div v-if="isClearance && clearance" class="grid w-full grid-cols-1 gap-3 sm:grid-cols-4">
+                    <article class="rounded-full border border-slate-200 bg-white px-6 py-3">
+                        <p class="text-xs text-slate-500">Total Records</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ clearance.kpis.total_records }}</p>
+                    </article>
+                    <article class="rounded-full border border-rose-200 bg-rose-50 px-6 py-3">
+                        <p class="text-xs text-rose-700">Expired</p>
+                        <p class="text-lg font-semibold text-rose-900">{{ clearance.kpis.expired_count }}</p>
+                    </article>
+                    <article class="rounded-full border border-amber-200 bg-amber-50 px-6 py-3">
+                        <p class="text-xs text-amber-700">Expiring (30d)</p>
+                        <p class="text-lg font-semibold text-amber-900">{{ clearance.kpis.expiring_30_count }}</p>
+                    </article>
+                    <article class="rounded-full border border-slate-200 bg-slate-50 px-6 py-3">
+                        <p class="text-xs text-slate-700">Reviewed</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ clearance.kpis.reviewed_count }}</p>
+                    </article>
                 </div>
-                <div class="inline-flex rounded-lg border border-slate-300 bg-white p-1">
+                <div v-else-if="!isClearance && wellness" class="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+                    <article class="rounded-full border border-slate-200 bg-white px-6 py-3">
+                        <p class="text-xs text-slate-500">Total Logs</p>
+                        <p class="text-lg font-semibold text-slate-900">{{ wellness.kpis.total_logs }}</p>
+                    </article>
+                    <article class="rounded-full border border-rose-200 bg-rose-50 px-6 py-3">
+                        <p class="text-xs text-rose-700">Injury Observed</p>
+                        <div class="mt-1 flex items-center justify-between gap-2">
+                            <p class="text-lg font-semibold text-rose-900">{{ wellness.kpis.injury_observed_count }}</p>
+                            <span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">{{ wellness.kpis.injury_severity.label }}</span>
+                        </div>
+                    </article>
+                    <article class="rounded-full border border-amber-200 bg-amber-50 px-6 py-3">
+                        <p class="text-xs text-amber-700">Average Fatigue</p>
+                        <div class="mt-1 flex items-center justify-between gap-2">
+                            <p class="text-lg font-semibold text-amber-900">{{ wellness.kpis.avg_fatigue }}</p>
+                            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ wellness.kpis.fatigue_severity.label }}</span>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="relative inline-grid min-w-[230px] grid-cols-2 rounded-full border border-slate-300 bg-white p-1">
+                    <span
+                        class="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-[#1f2937] transition-transform duration-200"
+                        :class="!isClearance ? 'translate-x-full' : 'translate-x-0'"
+                        aria-hidden="true"
+                    ></span>
                     <button
                         type="button"
-                        class="rounded-md px-3 py-1.5 text-sm font-semibold"
-                        :class="isClearance ? 'bg-[#1f2937] text-white' : 'text-slate-700 hover:bg-slate-100'"
+                        class="relative z-10 rounded-full px-4 py-1.5 text-sm font-semibold text-center whitespace-nowrap transition-colors"
+                        :class="isClearance ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                         @click="setTab('clearance')"
                     >
                         Clearance
                     </button>
                     <button
                         type="button"
-                        class="rounded-md px-3 py-1.5 text-sm font-semibold"
-                        :class="!isClearance ? 'bg-[#1f2937] text-white' : 'text-slate-700 hover:bg-slate-100'"
+                        class="relative z-10 rounded-full px-4 py-1.5 text-sm font-semibold text-center whitespace-nowrap transition-colors"
+                        :class="!isClearance ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                         @click="setTab('wellness')"
                     >
                         Wellness
@@ -183,26 +223,7 @@ function resetWellness() {
         </section>
 
         <template v-if="isClearance && clearance">
-            <section class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs text-slate-500">Total Records</p>
-                    <p class="text-xl font-semibold text-slate-900">{{ clearance.kpis.total_records }}</p>
-                </article>
-                <article class="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
-                    <p class="text-xs text-rose-700">Expired</p>
-                    <p class="text-xl font-semibold text-rose-900">{{ clearance.kpis.expired_count }}</p>
-                </article>
-                <article class="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                    <p class="text-xs text-amber-700">Expiring (30d)</p>
-                    <p class="text-xl font-semibold text-amber-900">{{ clearance.kpis.expiring_30_count }}</p>
-                </article>
-                <article class="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                    <p class="text-xs text-slate-700">Reviewed</p>
-                    <p class="text-xl font-semibold text-slate-900">{{ clearance.kpis.reviewed_count }}</p>
-                </article>
-            </section>
-
-            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-5">
                     <input v-model="clearanceForm.search" type="text" placeholder="Search athlete, ID, physician" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @keyup.enter="reloadClearance(1)" />
                     <select v-model="clearanceForm.status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -231,11 +252,11 @@ function resetWellness() {
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-700"><tr><th class="px-4 py-3 text-left">Athlete</th><th class="px-4 py-3 text-left">Clearance</th><th class="px-4 py-3 text-left">Physician</th><th class="px-4 py-3 text-left">Validity</th><th class="px-4 py-3 text-left">Certificate</th><th class="px-4 py-3 text-left">Reviewed</th></tr></thead>
-                        <tbody>
+                        <thead class="bg-[#034485] text-white"><tr><th class="px-4 py-3 text-left">Athlete</th><th class="px-4 py-3 text-left">Clearance</th><th class="px-4 py-3 text-left">Physician</th><th class="px-4 py-3 text-left">Validity</th><th class="px-4 py-3 text-left">Certificate</th><th class="px-4 py-3 text-left">Reviewed</th></tr></thead>
+                        <transition-group name="table-fade" tag="tbody">
                             <tr v-for="row in clearance.records.data" :key="row.id" class="border-t border-slate-200 text-slate-700">
                                 <td class="px-4 py-3"><div class="font-medium text-slate-900">{{ row.student_name }}</div><div class="text-xs text-slate-500">{{ row.student_id_number || '-' }}</div></td>
                                 <td class="px-4 py-3"><span class="rounded-full px-2 py-0.5 text-xs font-semibold" :class="statusTone(row.clearance_status)">{{ formatStatus(row.clearance_status) }}</span></td>
@@ -244,8 +265,8 @@ function resetWellness() {
                                 <td class="px-4 py-3"><a v-if="row.certificate_url" :href="row.certificate_url" target="_blank" class="text-[#1f2937] hover:underline">View</a><span v-else class="text-slate-500">-</span></td>
                                 <td class="px-4 py-3"><div>{{ row.reviewed_by || '-' }}</div><div class="text-xs text-slate-500">{{ row.reviewed_at || '-' }}</div></td>
                             </tr>
-                            <tr v-if="clearance.records.data.length === 0"><td colspan="6" class="px-4 py-8 text-center text-slate-500">No health clearance records found.</td></tr>
-                        </tbody>
+                            <tr v-if="clearance.records.data.length === 0" key="empty"><td colspan="6" class="px-4 py-8 text-center text-slate-500">No health clearance records found.</td></tr>
+                        </transition-group>
                     </table>
                 </div>
             </section>
@@ -260,25 +281,7 @@ function resetWellness() {
         </template>
 
         <template v-if="!isClearance && wellness">
-            <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p class="text-xs text-slate-500">Total Logs</p><p class="text-xl font-semibold text-slate-900">{{ wellness.kpis.total_logs }}</p></article>
-                <article class="rounded-xl border border-rose-200 bg-rose-50 p-4 shadow-sm">
-                    <p class="text-xs text-rose-700">Injury Observed</p>
-                    <div class="mt-1 flex items-center justify-between gap-2">
-                        <p class="text-xl font-semibold text-rose-900">{{ wellness.kpis.injury_observed_count }}</p>
-                        <span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700">{{ wellness.kpis.injury_severity.label }}</span>
-                    </div>
-                </article>
-                <article class="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                    <p class="text-xs text-amber-700">Average Fatigue</p>
-                    <div class="mt-1 flex items-center justify-between gap-2">
-                        <p class="text-xl font-semibold text-amber-900">{{ wellness.kpis.avg_fatigue }}</p>
-                        <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{{ wellness.kpis.fatigue_severity.label }}</span>
-                    </div>
-                </article>
-            </section>
-
-            <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
                     <input v-model="wellnessForm.search" type="text" placeholder="Search athlete/team/schedule" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @keyup.enter="reloadWellness(1)" />
                     <select v-model="wellnessForm.team_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm"><option value="">All Teams</option><option v-for="team in wellness.options.teams" :key="team.id" :value="String(team.id)">{{ team.team_name }}</option></select>
@@ -294,11 +297,11 @@ function resetWellness() {
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <section class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-700"><tr><th class="px-4 py-3 text-left">Date</th><th class="px-4 py-3 text-left">Athlete</th><th class="px-4 py-3 text-left">Team/Schedule</th><th class="px-4 py-3 text-left">Condition</th><th class="px-4 py-3 text-left">Coach</th></tr></thead>
-                        <tbody>
+                        <thead class="bg-[#034485] text-white"><tr><th class="px-4 py-3 text-left">Date</th><th class="px-4 py-3 text-left">Athlete</th><th class="px-4 py-3 text-left">Team/Schedule</th><th class="px-4 py-3 text-left">Condition</th><th class="px-4 py-3 text-left">Coach</th></tr></thead>
+                        <transition-group name="table-fade" tag="tbody">
                             <tr v-for="row in wellness.logs.data" :key="row.id" class="border-t border-slate-200 text-slate-700">
                                 <td class="px-4 py-3">{{ row.log_date || '-' }}</td>
                                 <td class="px-4 py-3"><div class="font-medium text-slate-900">{{ row.student_name }}</div><div class="text-xs text-slate-500">{{ row.student_id_number || '-' }}</div></td>
@@ -306,8 +309,8 @@ function resetWellness() {
                                 <td class="px-4 py-3"><div>Fatigue: {{ row.fatigue_level ?? '-' }}</div><div class="text-xs text-slate-500 capitalize">Performance: {{ row.performance_condition || '-' }}</div><div class="text-xs" :class="row.injury_observed ? 'text-rose-600' : 'text-emerald-600'">{{ row.injury_observed ? 'Injury observed' : 'No injury observed' }}</div></td>
                                 <td class="px-4 py-3">{{ row.logged_by || '-' }}</td>
                             </tr>
-                            <tr v-if="wellness.logs.data.length === 0"><td colspan="5" class="px-4 py-8 text-center text-slate-500">No wellness logs found.</td></tr>
-                        </tbody>
+                            <tr v-if="wellness.logs.data.length === 0" key="empty"><td colspan="5" class="px-4 py-8 text-center text-slate-500">No wellness logs found.</td></tr>
+                        </transition-group>
                     </table>
                 </div>
             </section>
@@ -323,3 +326,20 @@ function resetWellness() {
         </template>
     </div>
 </template>
+
+<style scoped>
+.table-fade-enter-active,
+.table-fade-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.table-fade-enter-from,
+.table-fade-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.table-fade-move {
+    transition: transform 0.2s ease;
+}
+</style>

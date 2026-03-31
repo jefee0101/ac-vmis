@@ -83,7 +83,7 @@ defineProps<{
 </script>
 
 <template>
-  <Head title="Coach Operations" />
+  <Head title="Coach Attendance" />
 
   <div class="space-y-4">
     <AttendanceRecord

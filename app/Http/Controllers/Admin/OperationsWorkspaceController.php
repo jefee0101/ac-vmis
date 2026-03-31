@@ -212,6 +212,83 @@ class OperationsWorkspaceController extends Controller
         ]);
     }
 
+    public function printSchedules(Request $request)
+    {
+        $filters = $this->validatedFilters($request);
+        $sportKey = $this->normalizeSportKey($request->input('sport'));
+
+        $query = DB::table('team_schedules as ts')
+            ->join('teams as t', 't.id', '=', 'ts.team_id')
+            ->leftJoin('sports as sp', 'sp.id', '=', 't.sport_id')
+            ->select([
+                'ts.title',
+                'ts.type',
+                'ts.venue',
+                'ts.start_time',
+                'ts.end_time',
+                'ts.notes',
+                't.team_name',
+                DB::raw("COALESCE(sp.name, 'Unknown') as sport_name"),
+            ])
+            ->orderBy('ts.start_time');
+
+        if (!empty($filters['team_id'])) {
+            $query->where('t.id', (int) $filters['team_id']);
+        }
+
+        if (!empty($filters['schedule_type'])) {
+            $query->where('ts.type', $filters['schedule_type']);
+        }
+
+        if (!empty($filters['start_date'])) {
+            $query->where('ts.start_time', '>=', Carbon::parse($filters['start_date'])->startOfDay());
+        }
+
+        if (!empty($filters['end_date'])) {
+            $query->where('ts.start_time', '<=', Carbon::parse($filters['end_date'])->endOfDay());
+        }
+
+        if ($sportKey) {
+            $query->whereRaw("LOWER(REPLACE(REPLACE(sp.name, '-', ' '), '_', ' ')) = ?", [$sportKey]);
+        }
+
+        $schedules = $query->get()->map(function ($row) {
+            return [
+                'title' => $row->title,
+                'type' => $row->type,
+                'venue' => $row->venue,
+                'start' => optional(Carbon::parse($row->start_time))->format('M j, Y g:i A'),
+                'end' => optional(Carbon::parse($row->end_time))->format('M j, Y g:i A'),
+                'notes' => $row->notes,
+                'team_name' => $row->team_name,
+                'sport_name' => $row->sport_name,
+            ];
+        })->values();
+
+        $teamName = $filters['team_id']
+            ? (Team::query()->where('id', $filters['team_id'])->value('team_name') ?? 'Unknown')
+            : 'All Teams';
+
+        $sportName = $sportKey
+            ? (Sport::query()->whereRaw("LOWER(REPLACE(REPLACE(name, '-', ' '), '_', ' ')) = ?", [$sportKey])->value('name') ?? ucwords($sportKey))
+            : 'All Sports';
+
+        $rangeLabel = ($filters['start_date'] && $filters['end_date'])
+            ? "{$filters['start_date']} to {$filters['end_date']}"
+            : 'All Dates';
+
+        return view('print.operations-schedules', [
+            'schedules' => $schedules,
+            'filtersSummary' => [
+                'team' => $teamName,
+                'sport' => $sportName,
+                'type' => $filters['schedule_type'] ?? 'All Types',
+            ],
+            'rangeLabel' => $rangeLabel,
+            'generatedAt' => now()->format('M j, Y g:i A'),
+        ]);
+    }
+
     private function paginatedRecords(array $filters, bool $exceptionOnly): array
     {
         $sortMap = [
@@ -423,10 +500,13 @@ class OperationsWorkspaceController extends Controller
 
     private function calendarSchedules(array $filters)
     {
+        $calendarFilters = $filters;
+        $calendarFilters['schedule_id'] = null;
+
         $query = DB::table('team_schedules as ts')
             ->join('teams as t', 't.id', '=', 'ts.team_id')
             ->leftJoin('sports as sp', 'sp.id', '=', 't.sport_id')
-            ->join('team_players as tp', 'tp.team_id', '=', 't.id')
+            ->leftJoin('team_players as tp', 'tp.team_id', '=', 't.id')
             ->leftJoin('schedule_attendances as sa', function ($join) {
                 $join->on('sa.schedule_id', '=', 'ts.id')
                     ->on('sa.student_id', '=', 'tp.student_id');
@@ -459,7 +539,7 @@ class OperationsWorkspaceController extends Controller
             ])
             ->orderBy('ts.start_time');
 
-        $this->applyCommonFilters($query, $filters, false);
+        $this->applyCommonFilters($query, $calendarFilters, false);
 
         return $query->get()
             ->map(fn ($row) => [
@@ -540,6 +620,7 @@ class OperationsWorkspaceController extends Controller
             'direction' => 'nullable|in:asc,desc',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:5|max:100',
+            'sport' => 'nullable|string|max:50',
         ]);
 
         $filters = [
@@ -591,6 +672,23 @@ class OperationsWorkspaceController extends Controller
             'start_date' => $today->copy()->startOfMonth()->toDateString(),
             'end_date' => $today->copy()->endOfMonth()->toDateString(),
         ];
+    }
+
+    private function normalizeSportKey(?string $sport): ?string
+    {
+        if ($sport === null) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($sport));
+        if ($normalized === '' || $normalized === 'all') {
+            return null;
+        }
+
+        $normalized = preg_replace('/[_-]+/', ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        return $normalized;
     }
 
     private function applyCommonFilters($query, array $filters, bool $includeSearch = true): void

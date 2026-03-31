@@ -23,7 +23,7 @@ type QueueUser = {
         student_id_number: string | null;
         first_name: string | null;
         last_name: string | null;
-        course: string | null;
+        course_or_strand: string | null;
         current_grade_level: string | null;
         latest_health_clearance?: {
             id: number;
@@ -92,8 +92,10 @@ const rejectingId = ref<number | null>(null);
 const approveTarget = ref<QueueUser | null>(null);
 const rejectTarget = ref<QueueUser | null>(null);
 const rejectRemarks = ref('');
+const topTab = ref<'approved' | 'queue'>('queue');
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+let topTabTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const stats = computed(() => ({
     pending_total: props.stats?.pending_total ?? 0,
@@ -156,7 +158,12 @@ watch(sort, () => {
 });
 
 function goToUserManagement() {
-    router.get('/people');
+    if (topTab.value === 'approved') return;
+    topTab.value = 'approved';
+    if (topTabTimeout) clearTimeout(topTabTimeout);
+    topTabTimeout = setTimeout(() => {
+        router.get('/people');
+    }, 180);
 }
 
 function visitPage(url: string | null) {
@@ -293,26 +300,31 @@ function rejectUser() {
 
     <div class="space-y-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">People</h1>
-                <p class="text-sm text-slate-600">Process pending accounts through a structured approval queue.</p>
-            </div>
-
-            <div class="inline-flex items-center rounded-lg border border-slate-300 bg-white p-1 shadow-sm">
+            <div class="relative inline-grid grid-cols-2 items-center rounded-full border border-[#034485]/45 bg-white p-1">
+                <span
+                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#1f2937] transition-transform duration-200 ease-out"
+                    :class="topTab === 'approved' ? 'translate-x-0' : 'translate-x-full'"
+                    aria-hidden="true"
+                />
                 <button
                     type="button"
                     @click="goToUserManagement"
-                    class="rounded-md px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    class="relative z-10 w-full justify-center rounded-full px-4 py-1.5 text-xs font-semibold transition"
+                    :class="topTab === 'approved' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                 >
                     Approved Users
                 </button>
                 <button
                     type="button"
-                    class="inline-flex items-center gap-2 rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white"
+                    class="relative z-10 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition"
+                    :class="topTab === 'queue' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                     aria-current="page"
                 >
                     Approval Queue
-                    <span class="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold text-white">
+                    <span
+                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                        :class="topTab === 'queue' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'"
+                    >
                         {{ props.pendingCount ?? stats.pending_total }}
                     </span>
                 </button>
@@ -320,39 +332,44 @@ function rejectUser() {
         </div>
 
         <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
                 <p class="text-xs uppercase tracking-wide text-slate-500">Pending Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.pending_total }}</p>
             </article>
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
                 <p class="text-xs uppercase tracking-wide text-slate-500">Ready To Approve</p>
                 <p class="mt-1 text-2xl font-bold text-emerald-600">{{ stats.ready_total }}</p>
             </article>
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
                 <p class="text-xs uppercase tracking-wide text-slate-500">Needs Requirements</p>
                 <p class="mt-1 text-2xl font-bold text-amber-600">{{ stats.incomplete_total }}</p>
             </article>
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
                 <p class="text-xs uppercase tracking-wide text-slate-500">Rejected Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-rose-600">{{ stats.rejected_total }}</p>
             </article>
         </section>
 
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div class="mb-3 inline-flex items-center rounded-lg border border-slate-300 bg-white p-1 shadow-sm">
+        <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
+            <div class="relative mb-3 inline-flex items-center rounded-full border border-[#034485]/45 bg-white p-1">
+                <span
+                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full transition-transform duration-200 ease-out"
+                    :class="status === 'pending' ? 'translate-x-0 bg-[#1f2937]' : 'translate-x-full bg-rose-600'"
+                    aria-hidden="true"
+                />
                 <button
                     type="button"
                     @click="status = 'pending'"
-                    class="rounded-md px-3 py-1.5 text-xs font-semibold transition"
-                    :class="status === 'pending' ? 'bg-[#1f2937] text-white' : 'text-slate-700 hover:bg-slate-100'"
+                    class="relative z-10 rounded-full px-4 py-1.5 text-xs font-semibold transition"
+                    :class="status === 'pending' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                 >
                     Pending Queue
                 </button>
                 <button
                     type="button"
                     @click="status = 'rejected'"
-                    class="rounded-md px-3 py-1.5 text-xs font-semibold transition"
-                    :class="status === 'rejected' ? 'bg-rose-600 text-white' : 'text-slate-700 hover:bg-slate-100'"
+                    class="relative z-10 rounded-full px-4 py-1.5 text-xs font-semibold transition"
+                    :class="status === 'rejected' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                 >
                     Rejected Users
                 </button>
@@ -387,22 +404,31 @@ function rejectUser() {
             </div>
         </section>
 
-        <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div class="overflow-x-auto">
-                <table class="min-w-[1100px] w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-700">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold">#</th>
-                            <th class="px-4 py-3 text-left font-semibold">User</th>
-                            <th class="px-4 py-3 text-left font-semibold">Role</th>
-                            <th class="px-4 py-3 text-left font-semibold">Registered</th>
-                            <th class="px-4 py-3 text-left font-semibold">Readiness</th>
-                            <th class="px-4 py-3 text-left font-semibold">Requirements</th>
-                            <th class="px-4 py-3 text-left font-semibold">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="(user, index) in queue.data" :key="user.id" class="border-t border-slate-200 align-top">
+        <Transition
+            mode="out-in"
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="opacity-0 translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition duration-150 ease-in"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-1"
+        >
+            <section :key="status" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
+                <div class="overflow-x-auto">
+                    <table class="min-w-[1100px] w-full text-sm">
+                        <thead class="bg-slate-50 text-slate-700">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold">#</th>
+                                <th class="px-4 py-3 text-left font-semibold">User</th>
+                                <th class="px-4 py-3 text-left font-semibold">Role</th>
+                                <th class="px-4 py-3 text-left font-semibold">Registered</th>
+                                <th class="px-4 py-3 text-left font-semibold">Readiness</th>
+                                <th class="px-4 py-3 text-left font-semibold">Requirements</th>
+                                <th class="px-4 py-3 text-left font-semibold">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(user, index) in queue.data" :key="user.id" class="border-t border-slate-200 align-top">
                             <td class="px-4 py-3 font-semibold text-slate-600">{{ queuePosition(index) }}</td>
                             <td class="px-4 py-3">
                                 <p class="font-semibold text-slate-900">{{ user.name }}</p>
@@ -487,91 +513,119 @@ function rejectUser() {
                                 {{ isRejectedView ? 'No rejected accounts for the selected filters.' : 'No accounts in the queue for the selected filters.' }}
                             </td>
                         </tr>
-                    </tbody>
-                </table>
-            </div>
+                        </tbody>
+                    </table>
+                </div>
 
-            <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                <p>
-                    Showing {{ queue.from ?? 0 }} to {{ queue.to ?? 0 }} of {{ queue.total }}
-                    {{ isRejectedView ? 'rejected accounts' : 'pending accounts' }}
-                </p>
-                <nav class="flex flex-wrap items-center gap-1" aria-label="Approval queue pagination">
+                <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                    <p>
+                        Showing {{ queue.from ?? 0 }} to {{ queue.to ?? 0 }} of {{ queue.total }}
+                        {{ isRejectedView ? 'rejected accounts' : 'pending accounts' }}
+                    </p>
+                    <nav class="flex flex-wrap items-center gap-1" aria-label="Approval queue pagination">
+                        <button
+                            v-for="(link, index) in queue.links"
+                            :key="`${index}-${link.label}`"
+                            type="button"
+                            :disabled="!link.url"
+                            @click="visitPage(link.url)"
+                            class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
+                            :class="link.active
+                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'"
+                            v-html="link.label"
+                        />
+                    </nav>
+                </div>
+            </section>
+        </Transition>
+    </div>
+
+    <Transition name="modal-fade">
+        <div v-if="approveTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeApproveDialog">
+            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
+                <h2 class="text-lg font-bold text-slate-900">Confirm Approval</h2>
+                <p class="mt-2 text-sm text-slate-600">Approve <span class="font-semibold text-slate-900">{{ approveTarget.name }}</span> and grant system access?</p>
+
+                <div v-if="requirementIssues(approveTarget).length" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
+                    {{ requirementIssues(approveTarget).join(' | ') }}
+                </div>
+
+                <div class="mt-5 flex justify-end gap-2">
                     <button
-                        v-for="(link, index) in queue.links"
-                        :key="`${index}-${link.label}`"
                         type="button"
-                        :disabled="!link.url"
-                        @click="visitPage(link.url)"
-                        class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
-                        :class="link.active
-                            ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'"
-                        v-html="link.label"
-                    />
-                </nav>
-            </div>
-        </section>
-    </div>
-
-    <div v-if="approveTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeApproveDialog">
-        <div class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 class="text-lg font-bold text-slate-900">Confirm Approval</h2>
-            <p class="mt-2 text-sm text-slate-600">Approve <span class="font-semibold text-slate-900">{{ approveTarget.name }}</span> and grant system access?</p>
-
-            <div v-if="requirementIssues(approveTarget).length" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
-                {{ requirementIssues(approveTarget).join(' | ') }}
-            </div>
-
-            <div class="mt-5 flex justify-end gap-2">
-                <button
-                    type="button"
-                    @click="closeApproveDialog"
-                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    @click="approveUser"
-                    :disabled="approvingId === approveTarget.id || !hasRequirements(approveTarget)"
-                    class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                    Confirm Approve
-                </button>
+                        @click="closeApproveDialog"
+                        class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        @click="approveUser"
+                        :disabled="approvingId === approveTarget.id || !hasRequirements(approveTarget)"
+                        class="rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        Confirm Approve
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+    </Transition>
 
-    <div v-if="rejectTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeRejectDialog">
-        <div class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-            <h2 class="text-lg font-bold text-slate-900">Reject Account</h2>
-            <p class="mt-2 text-sm text-slate-600">Provide optional remarks for <span class="font-semibold text-slate-900">{{ rejectTarget.name }}</span>.</p>
+    <Transition name="modal-fade">
+        <div v-if="rejectTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeRejectDialog">
+            <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
+                <h2 class="text-lg font-bold text-slate-900">Reject Account</h2>
+                <p class="mt-2 text-sm text-slate-600">Provide optional remarks for <span class="font-semibold text-slate-900">{{ rejectTarget.name }}</span>.</p>
 
-            <textarea
-                v-model="rejectRemarks"
-                rows="4"
-                placeholder="Add context for the rejection (optional)"
-                class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
-            />
+                <textarea
+                    v-model="rejectRemarks"
+                    rows="4"
+                    placeholder="Add context for the rejection (optional)"
+                    class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                />
 
-            <div class="mt-5 flex justify-end gap-2">
-                <button
-                    type="button"
-                    @click="closeRejectDialog"
-                    class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    @click="rejectUser"
-                    :disabled="rejectingId === rejectTarget.id"
-                    class="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                    Confirm Reject
-                </button>
+                <div class="mt-5 flex justify-end gap-2">
+                    <button
+                        type="button"
+                        @click="closeRejectDialog"
+                        class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        @click="rejectUser"
+                        :disabled="rejectingId === rejectTarget.id"
+                        class="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        Confirm Reject
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+    </Transition>
 </template>
+
+<style scoped>
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+    transition: opacity 0.2s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+    opacity: 0;
+}
+
+.modal-fade-enter-active .modal-panel,
+.modal-fade-leave-active .modal-panel {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.modal-fade-enter-from .modal-panel,
+.modal-fade-leave-to .modal-panel {
+    transform: translateY(8px) scale(0.98);
+    opacity: 0;
+}
+</style>

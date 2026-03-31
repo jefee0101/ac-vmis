@@ -8,7 +8,6 @@ use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
 use App\Models\Student;
 use App\Models\Team;
-use App\Models\User;
 use App\Services\AnnouncementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +24,33 @@ class AcademicEligibilityController extends Controller
     public function index(Request $request)
     {
         $periods = AcademicPeriod::query()
-            ->with(['lockedBy:id,name'])
+            ->orderByDesc('starts_on')
+            ->get();
+
+        $selectedPeriodId = (int) $request->query('period_id', 0);
+        if (!$selectedPeriodId) {
+            $selectedPeriodId = (int) ($periods->first()->id ?? 0);
+        }
+
+        return Inertia::render('Admin/Academics', [
+            'periods' => $periods->map(fn ($p) => [
+                'id' => $p->id,
+                'school_year' => $p->school_year,
+                'term' => $p->term,
+                'starts_on' => optional($p->starts_on)->toDateString(),
+                'ends_on' => optional($p->ends_on)->toDateString(),
+                'status' => $this->resolveStatus($p),
+                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
+                    ? $p->announcement
+                    : null,
+            ]),
+            'selectedPeriodId' => $selectedPeriodId ?: null,
+        ]);
+    }
+
+    public function submissions(Request $request)
+    {
+        $periods = AcademicPeriod::query()
             ->orderByDesc('starts_on')
             ->get();
 
@@ -72,31 +97,55 @@ class AcademicEligibilityController extends Controller
             ];
         })->values();
 
-        return Inertia::render('Admin/Academics', [
+        return Inertia::render('Admin/AcademicSubmissions', [
             'periods' => $periods->map(fn ($p) => [
                 'id' => $p->id,
                 'school_year' => $p->school_year,
                 'term' => $p->term,
                 'starts_on' => optional($p->starts_on)->toDateString(),
                 'ends_on' => optional($p->ends_on)->toDateString(),
-                'is_submission_open' => Schema::hasColumn('academic_periods', 'is_submission_open')
-                    ? (bool) $p->is_submission_open
-                    : false,
+                'status' => $this->resolveStatus($p),
                 'announcement' => Schema::hasColumn('academic_periods', 'announcement')
                     ? $p->announcement
-                    : null,
-                'is_locked' => Schema::hasColumn('academic_periods', 'is_locked')
-                    ? (bool) $p->is_locked
-                    : false,
-                'locked_at' => Schema::hasColumn('academic_periods', 'locked_at')
-                    ? optional($p->locked_at)->toDateTimeString()
-                    : null,
-                'locked_by_name' => Schema::hasColumn('academic_periods', 'locked_by')
-                    ? $p->lockedBy?->name
                     : null,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
             'rows' => $rows,
+        ]);
+    }
+
+    public function pastPeriods()
+    {
+        $periods = AcademicPeriod::query()
+            ->orderByDesc('starts_on')
+            ->get();
+
+        $active = $periods->first();
+        $past = $periods->skip(1);
+        $pastIds = $past->pluck('id')->filter()->all();
+        $submissionCounts = !empty($pastIds)
+            ? AcademicDocument::query()
+                ->whereIn('academic_period_id', $pastIds)
+                ->select('academic_period_id', DB::raw('count(*) as submissions_count'))
+                ->groupBy('academic_period_id')
+                ->pluck('submissions_count', 'academic_period_id')
+            : collect();
+
+        return Inertia::render('Admin/AcademicPastPeriods', [
+            'activePeriod' => $active ? [
+                'id' => $active->id,
+                'school_year' => $active->school_year,
+                'term' => $active->term,
+            ] : null,
+            'periods' => $past->map(fn ($p) => [
+                'id' => $p->id,
+                'school_year' => $p->school_year,
+                'term' => $p->term,
+                'starts_on' => optional($p->starts_on)->toDateString(),
+                'ends_on' => optional($p->ends_on)->toDateString(),
+                'status' => $this->resolveStatus($p),
+                'submissions_count' => (int) ($submissionCounts[$p->id] ?? 0),
+            ])->values(),
         ]);
     }
 
@@ -111,9 +160,7 @@ class AcademicEligibilityController extends Controller
         ]);
 
         $payload = $validated;
-        if (Schema::hasColumn('academic_periods', 'is_submission_open')) {
-            $payload['is_submission_open'] = false;
-        }
+        $payload['status'] = 'draft';
         if (!Schema::hasColumn('academic_periods', 'announcement')) {
             unset($payload['announcement']);
         }
@@ -123,77 +170,57 @@ class AcademicEligibilityController extends Controller
         return back()->with('success', 'Academic period created.');
     }
 
-    public function toggleWindow(Request $request, AcademicPeriod $period)
+    public function updateStatus(Request $request, AcademicPeriod $period)
     {
         $validated = $request->validate([
-            'is_submission_open' => 'required|boolean',
+            'status' => 'required|in:draft,open,closed,locked',
             'announcement' => 'nullable|string',
         ]);
 
-        if (!Schema::hasColumn('academic_periods', 'is_submission_open')) {
-            return back()->withErrors([
-                'window' => 'Submission window controls are unavailable. Run latest migrations first.',
+        $status = $validated['status'];
+
+        if ($status === 'locked') {
+            $period->update([
+                'status' => 'locked',
+                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
+                    ? ($validated['announcement'] ?? $period->announcement)
+                    : null,
             ]);
-        }
-        if (Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
-            return back()->withErrors([
-                'window' => 'This period is locked and can no longer be edited.',
-            ]);
+
+            return back()->with('success', 'Academic period locked.');
         }
 
         $period->update([
-            'is_submission_open' => (bool) $validated['is_submission_open'],
+            'status' => $status,
             'announcement' => Schema::hasColumn('academic_periods', 'announcement')
                 ? ($validated['announcement'] ?? $period->announcement)
                 : null,
         ]);
 
-        $periodLabel = "{$period->school_year} {$this->termLabel((string) $period->term)}";
-        $state = $validated['is_submission_open'] ? 'OPEN' : 'CLOSED';
-        $endsOn = optional($period->ends_on)->format('M j, Y');
-        $message = "Academic submissions are now {$state} for {$periodLabel}" . ($endsOn ? " until {$endsOn}." : '.');
-        if (!empty($validated['announcement'])) {
-            $message .= ' ' . trim((string) $validated['announcement']);
-        }
-
-        $recipientIds = User::query()
-            ->where('status', 'approved')
-            ->whereIn('role', ['student-athlete', 'student', 'coach'])
-            ->pluck('id')
-            ->all();
-
-        $this->announcements->announceMany(
-            $recipientIds,
-            'Academic Submission Window',
-            $message,
-            'academic',
-            Auth::id()
-        );
-
-        return back()->with('success', 'Submission window updated.');
+        return back()->with('success', 'Academic period status updated.');
     }
 
-    public function toggleLock(Request $request, AcademicPeriod $period)
+    public function destroyPeriod(AcademicPeriod $period)
     {
-        $validated = $request->validate([
-            'is_locked' => 'required|boolean',
-        ]);
-
-        if (!Schema::hasColumn('academic_periods', 'is_locked')) {
-            return back()->withErrors([
-                'window' => 'Period locking is unavailable. Run latest migrations first.',
-            ]);
+        if ($period->status === 'locked') {
+            abort(422, 'This period is locked and cannot be deleted.');
         }
 
-        $lock = (bool) $validated['is_locked'];
-        $period->update([
-            'is_locked' => $lock,
-            'locked_at' => $lock ? now() : null,
-            'locked_by' => $lock ? Auth::id() : null,
-            'is_submission_open' => $lock ? false : (bool) $period->is_submission_open,
-        ]);
+        $hasDocs = AcademicDocument::query()
+            ->where('academic_period_id', $period->id)
+            ->exists();
 
-        return back()->with('success', $lock ? 'Academic period locked.' : 'Academic period unlocked.');
+        $hasEvaluations = AcademicEligibilityEvaluation::query()
+            ->where('academic_period_id', $period->id)
+            ->exists();
+
+        if ($hasDocs || $hasEvaluations) {
+            abort(422, 'This period already has submissions or evaluations.');
+        }
+
+        $period->delete();
+
+        return back()->with('success', 'Academic period deleted.');
     }
 
     public function evaluate(Request $request)
@@ -216,7 +243,7 @@ class AcademicEligibilityController extends Controller
         );
 
         $period = AcademicPeriod::find((int) $validated['period_id']);
-        if ($period && Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
+        if ($period && $period->status === 'locked') {
             abort(422, 'This period is locked and can no longer be edited.');
         }
 
@@ -342,6 +369,7 @@ class AcademicEligibilityController extends Controller
                     'document_type' => $row->document_type,
                     'uploaded_at' => $row->uploaded_at,
                     'notes' => $row->notes,
+                    'file_url' => $row->document_id ? route('files.academic', $row->document_id) : null,
                     'period' => $row->period_id ? [
                         'id' => (int) $row->period_id,
                         'school_year' => $row->school_year,
@@ -569,7 +597,7 @@ class AcademicEligibilityController extends Controller
         ]);
 
         $period = AcademicPeriod::findOrFail($periodId);
-        if (Schema::hasColumn('academic_periods', 'is_locked') && (bool) $period->is_locked) {
+        if ($period->status === 'locked') {
             abort(422, 'This period is locked and can no longer be edited.');
         }
 
@@ -606,6 +634,22 @@ class AcademicEligibilityController extends Controller
             'message' => 'Evaluation updated.',
             'evaluation_id' => $evaluation->id,
         ]);
+    }
+
+    public function destroyDocument(AcademicDocument $document)
+    {
+        $period = AcademicPeriod::find($document->academic_period_id);
+        if ($period && $period->status === 'locked') {
+            abort(422, 'This period is locked and can no longer be edited.');
+        }
+
+        AcademicEligibilityEvaluation::query()
+            ->where('document_id', $document->id)
+            ->delete();
+
+        $document->delete();
+
+        return back()->with('success', 'Academic submission deleted.');
     }
 
     public function printSummary(Request $request)
@@ -689,6 +733,19 @@ class AcademicEligibilityController extends Controller
             'end_date' => $validated['end_date'] ?? null,
             'per_page' => (int) ($validated['per_page'] ?? 15),
         ];
+    }
+
+    private function resolveStatus(AcademicPeriod $period): string
+    {
+        if (!empty($period->status)) {
+            return (string) $period->status;
+        }
+
+        if ($period->starts_on && $period->starts_on->isFuture()) {
+            return 'draft';
+        }
+
+        return 'closed';
     }
 
     private function resolvePeriodId(?int $periodId): ?int

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, router } from '@inertiajs/vue3'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 defineOptions({
@@ -189,6 +189,12 @@ function formatRelative(value: string | null) {
     <div class="space-y-4">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
+                <Link
+                    href="/StudentAthleteDashboard"
+                    class="inline-flex items-center rounded-full bg-[#034485] px-4 py-1 text-xs font-semibold text-white hover:bg-[#033a70]"
+                >
+                    Back to Dashboard
+                </Link>
                 <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
                 <p class="text-sm text-slate-500">Stay updated with admin and system notices.</p>
             </div>

@@ -14,13 +14,9 @@ function goContact() {
 <template>
     <Head title="Account Deactivated" />
 
-    <PublicLayout
-        title="Account Deactivated"
-        page-title="Account Deactivated"
-        page-description="Your account is temporarily deactivated and cannot access the system."
-    >
+    <PublicLayout title="Account Deactivated">
         <div class="status-shell">
-            <section class="status-card">
+            <section class="public-card status-card">
                 <p class="status-kicker">Account Access Update</p>
                 <h2>Account Deactivated</h2>
                 <p class="status-text">
@@ -46,24 +42,22 @@ function goContact() {
 
 .status-card {
     width: min(100%, 620px);
-    border:  1px solid rgba(15, 23, 42, 0.56);
-    border-radius: 16px;
-    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-    padding: 1.3rem;
     text-align: center;
+    display: grid;
+    gap: 0.5rem;
 }
 
 .status-kicker {
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.75);
     font-weight: 700;
 }
 
 .status-card h2 {
     margin-top: 0.45rem;
-    color: #1f2937;
+    color: #ffffff;
     font-size: 1.55rem;
     font-weight: 800;
     line-height: 1.2;
@@ -71,12 +65,12 @@ function goContact() {
 
 .status-text {
     margin-top: 0.75rem;
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.6;
 }
 
 .status-deactivated {
-    color: #b45309;
+    color: #fed7aa;
     font-weight: 700;
 }
 
@@ -97,14 +91,14 @@ function goContact() {
 }
 
 .status-btn-fill {
-    border: 1px solid #1f2937;
-    background: #1f2937;
-    color: #fff;
+    border: 1px solid #ffffff;
+    background: #ffffff;
+    color: #034485;
 }
 
 .status-btn-outline {
-    border: 1px solid rgba(15, 23, 42, 0.56);
-    background: #fff;
-    color: #1f2937;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    background: transparent;
+    color: #ffffff;
 }
 </style>

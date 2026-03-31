@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
+import PublicLayout from '@/components/Public/PublicLayout.vue';
 
 type Step = 1 | 2;
 
@@ -63,12 +64,27 @@ const cropImageStyle = computed(() => ({
     transform: `translate(calc(-50% + ${cropX.value}px), calc(-50% + ${cropY.value}px)) scale(${cropScale.value})`,
 }));
 
-function toWelcome() {
-    router.visit('/');
-}
-
 function toLogin() {
     router.visit('/Login');
+}
+
+function handleEnter(event: KeyboardEvent) {
+    if (isSubmitting.value) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+    if (target instanceof HTMLButtonElement || target instanceof HTMLAnchorElement) return;
+    if (target instanceof HTMLInputElement) {
+        const type = target.type;
+        if (['file', 'button', 'submit', 'checkbox', 'radio'].includes(type)) return;
+    }
+
+    event.preventDefault();
+    if (step.value < 2) {
+        nextStep();
+    } else {
+        submit();
+    }
 }
 
 function openModal(title: string, message: string) {
@@ -449,24 +465,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Coach Registration" />
-
-    <div class="register-page">
-        <header class="register-header px-4 pb-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
-            <div v-if="isLoading" class="top-loading" />
-            <div class="register-nav mx-auto max-w-6xl">
-                <div>
-                    <p class="kicker">Asian College</p>
-                    <p class="brand">Varsity Management Information System</p>
-                </div>
-                <button @click="toWelcome" class="btn-outline" :disabled="isLoading || isSubmitting">Back To Home</button>
-            </div>
-        </header>
-
-        <main class="register-main px-4 py-8 sm:px-6 lg:px-10">
-            <div class="mx-auto w-full max-w-3xl rounded-2xl border border-[rgba(15, 23, 42,0.35)] bg-white p-6 shadow-sm sm:p-8">
-                <h1 class="text-center text-2xl font-bold text-[#1f2937]">Coach Registration</h1>
-                <p class="mt-2 text-center text-sm text-slate-500">2-step signup with instant validation.</p>
+    <PublicLayout
+        title="Coach Registration"
+        page-title="Coach Registration"
+        page-description="2-step signup with instant validation."
+    >
+        <main class="register-main px-4 py-8 sm:px-6 lg:px-10" @keydown.enter="handleEnter">
+            <div class="mx-auto w-full max-w-3xl public-card register-card">
+                <h1 class="register-title">Coach Registration</h1>
+                <p class="register-subtitle">2-step signup with instant validation.</p>
 
                 <div class="mt-6 stepper">
                     <div class="step" :class="{ active: step >= 1 }"><span>1</span><small>Account</small></div>
@@ -484,7 +491,13 @@ onBeforeUnmount(() => {
                     <section v-if="step === 1" key="coach-step-1" class="mt-7 grid gap-4">
                     <div>
                         <label class="label">Email</label>
-                        <input v-model="form.email" type="email" class="field" placeholder="name@example.com" @blur="validateField('email')" />
+                        <input
+                            v-model="form.email"
+                            type="email"
+                            :class="['field', { 'is-error': fieldErrors.email }]"
+                            placeholder="name@example.com"
+                            @blur="validateField('email')"
+                        />
                         <p v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</p>
                     </div>
 
@@ -495,7 +508,7 @@ onBeforeUnmount(() => {
                                 <input
                                     v-model="form.password"
                                     :type="showPassword ? 'text' : 'password'"
-                                    class="field pr-10"
+                                    :class="['field', 'pr-10', { 'is-error': fieldErrors.password }]"
                                     placeholder="At least 6 characters"
                                     @blur="validateField('password')"
                                 />
@@ -525,7 +538,7 @@ onBeforeUnmount(() => {
                                 <input
                                     v-model="form.password_confirmation"
                                     :type="showPasswordConfirm ? 'text' : 'password'"
-                                    class="field pr-10"
+                                    :class="['field', 'pr-10', { 'is-error': fieldErrors.password_confirmation }]"
                                     placeholder="Repeat password"
                                     @blur="validateField('password_confirmation')"
                                 />
@@ -553,7 +566,12 @@ onBeforeUnmount(() => {
 
                     <div>
                         <label class="label">Avatar (Optional)</label>
-                        <input type="file" class="field file-field" accept="image/*" @change="onAvatarInputChange" />
+                        <input
+                            type="file"
+                            :class="['field', 'file-field', { 'is-error': fieldErrors.avatar }]"
+                            accept="image/*"
+                            @change="onAvatarInputChange"
+                        />
                         <p class="mt-1 text-xs text-slate-500">Selected: {{ avatarName }}</p>
                         <div v-if="avatarPreviewUrl" class="avatar-preview">
                             <img :src="avatarPreviewUrl" alt="Avatar preview" />
@@ -570,7 +588,12 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-3">
                         <div>
                             <label class="label">First Name</label>
-                            <input v-model="form.first_name" type="text" class="field" @blur="validateField('first_name')" />
+                            <input
+                                v-model="form.first_name"
+                                type="text"
+                                :class="['field', { 'is-error': fieldErrors.first_name }]"
+                                @blur="validateField('first_name')"
+                            />
                             <p v-if="fieldErrors.first_name" class="field-error">{{ fieldErrors.first_name }}</p>
                         </div>
                         <div>
@@ -579,7 +602,12 @@ onBeforeUnmount(() => {
                         </div>
                         <div>
                             <label class="label">Last Name</label>
-                            <input v-model="form.last_name" type="text" class="field" @blur="validateField('last_name')" />
+                            <input
+                                v-model="form.last_name"
+                                type="text"
+                                :class="['field', { 'is-error': fieldErrors.last_name }]"
+                                @blur="validateField('last_name')"
+                            />
                             <p v-if="fieldErrors.last_name" class="field-error">{{ fieldErrors.last_name }}</p>
                         </div>
                     </div>
@@ -589,7 +617,13 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Phone Number (Optional)</label>
-                            <input v-model="form.phone_number" type="text" class="field" placeholder="09XXXXXXXXX" @blur="validateField('phone_number')" />
+                            <input
+                                v-model="form.phone_number"
+                                type="text"
+                                :class="['field', { 'is-error': fieldErrors.phone_number }]"
+                                placeholder="09XXXXXXXXX"
+                                @blur="validateField('phone_number')"
+                            />
                             <p v-if="fieldErrors.phone_number" class="field-error">{{ fieldErrors.phone_number }}</p>
                         </div>
                         <div>
@@ -634,24 +668,6 @@ onBeforeUnmount(() => {
             </div>
         </main>
 
-        <footer class="site-footer px-4 pb-5 sm:px-6 lg:px-10">
-            <div class="footer-shell mx-auto max-w-6xl">
-                <div class="footer-grid">
-                    <section class="footer-col footer-col-brand">
-                        <p class="footer-brand">Asian College Varsity Management Information System</p>
-                        <p class="footer-copy">Complete coach registration to start managing team schedules, attendance, wellness, and announcements.</p>
-                    </section>
-                    <nav class="footer-col" aria-label="Access Links">
-                        <p class="footer-heading">Access</p>
-                        <div class="footer-link-list">
-                            <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
-                            <button @click="toWelcome" class="footer-link footer-link-btn">Home</button>
-                        </div>
-                    </nav>
-                </div>
-            </div>
-        </footer>
-
         <div v-if="modal.open" class="dialog-overlay" @click.self="closeModal">
             <div class="dialog-card">
                 <div class="dialog-icon">!</div>
@@ -687,7 +703,7 @@ onBeforeUnmount(() => {
                         />
                         <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs" @click="adjustCropZoom(0.1)">+</button>
                     </div>
-                    <p v-if="cropError" class="text-xs text-red-600">{{ cropError }}</p>
+                    <p v-if="cropError" class="error-inline text-xs">{{ cropError }}</p>
                 </div>
 
                 <div class="mt-4 flex justify-end gap-2">
@@ -696,7 +712,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </div>
-    </div>
+    </PublicLayout>
 </template>
 
 <style scoped>
@@ -759,6 +775,34 @@ onBeforeUnmount(() => {
     padding-bottom: 1rem;
 }
 
+.register-card {
+    color: #ffffff;
+}
+
+.register-title {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.register-subtitle {
+    margin-top: 0.45rem;
+    text-align: center;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.register-card h2,
+.register-card h3 {
+    color: #ffffff;
+}
+
+.register-card p,
+.register-card small {
+    color: rgba(255, 255, 255, 0.82);
+}
+
 .stepper {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
@@ -770,18 +814,19 @@ onBeforeUnmount(() => {
     display: grid;
     place-items: center;
     gap: 0.25rem;
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .step span {
     width: 34px;
     height: 34px;
     border-radius: 999px;
-    border:  1px solid #c0d5eb;
+    border: 1px solid rgba(255, 255, 255, 0.45);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    color: #ffffff;
 }
 
 .step small {
@@ -791,36 +836,36 @@ onBeforeUnmount(() => {
 }
 
 .step.active {
-    color: #1f2937;
+    color: #ffffff;
 }
 
 .step.active span {
-    border-color: #f53003;
-    background: #fff3f2;
-    color: #b91c1c;
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
 }
 
 .step-line {
     width: 100%;
     height: 2px;
-    background: #d1deec;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .step-line.active {
-    background: #f53003;
+    background: #ffffff;
 }
 
 .label {
     font-size: 0.86rem;
     font-weight: 700;
-    color: #183658;
+    color: rgba(255, 255, 255, 0.9);
     margin-bottom: 6px;
     display: inline-block;
 }
 
 .field {
     width: 100%;
-    border: 1px solid rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(3, 68, 133, 0.25);
     border-radius: 10px;
     padding: 10px 12px;
     background: #ffffff;
@@ -830,8 +875,8 @@ onBeforeUnmount(() => {
 }
 
 .field:focus {
-    border-color: #f53003;
-    box-shadow: 0 0 0 2px rgba(245, 48, 3, 0.15);
+    border-color: rgba(3, 68, 133, 0.55);
+    box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.2);
 }
 
 .file-field {
@@ -840,13 +885,26 @@ onBeforeUnmount(() => {
 
 .field-error {
     margin-top: 5px;
-    color: #b91c1c;
+    color: #ffffff;
+    -webkit-text-stroke: 0.45px #dc2626;
+    text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
     font-size: 0.78rem;
 }
 
+.error-inline {
+    color: #ffffff;
+    -webkit-text-stroke: 0.45px #dc2626;
+    text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
+}
+
+.field.is-error {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
 .btn-outline {
-    color: #1f2937;
-    border: 1px solid rgba(15, 23, 42, 0.56);
+    color: #034485;
+    border: 1px solid rgba(3, 68, 133, 0.35);
     background: #ffffff;
     border-radius: 10px;
     font-size: 14px;
@@ -861,12 +919,24 @@ onBeforeUnmount(() => {
 
 .btn-fill {
     color: #ffffff;
-    border: 1px solid #c12703;
-    background: linear-gradient(135deg, #f53003 0%, #d92f08 100%);
+    border: 1px solid #034485;
+    background: #034485;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 700;
-    padding: 10px 16px;
+    padding: 10px 14px;
+}
+
+.register-card .btn-outline {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.6);
+    background: transparent;
+}
+
+.register-card .btn-fill {
+    color: #034485;
+    border-color: #ffffff;
+    background: #ffffff;
 }
 
 .btn-fill:disabled {

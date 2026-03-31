@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\TeamSchedule;
 use App\Models\ScheduleAttendance;
 use App\Models\ScheduleQrToken;
+use App\Services\AcademicHoldService;
 use App\Services\AnnouncementService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
@@ -18,7 +19,10 @@ use Illuminate\Support\Facades\Schema;
 
 class ScheduleRecord extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(
+        private AnnouncementService $announcements,
+        private AcademicHoldService $holdService,
+    )
     {
     }
 
@@ -28,6 +32,23 @@ class ScheduleRecord extends Controller
 
         if (!$student) {
             return Inertia::render('StudentAthletes/MySchedules', [
+                'team' => null,
+                'teams' => [],
+                'selectedTeamId' => null,
+                'schedules' => [],
+            ]);
+        }
+
+        $holdState = $this->holdService->evaluate($student);
+        if ($holdState['status']) {
+            $teamName = Team::whereHas('players', fn ($q) => $q->where('student_id', $student->id))
+                ->orderBy('team_name')
+                ->value('team_name');
+            $teamText = $teamName ? "Your team ({$teamName}) is temporarily paused." : 'Your team access is temporarily paused.';
+            return Inertia::render('StudentAthletes/MySchedules', [
+                'accessLocked' => true,
+                'lockStatus' => $holdState['status'] ?? 'Suspended',
+                'lockMessage' => "Academic submission window is active. {$teamText}",
                 'team' => null,
                 'teams' => [],
                 'selectedTeamId' => null,
@@ -113,6 +134,7 @@ class ScheduleRecord extends Controller
     {
         $student = Student::where('user_id', Auth::id())->first();
         abort_unless($student, 403);
+        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
 
         $teams = Team::with('sport')
             ->whereHas('players', function ($q) use ($student) {
@@ -183,6 +205,9 @@ class ScheduleRecord extends Controller
 
     public function updateScheduleAttendance(Request $request, $id)
     {
+        $student = Student::where('user_id', Auth::id())->firstOrFail();
+        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
+
         $validated = $request->validate([
             'status' => 'required|in:present,absent,excused',
             'notes' => 'nullable|string|max:1000',
@@ -194,7 +219,6 @@ class ScheduleRecord extends Controller
             ]);
         }
 
-        $student = Student::where('user_id', Auth::id())->firstOrFail();
         $schedule = TeamSchedule::findOrFail($id);
 
         $teamIds = Team::whereHas('players', function ($q) use ($student) {
@@ -255,6 +279,7 @@ class ScheduleRecord extends Controller
     public function qrToken(Request $request, $id)
     {
         $student = Student::where('user_id', Auth::id())->firstOrFail();
+        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
         $schedule = TeamSchedule::findOrFail($id);
 
         $team = Team::whereHas('players', function ($q) use ($student) {
@@ -318,4 +343,5 @@ class ScheduleRecord extends Controller
             'closes_at' => $closesAt,
         ];
     }
+
 }

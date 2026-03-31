@@ -1,121 +1,298 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
 
 const props = withDefaults(
     defineProps<{
-        title: string;
-        pageTitle: string;
+        title?: string;
+        pageTitle?: string;
         pageDescription?: string;
     }>(),
     {
+        title: '',
+        pageTitle: '',
         pageDescription: '',
     },
 );
 
-const page = usePage();
-const currentYear = new Date().getFullYear();
 const { isLoading } = useInertiaLoading();
+const page = usePage();
+const layoutRef = ref<HTMLElement | null>(null);
+const currentYear = new Date().getFullYear();
+const isAuthed = computed(() => Boolean(page.props.auth?.user));
+const userRole = computed(() => String(page.props.auth?.user?.role ?? ''));
+const isLoginPage = computed(() => page.component === 'Auth/Login' || page.url.toLowerCase().includes('/login'));
+const isRegisterPage = computed(() => page.component.includes('Register') || page.url.toLowerCase().includes('/register'));
+const isStatusPage = computed(() => page.component.startsWith('Status/') || page.component.toLowerCase().includes('status/'));
+const isRoleRegisterPage = computed(() => {
+    const component = page.component.toLowerCase();
+    const url = page.url.toLowerCase();
+    return (
+        component.includes('student-athleteregister') ||
+        component.includes('coachregister') ||
+        url.includes('/student-athlete-register') ||
+        url.includes('/coach-register')
+    );
+});
+const currentPath = computed(() => {
+    const path = page.url.split('?')[0].toLowerCase();
+    if (path.length > 1 && path.endsWith('/')) {
+        return path.slice(0, -1);
+    }
+    return path;
+});
+const mobileMenuOpen = ref(false);
 
-const currentPath = computed(() => page.url.split('?')[0]);
-
-function isActive(path: string) {
-    return currentPath.value === path;
+function isActivePath(path: string) {
+    const target = path.toLowerCase();
+    const current = currentPath.value;
+    if (target === '/') {
+        return current === '/' || current === '';
+    }
+    return current === target || current.startsWith(`${target}/`);
 }
 
 function toLogin() {
-    router.visit('/Login');
+    router.visit('Login');
 }
 
 function toRegister() {
-    router.visit('/Register');
+    router.visit('Register');
 }
 
-let observer: IntersectionObserver | null = null;
-
-onMounted(() => {
-    const targets = document.querySelectorAll<HTMLElement>('.reveal');
-    if (!targets.length) {
-        return;
-    }
-
-    observer = new IntersectionObserver(
-        (entries) => {
-            entries.forEach((entry) => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('is-visible');
-                }
-            });
-        },
-        { threshold: 0.12, rootMargin: '0px 0px -40px 0px' },
-    );
-
-    targets.forEach((target) => observer?.observe(target));
+const dashboardPath = computed(() => {
+    const role = userRole.value;
+    if (role === 'admin') return '/AdminDashboard';
+    if (role === 'coach') return '/coach/dashboard';
+    if (role === 'student-athlete' || role === 'student') return '/StudentAthleteDashboard';
+    return '/Login';
 });
 
-onBeforeUnmount(() => {
-    observer?.disconnect();
+function revealContent() {
+    const root = layoutRef.value;
+    if (!root) return;
+    root.querySelectorAll<HTMLElement>('.reveal').forEach((el) => el.classList.add('is-visible'));
+}
+
+onMounted(async () => {
+    await nextTick();
+    revealContent();
+});
+
+watch(
+    () => page.url,
+    async () => {
+        await nextTick();
+        revealContent();
+        mobileMenuOpen.value = false;
+    },
+);
+
+watch(mobileMenuOpen, (open) => {
+    document.body.style.overflow = open ? 'hidden' : '';
 });
 </script>
 
 <template>
-    <Head :title="title" />
+    <Head :title="props.title || props.pageTitle || 'AC-VMIS'" />
 
-    <div class="public-page min-h-screen">
-        <div class="corner-badge" aria-hidden="true">
-            <div class="logo-triangle">
-                <img src="/images/aclogo.svg" alt="Asian College Logo" class="logo-inside-triangle" />
-            </div>
-        </div>
-
-        <header class="site-header px-3 py-2 sm:px-4 lg:px-6">
+    <div class="public-layout public-page" ref="layoutRef">
+        <header class="site-header px-3 py-1 sm:px-4 lg:px-6">
             <div v-if="isLoading" class="loading-strip" />
-            <div class="nav-shell mx-auto max-w-6xl">
-                <div class="flex items-center gap-3">
-                    <div>
-                        <p class="kicker">Asian College</p>
-                        <p class="brand">Varsity Management Information System</p>
-                    </div>
-                    <img src="/images/aclogo.svg" alt="Asian College Logo" class="mobile-nav-logo" />
+            <div class="mx-auto max-w-6xl nav-shell">
+                <button
+                    type="button"
+                    class="mobile-menu-toggle"
+                    aria-label="Open menu"
+                    @click="mobileMenuOpen = true"
+                >
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+
+                <div class="flex items-center gap-3 header-actions">
+                    <template v-if="!isStatusPage">
+                        <button
+                            v-if="isAuthed"
+                            @click="router.visit(dashboardPath)"
+                            class="btn-outline"
+                            :disabled="isLoading"
+                        >
+                            Back to Dashboard
+                        </button>
+                        <template v-else>
+                            <button
+                                v-if="isRoleRegisterPage"
+                                @click="toRegister"
+                                class="btn-outline"
+                                :disabled="isLoading"
+                            >
+                                Back to Register
+                            </button>
+                            <template v-else>
+                                <button @click="toLogin" class="btn-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
+                                    Login
+                                </button>
+                                <button @click="toRegister" class="btn-fill" :class="{ 'is-active': isRegisterPage }" :disabled="isLoading">
+                                    Register
+                                </button>
+                            </template>
+                        </template>
+                    </template>
                 </div>
 
-                <nav class="header-links" aria-label="Public pages">
-                    <Link href="/" class="header-link" :class="{ active: isActive('/') }">Home</Link>
-                    <Link href="/services" class="header-link" :class="{ active: isActive('/services') }">Services</Link>
-                    <Link href="/about" class="header-link" :class="{ active: isActive('/about') }">About Us</Link>
-                    <Link href="/how-it-works" class="header-link" :class="{ active: isActive('/how-it-works') }">How It Works</Link>
-                    <Link href="/faq" class="header-link" :class="{ active: isActive('/faq') }">FAQ</Link>
-                    <Link href="/policies" class="header-link" :class="{ active: isActive('/policies') }">Policies</Link>
-                    <Link href="/contact" class="header-link" :class="{ active: isActive('/contact') }">Contact</Link>
-                </nav>
+                <div class="header-logo-slot" aria-hidden="true">
+                    <div class="corner-badge">
+                        <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                            <path
+                                d="M46 12H214
+                                   Q222 12 226 18
+                                   L170 124
+                                   Q166 128 160 128
+                                   H100
+                                   Q94 128 90 124
+                                   L34 18
+                                   Q38 12 46 12Z"
+                            />
+                        </svg>
+                        <img src="/images/aclogo.svg" alt="Asian College Logo" class="logo-inside-triangle" />
+                    </div>
+                </div>
 
-                <div class="auth-actions grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:gap-2.5">
-                    <button @click="toLogin" class="btn-outline" :disabled="isLoading">Login</button>
-                    <button @click="toRegister" class="btn-fill" :disabled="isLoading">Register</button>
+                <nav v-if="!isStatusPage" class="header-links" aria-label="Public pages">
+                    <Link
+                        href="/"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/') }"
+                        title="Overview of AC-VMIS"
+                        aria-label="Home: Overview of AC-VMIS"
+                    >
+                        Home
+                    </Link>
+                    <Link
+                        href="/how-it-works"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/how-it-works') }"
+                        title="Step-by-step flow of using the platform"
+                        aria-label="How It Works: Step-by-step flow of using the platform"
+                    >
+                        How It Works
+                    </Link>
+                    <Link
+                        href="/about"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/about') }"
+                        title="What AC-VMIS is and who it serves"
+                        aria-label="About Us: What AC-VMIS is and who it serves"
+                    >
+                        About Us
+                    </Link>
+                    <Link
+                        href="/services"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/services') }"
+                        title="Core services and tools in AC-VMIS"
+                        aria-label="Services: Core services and tools in AC-VMIS"
+                    >
+                        Services
+                    </Link>
+                    <Link
+                        href="/faq"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/faq') }"
+                        title="Quick answers to common questions"
+                        aria-label="FAQ: Quick answers to common questions"
+                    >
+                        FAQ
+                    </Link>
+                    <Link
+                        href="/policies"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/policies') }"
+                        title="Policies, privacy, and terms"
+                        aria-label="Policies: Policies, privacy, and terms"
+                    >
+                        Policies
+                    </Link>
+                    <Link
+                        href="/contact"
+                        class="header-link"
+                        :class="{ 'is-active': isActivePath('/contact') }"
+                        title="Contact details and support"
+                        aria-label="Contact: Contact details and support"
+                    >
+                        Contact
+                    </Link>
+                </nav>
+                <div v-else class="header-system-title" aria-label="System Title">
+                    Asian College Varsity Management Information System
                 </div>
             </div>
         </header>
 
-        <main class="px-4 pb-10 pt-6 sm:px-6 lg:px-10">
-            <section class="page-hero reveal mx-auto max-w-6xl">
-                <p class="page-kicker">Public Information</p>
-                <h1 class="page-title">{{ pageTitle }}</h1>
-                <p v-if="pageDescription" class="page-description">{{ pageDescription }}</p>
-            </section>
+        <div v-if="mobileMenuOpen" class="mobile-menu-overlay" @click="mobileMenuOpen = false"></div>
+        <aside class="mobile-menu" :class="{ 'is-open': mobileMenuOpen }" aria-label="Mobile menu">
+            <div class="mobile-menu-header">
+                <span class="mobile-menu-title">Menu</span>
+                <button type="button" class="mobile-menu-close" @click="mobileMenuOpen = false">Close</button>
+            </div>
+            <div class="mobile-menu-actions">
+                <template v-if="isAuthed">
+                    <button @click="router.visit(dashboardPath); mobileMenuOpen = false" class="btn-outline w-full">
+                        Back to Dashboard
+                    </button>
+                </template>
+                <template v-else>
+                    <button
+                        v-if="isRoleRegisterPage"
+                        @click="toRegister(); mobileMenuOpen = false"
+                        class="btn-outline w-full"
+                    >
+                        Back to Register
+                    </button>
+                    <template v-else>
+                        <button @click="toLogin(); mobileMenuOpen = false" class="btn-outline w-full">Login</button>
+                        <button @click="toRegister(); mobileMenuOpen = false" class="btn-fill w-full">Register</button>
+                    </template>
+                </template>
+            </div>
+            <nav class="mobile-menu-links">
+                <template v-if="isStatusPage">
+                    <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
+                    <Link href="/Login" class="mobile-menu-link" @click="mobileMenuOpen = false">Login</Link>
+                    <Link href="/Register" class="mobile-menu-link" @click="mobileMenuOpen = false">Register</Link>
+                </template>
+                <template v-else>
+                    <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
+                    <Link href="/how-it-works" class="mobile-menu-link" @click="mobileMenuOpen = false">How It Works</Link>
+                    <Link href="/about" class="mobile-menu-link" @click="mobileMenuOpen = false">About Us</Link>
+                    <Link href="/services" class="mobile-menu-link" @click="mobileMenuOpen = false">Services</Link>
+                    <Link href="/faq" class="mobile-menu-link" @click="mobileMenuOpen = false">FAQ</Link>
+                    <Link href="/policies" class="mobile-menu-link" @click="mobileMenuOpen = false">Policies</Link>
+                    <Link href="/contact" class="mobile-menu-link" @click="mobileMenuOpen = false">Contact</Link>
+                </template>
+            </nav>
+        </aside>
 
-            <section class="mx-auto mt-5 grid max-w-6xl gap-4">
+        <main class="public-body">
+            <div class="public-content">
+                <header v-if="props.pageTitle || props.pageDescription" class="page-intro">
+                    <h1 v-if="props.pageTitle" class="page-title">{{ props.pageTitle }}</h1>
+                    <p v-if="props.pageDescription" class="page-desc">{{ props.pageDescription }}</p>
+                </header>
                 <slot />
-            </section>
+            </div>
         </main>
 
         <footer class="site-footer relative z-10 px-4 pb-5 sm:px-6 lg:px-10">
-            <div class="footer-shell mx-auto max-w-6xl">
+            <div class="mx-auto max-w-6xl footer-shell">
                 <div class="footer-grid">
                     <section class="footer-col footer-col-brand">
                         <p class="footer-brand">Asian College Varsity Management Information System</p>
                         <p class="footer-copy">
-                            One platform for varsity registration, team setup, schedules, attendance, wellness, academic tracking, and announcements.
+                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and announcements.
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
@@ -130,10 +307,17 @@ onBeforeUnmount(() => {
                             </svg>
                             <span>+63 000 000 0000</span>
                         </p>
+                        <div class="footer-socials" aria-label="Social Links">
+                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-icon-link" aria-label="Facebook">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="social-icon" aria-hidden="true">
+                                    <path d="M15 3h-2a4 4 0 0 0-4 4v2H7v4h2v8h4v-8h2.5l.5-4H13V7a1 1 0 0 1 1-1h2V3z" />
+                                </svg>
+                            </a>
+                        </div>
                     </section>
 
                     <nav class="footer-col" aria-label="Public Pages">
-                        <p class="footer-heading">Public Pages</p>
+                        <p class="footer-heading"><span class="title-chip">Public Pages</span></p>
                         <div class="footer-link-list">
                             <Link href="/" class="footer-link">Home</Link>
                             <Link href="/services" class="footer-link">Services</Link>
@@ -145,7 +329,7 @@ onBeforeUnmount(() => {
                     </nav>
 
                     <nav class="footer-col" aria-label="Legal Pages">
-                        <p class="footer-heading">Legal</p>
+                        <p class="footer-heading"><span class="title-chip">Legal</span></p>
                         <div class="footer-link-list">
                             <Link href="/policies" class="footer-link">Policies</Link>
                             <Link href="/privacy-policy" class="footer-link">Privacy Policy</Link>
@@ -154,20 +338,34 @@ onBeforeUnmount(() => {
                     </nav>
 
                     <nav class="footer-col" aria-label="Access Links">
-                        <p class="footer-heading">Access</p>
+                        <p class="footer-heading"><span class="title-chip">Access</span></p>
                         <div class="footer-link-list">
                             <button @click="toRegister" class="footer-link footer-link-btn">Register</button>
                             <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
                         </div>
                     </nav>
 
-                    <div class="footer-col social-col" aria-label="Social Links">
-                        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="social-icon-link" aria-label="Facebook">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="social-icon" aria-hidden="true">
-                                <path d="M15 3h-2a4 4 0 0 0-4 4v2H7v4h2v8h4v-8h2.5l.5-4H13V7a1 1 0 0 1 1-1h2V3z" />
-                            </svg>
-                        </a>
-                    </div>
+                    <section class="footer-col" aria-label="Institution">
+                        <p class="footer-heading"><span class="title-chip">Institution</span></p>
+                        <div class="footer-info">
+                            <div>
+                                <p class="footer-info-title"><span class="title-chip">Vision</span></p>
+                                <p class="footer-info-text">
+                                    To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.
+                                </p>
+                            </div>
+                            <div>
+                                <p class="footer-info-title"><span class="title-chip">Mission</span></p>
+                                <p class="footer-info-text">To educate and develop globally competitive future leaders.</p>
+                            </div>
+                            <div>
+                                <p class="footer-info-title"><span class="title-chip">Core Values</span></p>
+                                <p class="footer-info-text">Academic Excellence</p>
+                                <p class="footer-info-text">Integrity</p>
+                                <p class="footer-info-text">Self-Leadership</p>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <div class="footer-bottom-row">
@@ -179,231 +377,162 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.public-page {
-    --brand-blue: #1f2937;
-    --brand-line: rgba(15, 23, 42, 0.66);
-    --brand-line-soft: rgba(15, 23, 42, 0.5);
-    background: #ffffff;
-    color: #1f2937;
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+
+.public-layout {
+    --brand-blue: var(--blue-light-primary);
+    --page-accent: var(--blue-light-primary);
+    --page-accent-strong: var(--blue-light-primary-strong);
+    --page-accent-soft: #93c5fd;
     font-family: 'Poppins', 'Segoe UI', sans-serif;
-    font-size: 1rem;
-    line-height: 1.6;
 }
 
-.corner-badge {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 40;
-    width: 138px;
-    height: 138px;
-    pointer-events: none;
-}
-
-.logo-triangle {
-    position: relative;
-    width: 138px;
-    height: 138px;
-    background: #1f2937;
-    clip-path: polygon(0 0, 100% 0, 0 100%);
-}
-
-.logo-inside-triangle {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 58px;
-    height: 58px;
-    border-radius: 999px;
-    background: #fff;
-    padding: 6px;
-    object-fit: contain;
-}
-
-.site-header {
-    position: sticky;
-    top: 0;
-    z-index: 35;
-    background: rgba(255, 255, 255, 0.88);
-    border-bottom:  1px solid var(--brand-line);
-    backdrop-filter: blur(2px);
-}
-
-.loading-strip {
-    height: 3px;
-    width: 100%;
-    border-radius: 999px;
-    margin-bottom: 8px;
-    background: linear-gradient(90deg, #1f2937 0%, #475569 40%, #94a3b8 100%);
-    background-size: 200% 100%;
-    animation: loading-shimmer 1s linear infinite;
-}
-
-.nav-shell {
-    border:  1px solid var(--brand-line);
-    border-radius: 9999px;
-    background: #ffffff;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 10px 14px;
-}
-
-.kicker {
-    font-size: 0.625rem;
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    color: #94a3b8;
-}
-
-.brand {
-    font-weight: 800;
-    color: #1f2937;
-    font-size: 0.95rem;
-}
-
-.header-links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    justify-content: center;
-}
-
-.header-link {
-    color: #64748b;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-decoration: none;
-}
-
-.header-link.active,
-.header-link:hover {
-    color: #1f2937;
-}
-
-.mobile-nav-logo {
-    display: none;
-    width: 40px;
-    height: 40px;
-    margin-left: auto;
-    border-radius: 999px;
-    background: #ffffff;
-    border: 1px solid var(--brand-line);
-    padding: 4px;
-    object-fit: contain;
-}
-
-.btn-fill,
-.btn-outline {
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.625rem;
-    font-size: 0.875rem;
-    font-weight: 700;
-}
-
-.btn-fill:disabled,
-.btn-outline:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-}
-
-.btn-fill {
-    color: #ffffff;
-    border: 1px solid var(--brand-blue);
+.public-body {
     background: var(--brand-blue);
+    padding: 0 1.1rem 2.6rem;
 }
 
-.btn-outline {
-    color: var(--brand-blue);
-    border: 1px solid var(--brand-line);
-    background: #ffffff;
+.public-content {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    gap: 1.25rem;
 }
 
-.page-hero {
-    border:  1px solid var(--brand-line);
-    border-radius: 1rem;
-    background: linear-gradient(180deg, #f8fbff 0%, #edf5ff 100%);
-    padding: 1rem;
-}
-
-.page-kicker {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: #64748b;
-    font-weight: 700;
+.page-intro {
+    padding: 1.2rem 0 0.4rem;
+    color: #ffffff;
+    display: grid;
+    gap: 0.45rem;
 }
 
 .page-title {
-    margin-top: 0.35rem;
-    font-size: 1.5rem;
-    line-height: 1.2;
-    color: #1f2937;
+    margin: 0;
+    font-size: 1.7rem;
     font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #ffffff;
 }
 
-.page-description {
-    margin-top: 0.65rem;
-    color: #64748b;
-    max-width: 72ch;
+.page-desc {
+    margin: 0;
+    max-width: 60ch;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.98rem;
+    line-height: 1.6;
+}
+
+:deep(.public-card) {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 18px;
+    padding: 1.4rem 1.6rem;
+    box-shadow: 0 16px 30px -26px rgba(3, 20, 40, 0.35);
+}
+
+:deep(.public-card p) {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+:deep(.public-card ul),
+:deep(.public-card ol) {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+:deep(.public-card li) {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+:deep(.section-title) {
+    display: inline-block;
+    padding: 0.22rem 0.7rem;
+    border-radius: 999px;
+    background: transparent;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin: 0 0 0.65rem;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.title-chip {
+    display: inline-block;
+    padding: 0.22rem 0.7rem;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #0b1b2b;
+    line-height: 1.2;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
 }
 
 .site-footer {
-    margin-top: 0.75rem;
-    border-top:  1px solid var(--brand-line);
-    background: linear-gradient(180deg, #f5f9ff 0%, #eef5ff 100%);
-    padding-top: 1rem;
+    margin-top: 1rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    background: #0b2f5f !important;
+    border-radius: 18px 18px 0 0;
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    overflow: hidden;
+    color: #ffffff;
 }
 
 .footer-shell {
-    padding-top: 0.2rem;
-    color: #64748b;
+    padding: 0.2rem 0 0;
+    color: rgba(255, 255, 255, 0.75);
+    background: transparent !important;
+    border: none !important;
 }
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.3fr 1fr 1fr 1fr;
-    gap: 1rem;
+    grid-template-columns: 1.35fr 1fr 1fr 1fr 1.1fr;
+    gap: 1.2rem;
+}
+
+.footer-col {
+    min-width: 0;
 }
 
 .footer-col-brand {
-    max-width: 36ch;
+    max-width: 42ch;
 }
 
 .footer-brand {
-    color: #1f2937;
-    font-size: 1rem;
+    color: #ffffff;
+    font-size: 0.96rem;
     font-weight: 800;
 }
 
 .footer-copy {
-    margin-top: 0.5rem;
-    color: #64748b;
-    line-height: 1.55;
-    font-size: 0.9rem;
+    margin-top: 0.55rem;
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.6;
+    font-size: 0.92rem;
 }
 
 .footer-contact {
-    margin-top: 0.3rem;
-    color: #64748b;
-    font-size: 0.86rem;
+    margin-top: 0.45rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.84rem;
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
 }
 
 .contact-icon {
-    width: 0.9rem;
-    height: 0.9rem;
-    color: #1f2937;
+    width: 0.92rem;
+    height: 0.92rem;
+    color: rgba(255, 255, 255, 0.85);
     flex-shrink: 0;
 }
 
-.social-col {
+.footer-socials {
+    margin-top: 0.85rem;
     display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding-top: 1.45rem;
+    gap: 0.5rem;
 }
 
 .social-icon-link {
@@ -413,13 +542,13 @@ onBeforeUnmount(() => {
     width: 2.1rem;
     height: 2.1rem;
     border-radius: 999px;
-    border: 1px solid rgba(15, 23, 42, 0.35);
-    color: #1f2937;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
     text-decoration: none;
 }
 
 .social-icon-link:hover {
-    background: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .social-icon {
@@ -428,27 +557,29 @@ onBeforeUnmount(() => {
 }
 
 .footer-heading {
-    color: #1f2937;
+    color: rgba(255, 255, 255, 0.9);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-weight: 800;
 }
 
 .footer-link-list {
-    margin-top: 0.55rem;
+    margin-top: 0.65rem;
     display: grid;
-    gap: 0.42rem;
+    gap: 0.5rem;
+    overflow-wrap: anywhere;
 }
 
 .footer-link {
-    color: #64748b;
+    color: rgba(255, 255, 255, 0.72);
     text-decoration: none;
     font-size: 0.9rem;
+    overflow-wrap: anywhere;
 }
 
 .footer-link:hover {
-    color: #1f2937;
+    color: #ffffff;
 }
 
 .footer-link-btn {
@@ -459,63 +590,428 @@ onBeforeUnmount(() => {
     cursor: pointer;
 }
 
+.footer-info {
+    margin-top: 0.65rem;
+    display: grid;
+    gap: 0.7rem;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+.footer-info-title {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 700;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.footer-info-text {
+    margin-top: 0.25rem;
+}
+
 .footer-bottom-row {
     margin-top: 1rem;
-    padding-top: 0.7rem;
-    border-top: 1px solid rgba(15, 23, 42, 0.22);
-    color: #6f879f;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.78rem;
+}
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    background: #ffffff !important;
+    border-bottom: none !important;
+    backdrop-filter: blur(2px);
+}
+
+.loading-strip {
+    height: 3px;
+    width: 100%;
+    border-radius: 999px;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, var(--page-accent) 0%, var(--page-accent-strong) 45%, var(--page-accent-soft) 100%);
+    background-size: 200% 100%;
+    animation: loading-shimmer 1s linear infinite;
+}
+
+.nav-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 14px;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.header-actions {
+    display: flex;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    border: 1px solid var(--brand-line);
+    background: #ffffff;
+}
+
+.mobile-menu-toggle span {
+    width: 18px;
+    height: 2px;
+    background: var(--brand-blue);
+    border-radius: 999px;
+}
+
+.header-logo-slot {
+    position: relative;
+    flex: 0 0 260px;
+    height: 0;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.corner-badge {
+    position: absolute;
+    top: -54px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 40;
+    width: 260px;
+    height: 105px;
+    pointer-events: none;
+}
+
+.logo-triangle {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+}
+
+.logo-triangle path {
+    fill: #ffffff;
+}
+
+.logo-inside-triangle {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 58px;
+    height: 58px;
+    border-radius: 999px;
+    background: #fff;
+    padding: 5px;
+    object-fit: contain;
+    box-shadow: none;
+}
+
+.header-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    justify-content: center;
+}
+
+.header-system-title {
+    margin-left: auto;
+    text-align: right;
     font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--brand-blue);
+    letter-spacing: 0.02em;
+    align-self: flex-end;
+}
+
+.header-link {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 999px;
+    background: var(--brand-blue);
+}
+
+.header-link:hover {
+    color: #ffffff;
+    background: var(--page-accent-strong);
+}
+
+.header-link.is-active {
+    background: var(--page-accent-strong);
+    color: #ffffff;
+    border: none;
+}
+
+.btn-fill,
+.btn-outline {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid var(--brand-blue);
+}
+
+.mobile-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(3, 20, 40, 0.45);
+    z-index: 60;
+}
+
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: min(86vw, 340px);
+    background: #ffffff;
+    border-right: 1px solid var(--brand-line-soft);
+    padding: 1.2rem 1rem;
+    z-index: 70;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+}
+
+.mobile-menu.is-open {
+    transform: translateX(0);
+}
+
+.mobile-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mobile-menu-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #0b1b2b;
+}
+
+.mobile-menu-close {
+    border: 1px solid var(--brand-line);
+    background: #ffffff;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--brand-blue);
+}
+
+.mobile-menu-actions {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.mobile-menu-links {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.mobile-menu-link {
+    padding: 0.6rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-line-soft);
+    color: var(--brand-blue);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.mobile-menu-link:hover {
+    background: rgba(3, 68, 133, 0.08);
+    border-color: var(--brand-blue);
+}
+
+.btn-fill {
+    color: var(--brand-blue);
+    border-color: var(--brand-blue);
+    background: #ffffff;
+}
+
+.btn-outline {
+    color: var(--brand-blue);
+    border-color: var(--brand-blue);
+    background: #ffffff;
+}
+
+.site-header .btn-fill,
+.site-header .btn-outline {
+    background: #ffffff !important;
+    color: var(--brand-blue) !important;
+    border-color: var(--brand-blue) !important;
+}
+
+.site-header .btn-fill:hover,
+.site-header .btn-outline:hover {
+    background: #ffffff !important;
+    color: var(--brand-blue) !important;
+}
+
+.site-header .btn-fill.is-active,
+.site-header .btn-outline.is-active {
+    box-shadow: inset 0 -2px 0 var(--brand-blue);
+}
+
+.btn-fill:disabled,
+.btn-outline:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
 }
 
 @media (min-width: 640px) {
+    .public-body {
+        padding: 0 1.4rem 3rem;
+    }
+
     .nav-shell {
+        display: flex;
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
-        gap: 0.65rem;
-        padding: 10px 18px;
+        gap: 16px;
+        padding: 4px 18px;
     }
 
     .header-links {
-        flex: 1;
+        justify-content: flex-end;
+        margin: 0;
     }
 
-    .page-hero {
-        padding: 1.2rem 1.25rem;
-    }
-
-    .page-title {
-        font-size: 1.8rem;
+    .footer-bottom-row {
+        display: flex;
+        justify-content: flex-end;
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
+    .nav-shell {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 64px;
+    }
+
+    .header-actions {
+        display: none;
+    }
+
+    .header-links {
+        display: none;
+    }
+
+    .header-logo-slot {
+        display: flex;
+        position: absolute;
+        left: 50%;
+        top: 64%;
+        transform: translate(-50%, -50%);
+        height: 88px;
+        width: min(240px, 70vw);
+    }
+
+    .header-system-title {
+        display: none;
+    }
+
+    .mobile-menu-toggle {
+        display: inline-flex;
+    }
+
+    .corner-badge {
+        top: 6px;
+        width: 220px;
+        height: 90px;
+    }
+
+    .header-logo-slot {
+        flex-basis: 200px;
+    }
+
+    .logo-inside-triangle {
+        top: 30px;
+        width: 46px;
+        height: 46px;
+        padding: 4px;
+    }
+
     .footer-grid {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 640px) {
+    .public-body {
+        padding: 0 1rem 2.4rem;
+    }
+
     .corner-badge {
-        display: none;
+        top: 8px;
+        width: 200px;
+        height: 82px;
     }
 
-    .mobile-nav-logo {
-        display: block;
+    .header-logo-slot {
+        flex-basis: 190px;
     }
 
-    .nav-shell {
-        border-radius: 20px;
+    .logo-inside-triangle {
+        top: 26px;
+        width: 42px;
+        height: 42px;
+        padding: 4px;
+    }
+
+    .site-footer {
+        border-radius: 16px 16px 0 0;
+        margin-left: 1.25rem;
+        margin-right: 1.25rem;
     }
 
     .footer-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .footer-bottom-row {
+        justify-content: flex-start;
     }
 }
 
-@media (min-width: 1024px) {
-    .public-page {
-        font-size: 1.125rem;
+@media (max-width: 400px) {
+    .header-links {
+        gap: 4px 8px;
+    }
+
+    .header-link {
+        font-size: 11px;
+    }
+
+    .btn-fill,
+    .btn-outline {
+        padding: 9px 10px;
+        font-size: 13px;
     }
 }
 

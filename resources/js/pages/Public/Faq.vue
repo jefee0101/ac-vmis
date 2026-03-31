@@ -40,28 +40,14 @@ const faqs = [
 <template>
     <PublicLayout title="FAQ" page-title="Frequently Asked Questions" page-description="Quick answers for first-time student-athletes and coaches.">
         <section v-for="item in faqs" :key="item.q" class="public-card reveal">
-            <h2 class="question">{{ item.q }}</h2>
+            <h2 class="section-title">{{ item.q }}</h2>
             <p class="answer">{{ item.a }}</p>
         </section>
     </PublicLayout>
 </template>
 
 <style scoped>
-.public-card {
-    border:  1px solid rgba(15, 23, 42, 0.35);
-    border-radius: 14px;
-    background: #ffffff;
-    padding: 1rem;
-}
-
-.question {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: #1f2937;
-}
-
 .answer {
     margin-top: 0.45rem;
-    color: #475569;
 }
 </style>

@@ -5,6 +5,8 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { Transition, createApp, h } from 'vue';
 import { initTheme, setStoredTheme } from '@/composables/useTheme';
+import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
+import { useSessionExpired } from '@/composables/useSessionExpired';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -40,16 +42,45 @@ createInertiaApp({
         router.on('success', (event) => {
             applyThemeFromProps(event.detail.page.props);
         });
+        const { showSessionExpired } = useSessionExpired();
+
+        const isAuthExpired = (status?: number) => status === 401 || status === 419;
+
+        router.on('error', (event: any) => {
+            const status = event?.detail?.response?.status;
+            if (isAuthExpired(status)) {
+                showSessionExpired();
+            }
+        });
+
+        router.on('finish', (event: any) => {
+            const status = event?.detail?.visit?.response?.status;
+            if (isAuthExpired(status)) {
+                showSessionExpired();
+            }
+        });
+
+        if (typeof window !== 'undefined') {
+            window.addEventListener('inertia:exception', (event: any) => {
+                const status = event?.detail?.response?.status;
+                if (isAuthExpired(status)) {
+                    showSessionExpired();
+                }
+            });
+        }
 
         createApp({
             render: () =>
-                h(
-                    Transition,
-                    { name: 'route-fade', mode: 'out-in' },
-                    {
-                        default: () => h(App, { ...props, key: props.initialPage.url }),
-                    },
-                ),
+                h('div', { class: 'app-shell' }, [
+                    h(
+                        Transition,
+                        { name: 'route-fade', mode: 'out-in' },
+                        {
+                            default: () => h(App, { ...props, key: props.initialPage.url }),
+                        },
+                    ),
+                    h(SessionExpiredToast),
+                ]),
         })
             .use(plugin)
             .mount(el);

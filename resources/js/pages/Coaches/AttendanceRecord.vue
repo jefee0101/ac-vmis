@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import CoachPageHeader from '@/components/coach/CoachPageHeader.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
@@ -90,11 +89,76 @@ let mediaStream: MediaStream | null = null
 let scannerLoopId: number | null = null
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
 const { timezone } = useUserTimezone()
+const scheduleSearch = ref('')
+const scheduleType = ref('all')
+const scheduleStart = ref('')
+const scheduleEnd = ref('')
+
+function tintHex(hex: string, amount: number) {
+    const clean = hex.replace('#', '')
+    if (clean.length !== 6) return hex
+    const r = parseInt(clean.slice(0, 2), 16)
+    const g = parseInt(clean.slice(2, 4), 16)
+    const b = parseInt(clean.slice(4, 6), 16)
+    const mix = (channel: number) => Math.round(channel + (255 - channel) * amount)
+    return `#${mix(r).toString(16).padStart(2, '0')}${mix(g).toString(16).padStart(2, '0')}${mix(b).toString(16).padStart(2, '0')}`
+}
+
+function stripeColors(sport: any) {
+    const base = sportColor(sport)
+    const lighter = tintHex(base, 0.55)
+    return { base, lighter }
+}
 
 const viewMode = computed(() => props.mode ?? 'index')
 const isDetail = computed(() => viewMode.value === 'detail')
 const selectedScheduleItem = computed(() => props.schedules.find((schedule) => schedule.id === selectedSchedule.value) ?? null)
 const attendancePagination = computed(() => props.attendancePagination ?? null)
+const scheduleTypes = computed(() => {
+    const types = new Set<string>()
+    props.schedules.forEach((item) => {
+        if (item.type) types.add(String(item.type))
+    })
+    return Array.from(types).sort()
+})
+
+const filteredSchedules = computed(() => {
+    const search = scheduleSearch.value.trim().toLowerCase()
+    const typeFilter = scheduleType.value
+    const startDate = scheduleStart.value ? new Date(`${scheduleStart.value}T00:00:00`) : null
+    const endDate = scheduleEnd.value ? new Date(`${scheduleEnd.value}T23:59:59`) : null
+
+    const matches = props.schedules.filter((item) => {
+        const title = String(item.title ?? '').toLowerCase()
+        const venue = String(item.venue ?? '').toLowerCase()
+        const type = String(item.type ?? '').toLowerCase()
+        const scheduleStartDate = item.start ? new Date(item.start) : null
+
+        if (search && !title.includes(search) && !venue.includes(search) && !type.includes(search)) {
+            return false
+        }
+
+        if (typeFilter !== 'all' && String(item.type ?? '').toLowerCase() !== typeFilter) {
+            return false
+        }
+
+        if (startDate && scheduleStartDate && scheduleStartDate < startDate) {
+            return false
+        }
+
+        if (endDate && scheduleStartDate && scheduleStartDate > endDate) {
+            return false
+        }
+
+        return true
+    })
+
+    return matches.sort((a, b) => {
+        const aTime = a.start ? new Date(a.start).getTime() : 0
+        const bTime = b.start ? new Date(b.start).getTime() : 0
+        return bTime - aTime
+    })
+})
 
 watch(
     () => props.selectedScheduleId,
@@ -118,7 +182,10 @@ watch(selectedSchedule, () => {
 
 function openSchedule(scheduleId: number) {
     if (viewMode.value === 'index') {
-        router.get(`/coach/attendance/${scheduleId}`)
+        const returnTo = typeof window === 'undefined'
+            ? '/coach/operations?tab=attendance'
+            : `${window.location.pathname}${window.location.search}`
+        router.get(`/coach/attendance/${scheduleId}`, { return_to: returnTo })
         return
     }
 
@@ -178,7 +245,12 @@ function changeAttendancePage(page: number) {
     if (isDetail.value) {
         const scheduleId = selectedScheduleItem.value?.id ?? props.selectedScheduleId
         if (!scheduleId) return
-        router.get(`/coach/attendance/${scheduleId}`, { attendance_page: page }, {
+        const query: Record<string, any> = { attendance_page: page }
+        const returnTo = currentReturnToParam()
+        if (returnTo) {
+            query.return_to = returnTo
+        }
+        router.get(`/coach/attendance/${scheduleId}`, query, {
             preserveScroll: true,
             preserveState: true,
             replace: true,
@@ -330,7 +402,25 @@ function closeWellness() {
 }
 
 function backToSchedules() {
+    if (typeof window === 'undefined') {
+        router.get('/coach/operations', { tab: 'attendance' })
+        return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const returnTo = params.get('return_to')
+    if (returnTo) {
+        router.get(returnTo)
+        return
+    }
+
     router.get('/coach/operations', { tab: 'attendance' })
+}
+
+function currentReturnToParam() {
+    if (typeof window === 'undefined') return null
+    const params = new URLSearchParams(window.location.search)
+    return params.get('return_to')
 }
 
 function saveWellness() {
@@ -441,7 +531,6 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="space-y-4">
-        <CoachPageHeader title="Attendance Record" subtitle="View and manage attendance by schedule." />
         <div v-if="props.teams?.length && !isDetail" class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
             <div v-if="props.teams.length > 1" class="flex items-center gap-2">
                 <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team</span>
@@ -455,7 +544,6 @@ onBeforeUnmount(() => {
                     </option>
                 </select>
             </div>
-            <span v-else-if="team" class="text-slate-500">Team: {{ team.team_name }}</span>
         </div>
 
         <div v-if="!team" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
@@ -475,19 +563,63 @@ onBeforeUnmount(() => {
                     No schedules available.
                 </div>
 
-                <div v-else-if="!isDetail" class="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50/50 p-4 shadow-sm">
+                <div v-else-if="!isDetail" class="space-y-3">
+                    <div class="flex flex-wrap items-end gap-3 rounded-2xl border border-[#034485]/40 bg-[#034485] p-3">
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[220px]">
+                            Search
+                            <input
+                                v-model="scheduleSearch"
+                                type="text"
+                                placeholder="Search title, type, venue..."
+                                class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700 placeholder:text-slate-400"
+                            />
+                        </label>
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[180px]">
+                            Type
+                            <select
+                                v-model="scheduleType"
+                                class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                            >
+                                <option value="all">All types</option>
+                                <option v-for="type in scheduleTypes" :key="type" :value="type.toLowerCase()">
+                                    {{ type }}
+                                </option>
+                            </select>
+                        </label>
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[160px]">
+                            From
+                            <input
+                                v-model="scheduleStart"
+                                type="date"
+                                class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                            />
+                        </label>
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[160px]">
+                            To
+                            <input
+                                v-model="scheduleEnd"
+                                type="date"
+                                class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                            />
+                        </label>
+                    </div>
+
                     <div class="mb-3 flex items-center justify-between">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedules</p>
                         <span class="text-xs text-slate-400">{{ schedules.length }} total</span>
                     </div>
                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <button
-                        v-for="item in schedules"
+                        v-for="item in filteredSchedules"
                         :key="item.id"
                         type="button"
                         @click="openSchedule(item.id)"
-                        class="group rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-[#1f2937]/60 hover:shadow-md"
+                        class="group relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 text-left transition hover:border-[#034485]/70"
                     >
+                        <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
+                            <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(team?.sport).base }"></span>
+                            <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(team?.sport).lighter }"></span>
+                        </div>
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <p class="line-clamp-2 text-sm font-semibold text-slate-900">{{ item.title }}</p>
@@ -502,7 +634,7 @@ onBeforeUnmount(() => {
                             <div><span class="text-slate-500">Start:</span> {{ formatPHT(item.start) }}</div>
                             <div><span class="text-slate-500">End:</span> {{ formatPHT(item.end) }}</div>
                         </div>
-                        <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] font-semibold text-[#1f2937]">
+                        <div class="mt-4 inline-flex items-center gap-2 rounded-full bg-[#034485] px-3 py-1 text-[11px] font-semibold text-white">
                             View Attendance
                             <span class="text-sm leading-none">→</span>
                         </div>
@@ -526,7 +658,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <section v-if="isDetail && selectedScheduleItem" class="space-y-4">
-                    <div class="rounded-2xl border border-[#e2e8f0] bg-gradient-to-br from-white via-white to-slate-50/60 p-5 shadow-sm">
+                    <div class="rounded-2xl border border-[#e2e8f0] bg-white p-5">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <div class="text-lg font-semibold text-slate-900">{{ selectedScheduleItem.title }}</div>
@@ -537,72 +669,89 @@ onBeforeUnmount(() => {
                                     {{ formatPHT(selectedScheduleItem.start) }} → {{ formatPHT(selectedScheduleItem.end) }}
                                 </div>
                             </div>
-                            <span
-                                class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                                :class="selectedScheduleItem.is_qr_open ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'"
-                            >
-                                {{ selectedScheduleItem.is_qr_open ? 'QR Open' : 'QR Closed' }}
-                            </span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span
+                                    class="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                    :class="selectedScheduleItem.is_qr_open ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'"
+                                >
+                                    {{ selectedScheduleItem.is_qr_open ? 'QR Open' : 'QR Closed' }}
+                                </span>
+                            </div>
                         </div>
 
-                        <div class="mt-4 grid gap-4 text-xs text-slate-600 sm:grid-cols-2">
-                            <div class="space-y-1">
-                                <div><span class="text-slate-500">Type:</span> {{ selectedScheduleItem.type || '-' }}</div>
-                                <div><span class="text-slate-500">Venue:</span> {{ selectedScheduleItem.venue || '-' }}</div>
-                                <div><span class="text-slate-500">Start:</span> {{ formatPHT(selectedScheduleItem.start) }}</div>
-                                <div><span class="text-slate-500">End:</span> {{ formatPHT(selectedScheduleItem.end) }}</div>
-                                <div><span class="text-slate-500">QR Window Closes:</span> {{ formatPHT(selectedScheduleItem.qr_closes_at) }}</div>
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Type</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ selectedScheduleItem.type || '-' }}</p>
                             </div>
-                            <div>
-                                <div class="mb-2 flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                        @click="printFilledSheet"
-                                    >
-                                        Print Filled Sheet
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                                        @click="printBlankSheet"
-                                    >
-                                        Print Blank Sheet
-                                    </button>
-                                </div>
-                                <label class="mb-1 block text-xs text-slate-500">Scan Token Input</label>
-                                <div class="flex flex-wrap gap-2">
-                                    <input
-                                        v-model="scanToken"
-                                        type="text"
-                                        class="flex-1 rounded border border-slate-300 px-3 py-2 text-xs text-slate-900"
-                                        placeholder="Paste or scan token payload here"
-                                    />
-                                    <button
-                                        @click="verifyQr(selectedScheduleItem.id)"
-                                        :disabled="scanSubmitting || !selectedScheduleItem.is_qr_open"
-                                        class="px-3 py-2 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-50"
-                                    >
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <Spinner v-if="scanSubmitting" class="h-3 w-3 text-white" />
-                                            {{ scanSubmitting ? 'Verifying...' : 'Verify QR' }}
-                                        </span>
-                                    </button>
-                                    <button
-                                        @click="startScanner(selectedScheduleItem.id)"
-                                        :disabled="!selectedScheduleItem.is_qr_open || scannerStarting"
-                                        class="px-3 py-2 rounded bg-[#1f2937] text-white text-xs hover:bg-[#111827] disabled:opacity-50"
-                                    >
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <Spinner v-if="scannerStarting" class="h-3 w-3 text-white" />
-                                            {{ scannerStarting ? 'Starting Camera...' : 'Open Camera' }}
-                                        </span>
-                                    </button>
-                                </div>
-                                <p class="mt-1 text-[11px]" :class="selectedScheduleItem.is_qr_open ? 'text-emerald-700' : 'text-red-700'">
-                                    {{ selectedScheduleItem.is_qr_open ? 'QR check-in is open.' : 'QR check-in is closed.' }}
-                                </p>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Venue</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ selectedScheduleItem.venue || '-' }}</p>
                             </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Start</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatPHT(selectedScheduleItem.start) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">End</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatPHT(selectedScheduleItem.end) }}</p>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs text-slate-600 sm:col-span-2">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">QR Window Closes</p>
+                                <p class="mt-1 text-sm font-semibold text-slate-900">{{ formatPHT(selectedScheduleItem.qr_closes_at) }}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex flex-wrap items-center justify-end gap-2">
+                            <button
+                                type="button"
+                                class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                @click="printFilledSheet"
+                            >
+                                Print Filled Sheet
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                @click="printBlankSheet"
+                            >
+                                Print Blank Sheet
+                            </button>
+                        </div>
+
+                        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                            <label class="mb-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">Scan Token Input</label>
+                            <div class="flex flex-wrap gap-2">
+                                <input
+                                    v-model="scanToken"
+                                    type="text"
+                                    class="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-xs text-slate-900"
+                                    placeholder="Paste or scan token payload here"
+                                />
+                                <button
+                                    @click="verifyQr(selectedScheduleItem.id)"
+                                    :disabled="scanSubmitting || !selectedScheduleItem.is_qr_open"
+                                    class="px-3 py-2 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <Spinner v-if="scanSubmitting" class="h-3 w-3 text-white" />
+                                        {{ scanSubmitting ? 'Verifying...' : 'Verify QR' }}
+                                    </span>
+                                </button>
+                                <button
+                                    @click="startScanner(selectedScheduleItem.id)"
+                                    :disabled="!selectedScheduleItem.is_qr_open || scannerStarting"
+                                    class="px-3 py-2 rounded bg-[#1f2937] text-white text-xs hover:bg-[#111827] disabled:opacity-50"
+                                >
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <Spinner v-if="scannerStarting" class="h-3 w-3 text-white" />
+                                        {{ scannerStarting ? 'Starting Camera...' : 'Open Camera' }}
+                                    </span>
+                                </button>
+                            </div>
+                            <p class="mt-2 text-[11px]" :class="selectedScheduleItem.is_qr_open ? 'text-emerald-700' : 'text-red-700'">
+                                {{ selectedScheduleItem.is_qr_open ? 'QR check-in is open.' : 'QR check-in is closed.' }}
+                            </p>
                         </div>
                     </div>
 
@@ -650,7 +799,7 @@ onBeforeUnmount(() => {
                     <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white lg:block">
                         <div class="overflow-x-auto">
                         <table class="w-full min-w-[900px] text-left text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
+                        <thead class="bg-[#034485] text-white">
                             <tr>
                                 <th class="px-4 py-3">Student</th>
                                 <th class="px-4 py-3">ID Number</th>

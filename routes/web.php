@@ -146,13 +146,23 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/account/profile', [AccountSettingsController::class, 'profile'])->name('account.profile.show');
     Route::put('/account/profile', [AccountSettingsController::class, 'updateProfile'])->name('account.profile.update');
     Route::get('/account/settings', [AccountSettingsController::class, 'settings'])->name('account.settings.show');
+    Route::get('/account/account-settings', [AccountSettingsController::class, 'accountSettings'])->name('account.account-settings.show');
+    Route::get('/account/notifications', [AccountSettingsController::class, 'notifications'])->name('account.notifications.show');
+    Route::get('/account/preferences', [AccountSettingsController::class, 'preferences'])->name('account.preferences.show');
+    Route::get('/account/help', [AccountSettingsController::class, 'help'])->name('account.help.show');
+    Route::put('/account/account-settings', [AccountSettingsController::class, 'updateAccountSettings'])->name('account.account-settings.update');
     Route::put('/account/settings', [AccountSettingsController::class, 'updateSettings'])->name('account.settings.update');
     Route::put('/account/password', [AccountSettingsController::class, 'updatePassword'])->name('account.password.update');
+    Route::delete('/account/delete', [AccountSettingsController::class, 'destroy'])->name('account.destroy');
 
     // Legacy paths kept for backwards compatibility.
     Route::redirect('/Announcements', '/announcements');
     Route::redirect('/Account/Profile', '/account/profile');
     Route::redirect('/Account/Settings', '/account/settings');
+    Route::redirect('/Account/AccountSettings', '/account/account-settings');
+    Route::redirect('/Account/Notifications', '/account/notifications');
+    Route::redirect('/Account/Preferences', '/account/preferences');
+    Route::redirect('/Account/Help', '/account/help');
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
@@ -196,6 +206,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.operations.attendance.update');
     Route::get('/operations/attendance/print', [OperationsWorkspaceController::class, 'printAttendance'])
         ->name('admin.operations.attendance.print');
+    Route::get('/operations/schedules/print', [OperationsWorkspaceController::class, 'printSchedules'])
+        ->name('admin.operations.schedules.print');
     Route::get('/operations/schedules/{schedule}/drilldown', [OperationsWorkspaceController::class, 'scheduleDrilldown'])
         ->name('admin.operations.schedules.drilldown');
     Route::redirect('/operations/attendance', '/operations?tab=attendance')
@@ -210,12 +222,16 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/academics', [AcademicEligibilityController::class, 'index'])
         ->name('admin.academics.index');
+    Route::get('/academics/submissions', [AcademicEligibilityController::class, 'submissions'])
+        ->name('admin.academics.submissions');
+    Route::get('/academics/past-periods', [AcademicEligibilityController::class, 'pastPeriods'])
+        ->name('admin.academics.past-periods');
     Route::post('/academics/periods', [AcademicEligibilityController::class, 'storePeriod'])
         ->name('academic.periods.store');
-    Route::put('/academics/periods/{period}/window', [AcademicEligibilityController::class, 'toggleWindow'])
-        ->name('academic.periods.window');
-    Route::put('/academics/periods/{period}/lock', [AcademicEligibilityController::class, 'toggleLock'])
-        ->name('academic.periods.lock');
+    Route::put('/academics/periods/{period}/status', [AcademicEligibilityController::class, 'updateStatus'])
+        ->name('academic.periods.status');
+    Route::delete('/academics/periods/{period}', [AcademicEligibilityController::class, 'destroyPeriod'])
+        ->name('academic.periods.destroy');
     Route::post('/academics/evaluate', [AcademicEligibilityController::class, 'evaluate'])
         ->name('academic.evaluate');
     Route::get('/academics/submissions/records', [AcademicEligibilityController::class, 'submissionsRecords'])
@@ -226,6 +242,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('academic.exceptions');
     Route::put('/academics/evaluations/{student}/{period}', [AcademicEligibilityController::class, 'updateEvaluation'])
         ->name('academic.evaluations.update');
+    Route::delete('/academics/documents/{document}', [AcademicEligibilityController::class, 'destroyDocument'])
+        ->name('academic.documents.destroy');
     Route::get('/academics/print', [AcademicEligibilityController::class, 'printSummary'])
         ->name('academic.print');
 
@@ -312,10 +330,9 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
     Route::redirect('/CoachAcademicVisibility', '/coach/academics');
 });
 
-Route::middleware(['auth', 'role:student-athlete,student'])->group(function () {
-    Route::get('/StudentAthleteDashboard', function () {
-        return Inertia::render('StudentAthletes/StudentAthleteDashboard');
-    })->name('StudentAthleteDashboard');
+Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold'])->group(function () {
+    Route::get('/StudentAthleteDashboard', [StudentAthleteController::class, 'dashboard'])
+        ->name('StudentAthleteDashboard');
     Route::get('/MyTeam', [StudentAthleteController::class, 'index'])->name('MyTeam');
     Route::put('/Student/TeamPlayers/{teamPlayer}/jersey', [StudentAthleteController::class, 'updateDesiredJersey'])
         ->name('student.team_players.jersey');
@@ -323,6 +340,7 @@ Route::middleware(['auth', 'role:student-athlete,student'])->group(function () {
     Route::get('/MySchedule/print', [ScheduleRecord::class, 'print'])->name('MySchedule.print');
     Route::get('/WellnessHistory', [WellnessHistoryController::class, 'index'])->name('WellnessHistory');
     Route::get('/AcademicSubmissions', [AcademicSubmissionController::class, 'index'])->name('AcademicSubmissions');
+    Route::get('/AcademicSubmissions/new', [AcademicSubmissionController::class, 'create'])->name('AcademicSubmissions.create');
     Route::get('/AcademicSubmissions/print', [AcademicSubmissionController::class, 'print'])->name('AcademicSubmissions.print');
     Route::post('/AcademicSubmissions', [AcademicSubmissionController::class, 'store'])->name('academic.submissions.store');
     Route::put('/Student/Schedules/{id}/attendance', [ScheduleRecord::class, 'updateScheduleAttendance'])

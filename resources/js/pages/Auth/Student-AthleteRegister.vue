@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { router } from '@inertiajs/vue3';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
+import PublicLayout from '@/components/Public/PublicLayout.vue';
 
 type Step = 1 | 2 | 3;
 type EducationLevel = 'Senior High' | 'College';
@@ -44,7 +45,8 @@ const form = reactive({
     phone_number: '',
     home_address: '',
     education_level: 'Senior High' as EducationLevel,
-    year_level: '11',
+    current_grade_level: '11',
+    course_or_strand: '',
     student_status: 'Enrolled',
     emergency_contact_name: '',
     emergency_contact_relationship: '',
@@ -113,12 +115,27 @@ const cropImageStyle = computed(() => ({
     transform: `translate(calc(-50% + ${cropX.value}px), calc(-50% + ${cropY.value}px)) scale(${cropScale.value})`,
 }));
 
-function toWelcome() {
-    router.visit('/');
-}
-
 function toLogin() {
     router.visit('/Login');
+}
+
+function handleEnter(event: KeyboardEvent) {
+    if (isSubmitting.value) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+    if (target instanceof HTMLButtonElement || target instanceof HTMLAnchorElement) return;
+    if (target instanceof HTMLInputElement) {
+        const type = target.type;
+        if (['file', 'button', 'submit', 'checkbox', 'radio'].includes(type)) return;
+    }
+
+    event.preventDefault();
+    if (step.value < 3) {
+        nextStep();
+    } else {
+        submit();
+    }
 }
 
 function openModal(title: string, message: string) {
@@ -230,7 +247,7 @@ function validateField(field: string): boolean {
         return true;
     }
 
-    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'year_level'].includes(field)) {
+    if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'current_grade_level', 'course_or_strand'].includes(field)) {
         if (!String(value || '').trim()) {
             setFieldError(field, 'This field is required.');
             return false;
@@ -314,11 +331,11 @@ watch(
     () => form.education_level,
     () => {
         const options = yearLevelOptions.value;
-        if (!options.includes(form.year_level)) {
-            form.year_level = options[0] ?? '';
+        if (!options.includes(form.current_grade_level)) {
+            form.current_grade_level = options[0] ?? '';
         }
         validateField('education_level');
-        validateField('year_level');
+        validateField('current_grade_level');
     },
 );
 
@@ -388,7 +405,7 @@ watch(
 function validateStep(currentStep: Step): boolean {
     const checks: Record<Step, string[]> = {
         1: ['email', 'password', 'password_confirmation', 'student_id_number'],
-        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'year_level', 'height', 'weight_kg'],
+        2: ['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'education_level', 'current_grade_level', 'course_or_strand', 'height', 'weight_kg'],
         3: ['clearance_date', 'physician_name', 'medical_certificate', 'academic_document_file'],
     };
 
@@ -642,7 +659,8 @@ function submit() {
     formData.append('phone_number', form.phone_number);
     formData.append('home_address', form.home_address);
     formData.append('education_level', form.education_level);
-    formData.append('year_level', form.year_level);
+    formData.append('current_grade_level', form.current_grade_level);
+    formData.append('course_or_strand', form.course_or_strand);
     formData.append('student_status', 'Enrolled');
 
     formData.append('height', String(height));
@@ -729,24 +747,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Student-Athlete Registration" />
-
-    <div class="register-page">
-        <header class="register-header px-4 pb-4 pt-4 sm:px-6 sm:pt-6 lg:px-10">
-            <div v-if="isLoading" class="top-loading" />
-            <div class="register-nav mx-auto max-w-6xl">
-                <div>
-                    <p class="kicker">Asian College</p>
-                    <p class="brand">Varsity Management Information System</p>
-                </div>
-                <button @click="toWelcome" class="btn-outline" :disabled="isLoading || isSubmitting">Back To Home</button>
-            </div>
-        </header>
-
-        <main class="register-main px-4 py-8 sm:px-6 lg:px-10">
-            <div class="mx-auto w-full max-w-4xl rounded-2xl border border-[rgba(15, 23, 42,0.35)] bg-white p-6 shadow-sm sm:p-8">
-                <h1 class="text-center text-2xl font-bold text-[#1f2937]">Student-Athlete Registration</h1>
-                <p class="mt-2 text-center text-sm text-slate-500">3-step signup. Required now: account, identity basics, and requirements.</p>
+    <PublicLayout
+        title="Student-Athlete Registration"
+        page-title="Student-Athlete Registration"
+        page-description="3-step signup. Required now: account, identity basics, and requirements."
+    >
+        <main class="register-main px-4 py-8 sm:px-6 lg:px-10" @keydown.enter="handleEnter">
+            <div class="mx-auto w-full max-w-4xl public-card register-card">
+                <h1 class="register-title">Student-Athlete Registration</h1>
+                <p class="register-subtitle">3-step signup. Required now: account, identity basics, and requirements.</p>
 
                 <div class="mt-6 stepper">
                     <div class="step" :class="{ active: step >= 1 }"><span>1</span><small>Account</small></div>
@@ -767,7 +776,13 @@ onBeforeUnmount(() => {
                     <section v-if="step === 1" key="step-1" class="mt-7 grid gap-4">
                     <div>
                         <label class="label">Email</label>
-                        <input v-model="form.email" type="email" class="field" placeholder="name@example.com" @blur="validateField('email')" />
+                        <input
+                            v-model="form.email"
+                            type="email"
+                            :class="['field', { 'is-error': fieldErrors.email }]"
+                            placeholder="name@example.com"
+                            @blur="validateField('email')"
+                        />
                         <p v-if="fieldErrors.email" class="field-error">{{ fieldErrors.email }}</p>
                     </div>
 
@@ -778,7 +793,7 @@ onBeforeUnmount(() => {
                                 <input
                                     v-model="form.password"
                                     :type="showPassword ? 'text' : 'password'"
-                                    class="field pr-10"
+                                    :class="['field', 'pr-10', { 'is-error': fieldErrors.password }]"
                                     placeholder="At least 6 characters"
                                     @blur="validateField('password')"
                                 />
@@ -808,7 +823,7 @@ onBeforeUnmount(() => {
                                 <input
                                     v-model="form.password_confirmation"
                                     :type="showPasswordConfirm ? 'text' : 'password'"
-                                    class="field pr-10"
+                                    :class="['field', 'pr-10', { 'is-error': fieldErrors.password_confirmation }]"
                                     placeholder="Repeat password"
                                     @blur="validateField('password_confirmation')"
                                 />
@@ -839,21 +854,26 @@ onBeforeUnmount(() => {
                         <input
                             v-model="form.student_id_number"
                             type="text"
-                            class="field"
+                            :class="['field', { 'is-error': fieldErrors.student_id_number }]"
                             placeholder="Example: 24-000123"
                             @blur="validateField('student_id_number')"
                         />
                         <div class="mt-1 text-xs">
-                            <span v-if="checkingStudentId" class="text-[#1f2937]">Checking student ID...</span>
+                            <span v-if="checkingStudentId" class="text-white/80">Checking student ID...</span>
                             <span v-else-if="studentIdAvailable === true" class="text-emerald-600">Student ID is available.</span>
-                            <span v-else-if="studentIdAvailable === false" class="text-red-600">Student ID is already in use.</span>
+                            <span v-else-if="studentIdAvailable === false" class="error-inline">Student ID is already in use.</span>
                         </div>
                         <p v-if="fieldErrors.student_id_number" class="field-error">{{ fieldErrors.student_id_number }}</p>
                     </div>
 
                     <div>
                         <label class="label">Avatar (Optional)</label>
-                        <input type="file" class="field file-field" accept="image/*" @change="(event) => setFile('avatar', event)" />
+                        <input
+                            type="file"
+                            :class="['field', 'file-field', { 'is-error': fieldErrors.avatar }]"
+                            accept="image/*"
+                            @change="(event) => setFile('avatar', event)"
+                        />
                         <p class="mt-1 text-xs text-slate-500">Selected: {{ selectedFileNames.avatar }}</p>
                         <div v-if="avatarPreviewUrl" class="avatar-preview">
                             <img :src="avatarPreviewUrl" alt="Avatar preview" />
@@ -870,7 +890,7 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-3">
                         <div>
                             <label class="label">First Name</label>
-                            <input v-model="form.first_name" type="text" class="field" @blur="validateField('first_name')" />
+                            <input v-model="form.first_name" type="text" :class="['field', { 'is-error': fieldErrors.first_name }]" @blur="validateField('first_name')" />
                             <p v-if="fieldErrors.first_name" class="field-error">{{ fieldErrors.first_name }}</p>
                         </div>
                         <div>
@@ -879,7 +899,7 @@ onBeforeUnmount(() => {
                         </div>
                         <div>
                             <label class="label">Last Name</label>
-                            <input v-model="form.last_name" type="text" class="field" @blur="validateField('last_name')" />
+                            <input v-model="form.last_name" type="text" :class="['field', { 'is-error': fieldErrors.last_name }]" @blur="validateField('last_name')" />
                             <p v-if="fieldErrors.last_name" class="field-error">{{ fieldErrors.last_name }}</p>
                         </div>
                     </div>
@@ -889,12 +909,12 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Date of Birth</label>
-                            <input v-model="form.date_of_birth" type="date" class="field" @blur="validateField('date_of_birth')" />
+                            <input v-model="form.date_of_birth" type="date" :class="['field', { 'is-error': fieldErrors.date_of_birth }]" @blur="validateField('date_of_birth')" />
                             <p v-if="fieldErrors.date_of_birth" class="field-error">{{ fieldErrors.date_of_birth }}</p>
                         </div>
                         <div>
                             <label class="label">Gender</label>
-                            <select v-model="form.gender" class="field" @blur="validateField('gender')">
+                            <select v-model="form.gender" :class="['field', { 'is-error': fieldErrors.gender }]" @blur="validateField('gender')">
                                 <option value="" disabled>Select gender</option>
                                 <option value="Male">Male</option>
                                 <option value="Female">Female</option>
@@ -907,7 +927,13 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Phone Number</label>
-                            <input v-model="form.phone_number" type="text" class="field" placeholder="09XXXXXXXXX" @blur="validateField('phone_number')" />
+                            <input
+                                v-model="form.phone_number"
+                                type="text"
+                                :class="['field', { 'is-error': fieldErrors.phone_number }]"
+                                placeholder="09XXXXXXXXX"
+                                @blur="validateField('phone_number')"
+                            />
                             <p v-if="fieldErrors.phone_number" class="field-error">{{ fieldErrors.phone_number }}</p>
                         </div>
                         <div>
@@ -919,25 +945,39 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Education Level</label>
-                            <select v-model="form.education_level" class="field" @blur="validateField('education_level')">
+                            <select v-model="form.education_level" :class="['field', { 'is-error': fieldErrors.education_level }]" @blur="validateField('education_level')">
                                 <option value="Senior High">Senior High</option>
                                 <option value="College">College</option>
                             </select>
                             <p v-if="fieldErrors.education_level" class="field-error">{{ fieldErrors.education_level }}</p>
                         </div>
                         <div>
-                            <label class="label">Year Level</label>
-                            <select v-model="form.year_level" class="field" @blur="validateField('year_level')">
+                            <label class="label">Current Grade Level</label>
+                            <select v-model="form.current_grade_level" :class="['field', { 'is-error': fieldErrors.current_grade_level }]" @blur="validateField('current_grade_level')">
                                 <option v-for="option in yearLevelOptions" :key="option" :value="option">{{ option }}</option>
                             </select>
-                            <p v-if="fieldErrors.year_level" class="field-error">{{ fieldErrors.year_level }}</p>
+                            <p v-if="fieldErrors.current_grade_level" class="field-error">{{ fieldErrors.current_grade_level }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="label">Course / Strand</label>
+                            <input
+                                v-model="form.course_or_strand"
+                                type="text"
+                                :class="['field', { 'is-error': fieldErrors.course_or_strand }]"
+                                placeholder="e.g. STEM, HUMSS, BSIT"
+                                @blur="validateField('course_or_strand')"
+                            />
+                            <p v-if="fieldErrors.course_or_strand" class="field-error">{{ fieldErrors.course_or_strand }}</p>
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Height</label>
-                            <div class="mb-2 flex gap-4 text-xs text-[#1f2937]">
+                            <div class="mb-2 flex gap-4 text-xs text-white/80">
                                 <label class="inline-flex items-center gap-1">
                                     <input v-model="form.height_unit" type="radio" value="cm" />
                                     CM
@@ -949,23 +989,23 @@ onBeforeUnmount(() => {
                             </div>
 
                             <div v-if="form.height_unit === 'cm'">
-                                <input v-model="form.height_cm" type="number" class="field" placeholder="e.g. 170" @blur="validateField('height')" />
+                                <input v-model="form.height_cm" type="number" :class="['field', { 'is-error': fieldErrors.height }]" placeholder="e.g. 170" @blur="validateField('height')" />
                             </div>
                             <div v-else class="grid grid-cols-2 gap-2">
-                                <input v-model="form.height_ft" type="number" class="field" placeholder="ft" @blur="validateField('height')" />
-                                <input v-model="form.height_in" type="number" class="field" placeholder="in" @blur="validateField('height')" />
+                                <input v-model="form.height_ft" type="number" :class="['field', { 'is-error': fieldErrors.height }]" placeholder="ft" @blur="validateField('height')" />
+                                <input v-model="form.height_in" type="number" :class="['field', { 'is-error': fieldErrors.height }]" placeholder="in" @blur="validateField('height')" />
                             </div>
                             <p v-if="fieldErrors.height" class="field-error">{{ fieldErrors.height }}</p>
                         </div>
                         <div>
                             <label class="label">Weight (kg)</label>
-                            <input v-model="form.weight_kg" type="number" class="field" placeholder="e.g. 60" @blur="validateField('weight_kg')" />
+                            <input v-model="form.weight_kg" type="number" :class="['field', { 'is-error': fieldErrors.weight_kg }]" placeholder="e.g. 60" @blur="validateField('weight_kg')" />
                             <p v-if="fieldErrors.weight_kg" class="field-error">{{ fieldErrors.weight_kg }}</p>
                         </div>
                     </div>
 
                     <div class="rounded-lg border border-[#ef444433] bg-[#fff5f5] p-3">
-                        <p class="mb-2 text-sm font-semibold text-[#b91c1c]">Emergency Contact (Compact Block)</p>
+                        <p class="mb-2 text-sm font-semibold text-rose-200">Emergency Contact (Compact Block)</p>
                         <div class="grid gap-3 sm:grid-cols-3">
                             <input v-model="form.emergency_contact_name" type="text" class="field" placeholder="Contact Name" />
                             <input v-model="form.emergency_contact_relationship" type="text" class="field" placeholder="Relationship" />
@@ -981,7 +1021,7 @@ onBeforeUnmount(() => {
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
                             <label class="label">Medical Clearance Date</label>
-                            <input v-model="form.clearance_date" type="date" class="field" @blur="validateField('clearance_date')" />
+                            <input v-model="form.clearance_date" type="date" :class="['field', { 'is-error': fieldErrors.clearance_date }]" @blur="validateField('clearance_date')" />
                             <p v-if="fieldErrors.clearance_date" class="field-error">{{ fieldErrors.clearance_date }}</p>
                         </div>
                         <div>
@@ -992,7 +1032,7 @@ onBeforeUnmount(() => {
 
                     <div>
                         <label class="label">Physician Name</label>
-                        <input v-model="form.physician_name" type="text" class="field" @blur="validateField('physician_name')" />
+                        <input v-model="form.physician_name" type="text" :class="['field', { 'is-error': fieldErrors.physician_name }]" @blur="validateField('physician_name')" />
                         <p v-if="fieldErrors.physician_name" class="field-error">{{ fieldErrors.physician_name }}</p>
                     </div>
 
@@ -1014,7 +1054,12 @@ onBeforeUnmount(() => {
                         </div>
                         <div>
                             <label class="label">Medical Certificate</label>
-                            <input type="file" class="field file-field" accept=".pdf,image/*" @change="(event) => setFile('medical_certificate', event)" />
+                            <input
+                                type="file"
+                                :class="['field', 'file-field', { 'is-error': fieldErrors.medical_certificate }]"
+                                accept=".pdf,image/*"
+                                @change="(event) => setFile('medical_certificate', event)"
+                            />
                             <p class="mt-1 text-xs text-slate-500">Selected: {{ selectedFileNames.medical }}</p>
                             <p v-if="fieldErrors.medical_certificate" class="field-error">{{ fieldErrors.medical_certificate }}</p>
                         </div>
@@ -1033,7 +1078,12 @@ onBeforeUnmount(() => {
                         </div>
                         <div>
                             <label class="label">Academic Document</label>
-                            <input type="file" class="field file-field" accept=".pdf,image/*" @change="(event) => setFile('academic_document_file', event)" />
+                            <input
+                                type="file"
+                                :class="['field', 'file-field', { 'is-error': fieldErrors.academic_document_file }]"
+                                accept=".pdf,image/*"
+                                @change="(event) => setFile('academic_document_file', event)"
+                            />
                             <p class="mt-1 text-xs text-slate-500">Selected: {{ selectedFileNames.academic }}</p>
                             <p v-if="fieldErrors.academic_document_file" class="field-error">{{ fieldErrors.academic_document_file }}</p>
                         </div>
@@ -1063,7 +1113,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div v-if="isSubmitting" class="mt-4 space-y-1.5">
-                    <div class="flex items-center justify-between text-xs text-[#1f2937]">
+                    <div class="flex items-center justify-between text-xs text-white/80">
                         <span>Uploading requirements...</span>
                         <span>{{ uploadProgress }}%</span>
                     </div>
@@ -1073,26 +1123,6 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </main>
-
-        <footer class="site-footer px-4 pb-5 sm:px-6 lg:px-10">
-            <div class="footer-shell mx-auto max-w-6xl">
-                <div class="footer-grid">
-                    <section class="footer-col footer-col-brand">
-                        <p class="footer-brand">Asian College Varsity Management Information System</p>
-                        <p class="footer-copy">
-                            Complete your student-athlete registration and submit the required health and academic records.
-                        </p>
-                    </section>
-                    <nav class="footer-col" aria-label="Access Links">
-                        <p class="footer-heading">Access</p>
-                        <div class="footer-link-list">
-                            <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
-                            <button @click="toWelcome" class="footer-link footer-link-btn">Home</button>
-                        </div>
-                    </nav>
-                </div>
-            </div>
-        </footer>
 
         <div v-if="modal.open" class="dialog-overlay" @click.self="closeModal">
             <div class="dialog-card">
@@ -1129,7 +1159,7 @@ onBeforeUnmount(() => {
                         />
                         <button type="button" class="rounded border border-slate-300 px-2 py-1 text-xs" @click="adjustCropZoom(0.1)">+</button>
                     </div>
-                    <p v-if="cropError" class="text-xs text-red-600">{{ cropError }}</p>
+                    <p v-if="cropError" class="error-inline text-xs">{{ cropError }}</p>
                 </div>
 
                 <div class="mt-4 flex justify-end gap-2">
@@ -1138,7 +1168,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
         </div>
-    </div>
+    </PublicLayout>
 </template>
 
 <style scoped>
@@ -1201,6 +1231,34 @@ onBeforeUnmount(() => {
     padding-bottom: 1rem;
 }
 
+.register-card {
+    color: #ffffff;
+}
+
+.register-title {
+    text-align: center;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.register-subtitle {
+    margin-top: 0.45rem;
+    text-align: center;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.86);
+}
+
+.register-card h2,
+.register-card h3 {
+    color: #ffffff;
+}
+
+.register-card p,
+.register-card small {
+    color: rgba(255, 255, 255, 0.82);
+}
+
 .stepper {
     display: grid;
     grid-template-columns: 1fr auto 1fr auto 1fr;
@@ -1212,18 +1270,19 @@ onBeforeUnmount(() => {
     display: grid;
     place-items: center;
     gap: 0.25rem;
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .step span {
     width: 34px;
     height: 34px;
     border-radius: 999px;
-    border:  1px solid #c0d5eb;
+    border: 1px solid rgba(255, 255, 255, 0.45);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    color: #ffffff;
 }
 
 .step small {
@@ -1233,36 +1292,36 @@ onBeforeUnmount(() => {
 }
 
 .step.active {
-    color: #1f2937;
+    color: #ffffff;
 }
 
 .step.active span {
-    border-color: #f53003;
-    background: #fff3f2;
-    color: #b91c1c;
+    border-color: #ffffff;
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
 }
 
 .step-line {
     width: 100%;
     height: 2px;
-    background: #d1deec;
+    background: rgba(255, 255, 255, 0.3);
 }
 
 .step-line.active {
-    background: #f53003;
+    background: #ffffff;
 }
 
 .label {
     font-size: 0.86rem;
     font-weight: 700;
-    color: #183658;
+    color: rgba(255, 255, 255, 0.9);
     margin-bottom: 6px;
     display: inline-block;
 }
 
 .field {
     width: 100%;
-    border: 1px solid rgba(15, 23, 42, 0.35);
+    border: 1px solid rgba(3, 68, 133, 0.25);
     border-radius: 10px;
     padding: 10px 12px;
     background: #ffffff;
@@ -1272,8 +1331,8 @@ onBeforeUnmount(() => {
 }
 
 .field:focus {
-    border-color: #f53003;
-    box-shadow: 0 0 0 2px rgba(245, 48, 3, 0.15);
+    border-color: rgba(3, 68, 133, 0.55);
+    box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.2);
 }
 
 .file-field {
@@ -1282,13 +1341,26 @@ onBeforeUnmount(() => {
 
 .field-error {
     margin-top: 5px;
-    color: #b91c1c;
+    color: #ffffff;
+    -webkit-text-stroke: 0.45px #dc2626;
+    text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
     font-size: 0.78rem;
 }
 
+.error-inline {
+    color: #ffffff;
+    -webkit-text-stroke: 0.45px #dc2626;
+    text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
+}
+
+.field.is-error {
+    border-color: #dc2626;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
 .btn-outline {
-    color: #1f2937;
-    border: 1px solid rgba(15, 23, 42, 0.56);
+    color: #034485;
+    border: 1px solid rgba(3, 68, 133, 0.35);
     background: #ffffff;
     border-radius: 10px;
     font-size: 14px;
@@ -1296,19 +1368,31 @@ onBeforeUnmount(() => {
     padding: 10px 14px;
 }
 
-.btn-outline:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
 .btn-fill {
     color: #ffffff;
-    border: 1px solid #c12703;
-    background: linear-gradient(135deg, #f53003 0%, #d92f08 100%);
+    border: 1px solid #034485;
+    background: #034485;
     border-radius: 10px;
     font-size: 14px;
     font-weight: 700;
-    padding: 10px 16px;
+    padding: 10px 14px;
+}
+
+.register-card .btn-outline {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.6);
+    background: transparent;
+}
+
+.register-card .btn-fill {
+    color: #034485;
+    border-color: #ffffff;
+    background: #ffffff;
+}
+
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .btn-fill:disabled {

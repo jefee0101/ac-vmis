@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
 
 class AcademicPeriod extends Model
 {
@@ -15,19 +14,14 @@ class AcademicPeriod extends Model
         'term',
         'starts_on',
         'ends_on',
-        'is_submission_open',
+        'status',
         'announcement',
-        'is_locked',
-        'locked_at',
-        'locked_by',
     ];
 
     protected $casts = [
         'starts_on' => 'date',
         'ends_on' => 'date',
-        'is_submission_open' => 'boolean',
-        'is_locked' => 'boolean',
-        'locked_at' => 'datetime',
+        'status' => 'string',
     ];
 
     public function documents()
@@ -40,8 +34,4 @@ class AcademicPeriod extends Model
         return $this->hasMany(AcademicEligibilityEvaluation::class, 'academic_period_id');
     }
 
-    public function lockedBy()
-    {
-        return $this->belongsTo(User::class, 'locked_by');
-    }
 }

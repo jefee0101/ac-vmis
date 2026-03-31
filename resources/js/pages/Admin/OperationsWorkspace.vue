@@ -125,7 +125,7 @@ const props = defineProps<{
     }
 }>()
 
-const { sportColor, sportTextColor, sportLabel } = useSportColors()
+const { sportColor, sportTextColor, sportLabel, normalizeSport } = useSportColors()
 
 const activeTab = ref<'calendar' | 'attendance' | 'exceptions'>(props.tabs.active)
 const showFilters = ref(false)
@@ -170,6 +170,8 @@ const quickPeriods: Array<{ key: '' | 'today' | 'week' | 'month'; label: string 
     { key: 'month', label: 'This Month' },
 ]
 
+const calendarSportFilter = ref<'all' | string>('all')
+
 const sportsLegend = computed(() =>
     ['basketball', 'volleyball', 'football', 'badminton', 'table tennis'].map((sport) => ({
         key: sport,
@@ -193,8 +195,14 @@ const activeFilterCount = computed(() => {
     return count
 })
 
+const filteredCalendarSchedules = computed(() =>
+    calendarSportFilter.value === 'all'
+        ? props.calendarSchedules
+        : props.calendarSchedules.filter((item) => normalizeSport(item.sport) === normalizeSport(calendarSportFilter.value)),
+)
+
 const calendarEvents = computed(() =>
-    props.calendarSchedules.map((item) => ({
+    filteredCalendarSchedules.value.map((item) => ({
         id: item.id,
         title: item.title,
         start: new Date(item.start),
@@ -301,6 +309,24 @@ function tableStatusClass(status: AttendanceRow['status']) {
     if (status === 'absent') return 'bg-red-100 text-red-700'
     if (status === 'excused') return 'bg-slate-100 text-slate-700'
     return 'bg-slate-100 text-slate-700'
+}
+
+function scheduleCardStyle(sport: unknown) {
+    const textColor = sportTextColor(sport)
+    const isDarkText = textColor === '#111827'
+    return {
+        backgroundColor: sportColor(sport),
+        color: textColor,
+        borderColor: isDarkText ? 'rgba(15,23,42,0.2)' : 'rgba(255,255,255,0.35)',
+    }
+}
+
+function scheduleSubTextClass(sport: unknown) {
+    return sportTextColor(sport) === '#111827' ? 'text-slate-700' : 'text-white/80'
+}
+
+function scheduleAlertTextClass(sport: unknown) {
+    return sportTextColor(sport) === '#111827' ? 'text-amber-700' : 'text-amber-200'
 }
 
 async function fetchRecords(page = 1) {
@@ -445,25 +471,51 @@ function printReport() {
 
     window.open(`/operations/attendance/print?${params.toString()}`, '_blank')
 }
+
+function printCalendarSchedules() {
+    const params = new URLSearchParams()
+    if (filterForm.team_id) params.set('team_id', filterForm.team_id)
+    if (filterForm.schedule_type) params.set('schedule_type', filterForm.schedule_type)
+    if (filterForm.period) params.set('period', filterForm.period)
+    if (filterForm.start_date) params.set('start_date', filterForm.start_date)
+    if (filterForm.end_date) params.set('end_date', filterForm.end_date)
+    if (calendarSportFilter.value !== 'all') params.set('sport', calendarSportFilter.value)
+
+    const query = params.toString()
+    window.open(`/operations/schedules/print${query ? `?${query}` : ''}`, '_blank')
+}
 </script>
 
 <template>
     <div class="space-y-5">
-        <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-900">Operations Workspace</h1>
-                    <p class="text-sm text-slate-600">Calendar, attendance monitoring, and exceptions queue in one page.</p>
-                </div>
-                <button
-                    type="button"
-                    class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-                    @click="printReport"
-                >
-                    Print
-                </button>
-            </div>
+        <section class="grid grid-cols-1 gap-3 md:grid-cols-6">
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs text-slate-500">Attendance Rate</p>
+                <p class="mt-1 text-2xl font-bold text-emerald-700">{{ kpis.summary.attendance_rate_percent }}%</p>
+            </article>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs text-slate-500">Response Rate</p>
+                <p class="mt-1 text-2xl font-bold text-slate-700">{{ kpis.summary.response_rate_percent }}%</p>
+            </article>
+            <article class="rounded-xl border border-[#034485]/45 bg-amber-50 p-4">
+                <p class="text-xs text-amber-700">Needs Attention: No Response</p>
+                <p class="mt-1 text-2xl font-bold text-amber-900">{{ kpis.needs_attention.no_response }}</p>
+            </article>
+            <article class="rounded-xl border border-[#034485]/45 bg-red-50 p-4">
+                <p class="text-xs text-red-700">Needs Attention: Late Spikes</p>
+                <p class="mt-1 text-2xl font-bold text-red-900">+{{ kpis.needs_attention.late_spike_delta }}</p>
+            </article>
+            <article class="rounded-xl border border-[#034485]/45 bg-orange-50 p-4">
+                <p class="text-xs text-orange-700">Needs Attention: At-Risk Teams</p>
+                <p class="mt-1 text-2xl font-bold text-orange-900">{{ kpis.needs_attention.at_risk_teams }}</p>
+            </article>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs text-slate-500">Total Records</p>
+                <p class="mt-1 text-2xl font-bold text-slate-900">{{ kpis.summary.total_records }}</p>
+            </article>
+        </section>
 
+        <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                     v-model="filterForm.search"
@@ -480,7 +532,7 @@ function printReport() {
                 </button>
             </div>
 
-            <div class="mt-3 flex flex-wrap gap-2">
+            <div class="mt-3 flex flex-wrap items-center gap-2">
                 <button
                     v-for="period in quickPeriods"
                     :key="period.key || 'all-time'"
@@ -491,24 +543,21 @@ function printReport() {
                 >
                     {{ period.label }}
                 </button>
+                <button
+                    type="button"
+                    class="ml-auto rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    @click="printReport"
+                >
+                    Print
+                </button>
             </div>
 
             <div v-if="showFilters" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
-                <select v-model="filterForm.sport_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Sports</option>
-                    <option v-for="sport in filters.options.sports" :key="sport.id" :value="String(sport.id)">{{ sport.name }}</option>
-                </select>
-
                 <select v-model="filterForm.team_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
                     <option value="">All Teams</option>
                     <option v-for="team in filters.options.teams" :key="team.id" :value="String(team.id)">
                         {{ team.team_name }} ({{ team.sport_name }})
                     </option>
-                </select>
-
-                <select v-model="filterForm.coach_id" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="">All Coaches</option>
-                    <option v-for="coach in filters.options.coaches" :key="coach.coach_id" :value="String(coach.coach_id)">{{ coach.name }}</option>
                 </select>
 
                 <select v-model="filterForm.schedule_type" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
@@ -549,34 +598,7 @@ function printReport() {
             </div>
         </section>
 
-        <section class="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p class="text-xs text-slate-500">Total Records</p>
-                <p class="mt-1 text-2xl font-bold text-slate-900">{{ kpis.summary.total_records }}</p>
-            </article>
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p class="text-xs text-slate-500">Attendance Rate</p>
-                <p class="mt-1 text-2xl font-bold text-emerald-700">{{ kpis.summary.attendance_rate_percent }}%</p>
-            </article>
-            <article class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <p class="text-xs text-slate-500">Response Rate</p>
-                <p class="mt-1 text-2xl font-bold text-slate-700">{{ kpis.summary.response_rate_percent }}%</p>
-            </article>
-            <article class="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
-                <p class="text-xs text-amber-700">Needs Attention: No Response</p>
-                <p class="mt-1 text-2xl font-bold text-amber-900">{{ kpis.needs_attention.no_response }}</p>
-            </article>
-            <article class="rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm">
-                <p class="text-xs text-red-700">Needs Attention: Late Spikes</p>
-                <p class="mt-1 text-2xl font-bold text-red-900">+{{ kpis.needs_attention.late_spike_delta }}</p>
-            </article>
-            <article class="rounded-xl border border-orange-200 bg-orange-50 p-4 shadow-sm">
-                <p class="text-xs text-orange-700">Needs Attention: At-Risk Teams</p>
-                <p class="mt-1 text-2xl font-bold text-orange-900">{{ kpis.needs_attention.at_risk_teams }}</p>
-            </article>
-        </section>
-
-        <section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <section class="rounded-xl border border-[#034485]/45 bg-white p-4">
             <div class="mb-4 flex flex-wrap gap-2">
                 <button
                     type="button"
@@ -606,15 +628,40 @@ function printReport() {
 
             <div v-if="activeTab === 'calendar'" class="grid grid-cols-1 gap-4 xl:grid-cols-4">
                 <section class="xl:col-span-3 overflow-hidden rounded-xl border border-slate-200 bg-white p-3">
-                    <div class="mb-3 flex flex-wrap gap-2" aria-label="Sport legend">
-                        <span
+                    <div class="mb-3 flex flex-wrap items-center gap-2" aria-label="Sport legend">
+                        <button
+                            type="button"
+                            class="sports-legend-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium"
+                            :class="
+                                calendarSportFilter === 'all'
+                                    ? 'border-[#034485] bg-[#034485] text-white'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                            "
+                            @click="calendarSportFilter = 'all'"
+                        >
+                            <span class="h-2.5 w-2.5 rounded-full bg-slate-400" />
+                            All
+                        </button>
+                        <button
                             v-for="item in sportsLegend"
                             :key="item.key"
-                            class="sports-legend-chip inline-flex items-center gap-2 rounded-full border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700"
+                            type="button"
+                            class="sports-legend-chip inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-medium transition"
+                            :class="
+                                calendarSportFilter === item.key
+                                    ? ''
+                                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                            "
+                            :style="
+                                calendarSportFilter === item.key
+                                    ? { backgroundColor: item.color, color: item.textColor, borderColor: item.color }
+                                    : undefined
+                            "
+                            @click="calendarSportFilter = item.key"
                         >
                             <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: item.color }" />
                             {{ item.label }}
-                        </span>
+                        </button>
                     </div>
                     <VueCal
                         sm
@@ -630,27 +677,38 @@ function printReport() {
                 </section>
 
                 <aside class="max-h-[660px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <h2 class="mb-2 text-sm font-semibold text-slate-800">Schedules</h2>
-                    <div v-if="calendarSchedules.length === 0" class="text-sm text-slate-500">No schedules found.</div>
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                        <h2 class="text-sm font-semibold text-slate-800">Schedules</h2>
+                        <button
+                            type="button"
+                            class="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-300"
+                            @click="printCalendarSchedules"
+                        >
+                            {{ calendarSportFilter === 'all' ? 'Print All' : `Print ${sportLabel(calendarSportFilter)}` }}
+                        </button>
+                    </div>
+                    <div v-if="filteredCalendarSchedules.length === 0" class="text-sm text-slate-500">No schedules found.</div>
                     <button
-                        v-for="item in calendarSchedules"
+                        v-for="item in filteredCalendarSchedules"
                         :key="item.id"
                         type="button"
-                        class="mb-2 w-full rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-[#1f2937]"
+                        class="mb-2 w-full rounded-lg border p-3 text-left"
+                        :style="scheduleCardStyle(item.sport)"
                         @click="openScheduleDrawer(item.id)"
                     >
                         <div class="flex items-center justify-between gap-2">
-                            <p class="truncate text-sm font-semibold text-slate-900">{{ item.title }}</p>
+                            <p class="truncate text-base font-semibold">{{ item.title }}</p>
                             <span
-                                class="rounded px-2 py-0.5 text-[11px] font-semibold"
-                                :style="{ backgroundColor: sportColor(item.sport), color: sportTextColor(item.sport) }"
+                                class="rounded border border-white/70 bg-white px-2 py-0.5 text-[11px] font-semibold"
+                                :style="{ color: sportColor(item.sport) }"
                             >
                                 {{ sportLabel(item.sport) }}
                             </span>
                         </div>
-                        <p class="mt-1 text-xs text-slate-500">{{ item.team_name }} • {{ item.type }}</p>
-                        <p class="text-xs text-slate-500">{{ formatDateTime(item.start) }}</p>
-                        <p class="mt-1 text-xs text-amber-700">No response: {{ item.counts.no_response }}</p>
+                        <p class="mt-1 text-sm font-semibold" :class="scheduleSubTextClass(item.sport)">{{ item.team_name }}</p>
+                        <p class="text-xs" :class="scheduleSubTextClass(item.sport)">{{ item.type }}</p>
+                        <p class="text-xs" :class="scheduleSubTextClass(item.sport)">{{ formatDateTime(item.start) }}</p>
+                        <p class="mt-1 text-xs" :class="scheduleAlertTextClass(item.sport)">No response: {{ item.counts.no_response }}</p>
                     </button>
                 </aside>
             </div>
@@ -658,7 +716,7 @@ function printReport() {
             <div v-else class="space-y-3">
                 <div class="overflow-x-auto rounded-lg border border-slate-200">
                     <table class="w-full text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
+                        <thead class="bg-[#034485] text-white">
                             <tr>
                                 <th class="px-3 py-2 text-left">Schedule</th>
                                 <th class="px-3 py-2 text-left">Team</th>
@@ -668,8 +726,8 @@ function printReport() {
                                 <th class="px-3 py-2 text-left">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr v-if="visibleTable.data.length === 0">
+                        <transition-group name="table-fade" tag="tbody">
+                            <tr v-if="visibleTable.data.length === 0" key="empty">
                                 <td colspan="6" class="px-3 py-4 text-center text-slate-500">No records found.</td>
                             </tr>
                             <tr v-for="row in visibleTable.data" :key="`${row.schedule_id}-${row.student_id}`" class="border-t border-slate-200">
@@ -699,7 +757,7 @@ function printReport() {
                                     </button>
                                 </td>
                             </tr>
-                        </tbody>
+                        </transition-group>
                     </table>
                 </div>
 
@@ -729,6 +787,7 @@ function printReport() {
             </div>
         </section>
 
+        <div v-if="scheduleDrawerOpen" class="fixed inset-0 z-40 bg-black/20" @click="closeDrawer"></div>
         <aside
             v-if="scheduleDrawerOpen"
             class="fixed inset-y-0 right-0 z-50 w-full max-w-xl border-l border-slate-200 bg-white p-5 shadow-2xl"
@@ -744,33 +803,33 @@ function printReport() {
             <div v-if="drilldownLoading" class="text-sm text-slate-500">Loading schedule details...</div>
 
             <div v-else-if="drilldown" class="space-y-4">
-                <div>
+                <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
                     <p class="text-base font-semibold text-slate-900">{{ drilldown.schedule.title }}</p>
                     <p class="text-xs text-slate-600">{{ drilldown.schedule.team_name }} • {{ drilldown.schedule.sport_name }}</p>
                     <p class="text-xs text-slate-600">{{ formatDateTime(drilldown.schedule.start_time) }}</p>
-                </div>
 
-                <div class="grid grid-cols-3 gap-2 text-xs">
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">Present: <strong>{{ drilldown.counts.present }}</strong></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">Late: <strong>{{ drilldown.counts.late }}</strong></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">Absent: <strong>{{ drilldown.counts.absent }}</strong></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">Excused: <strong>{{ drilldown.counts.excused }}</strong></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">No Response: <strong>{{ drilldown.counts.no_response }}</strong></div>
-                    <div class="rounded border border-slate-200 bg-slate-50 p-2">Roster: <strong>{{ drilldown.counts.total }}</strong></div>
-                </div>
+                    <div class="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div class="rounded border border-slate-200 bg-white p-2">Present: <strong>{{ drilldown.counts.present }}</strong></div>
+                        <div class="rounded border border-slate-200 bg-white p-2">Late: <strong>{{ drilldown.counts.late }}</strong></div>
+                        <div class="rounded border border-slate-200 bg-white p-2">Absent: <strong>{{ drilldown.counts.absent }}</strong></div>
+                        <div class="rounded border border-slate-200 bg-white p-2">Excused: <strong>{{ drilldown.counts.excused }}</strong></div>
+                        <div class="rounded border border-slate-200 bg-white p-2">No Response: <strong>{{ drilldown.counts.no_response }}</strong></div>
+                        <div class="rounded border border-slate-200 bg-white p-2">Roster: <strong>{{ drilldown.counts.total }}</strong></div>
+                    </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" class="rounded-md bg-[#1f2937] px-3 py-2 text-xs font-semibold text-white" @click="openAttendanceFromDrawer">
-                        Open Attendance
-                    </button>
-                    <button type="button" class="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white" @click="openNoResponseFromDrawer">
-                        View No Response
-                    </button>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="rounded-md bg-[#1f2937] px-3 py-2 text-xs font-semibold text-white" @click="openAttendanceFromDrawer">
+                            Open Attendance
+                        </button>
+                        <button type="button" class="rounded-md bg-amber-600 px-3 py-2 text-xs font-semibold text-white" @click="openNoResponseFromDrawer">
+                            View No Response
+                        </button>
+                    </div>
                 </div>
 
                 <div class="max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200">
                     <table class="w-full text-xs">
-                        <thead class="sticky top-0 bg-slate-50 text-slate-600">
+                        <thead class="sticky top-0 bg-[#034485] text-white">
                             <tr>
                                 <th class="px-2 py-2 text-left">Student</th>
                                 <th class="px-2 py-2 text-left">Status</th>
@@ -831,3 +890,20 @@ function printReport() {
         />
     </div>
 </template>
+
+<style scoped>
+.table-fade-enter-active,
+.table-fade-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.table-fade-enter-from,
+.table-fade-leave-to {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.table-fade-move {
+    transition: transform 0.2s ease;
+}
+</style>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Announcement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class AnnouncementController extends Controller
@@ -71,6 +72,9 @@ class AnnouncementController extends Controller
             ]);
         }
 
+        Cache::forget('announcements:unread:' . $user->id);
+        Cache::forget('admin:notifications:' . $user->id);
+
         return back();
     }
 
@@ -85,6 +89,9 @@ class AnnouncementController extends Controller
                 'is_read' => true,
                 'read_at' => now(),
             ]);
+
+        Cache::forget('announcements:unread:' . $user->id);
+        Cache::forget('admin:notifications:' . $user->id);
 
         return back();
     }

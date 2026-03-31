@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
 import { VueCal } from 'vue-cal'
 import { useSportColors } from '@/composables/useSportColors'
 import { useUserTimezone } from '@/composables/useUserTimezone'
@@ -23,6 +23,9 @@ const props = defineProps<{
     teams: Array<{ id: number; team_name: string; sport: string }>
     selectedTeamId: number | null
     schedules: any[]
+    accessLocked?: boolean
+    lockStatus?: string | null
+    lockMessage?: string | null
 }>()
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
@@ -132,7 +135,7 @@ function statusClass(status: string | null) {
     if (status === 'present') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     if (status === 'absent') return 'bg-rose-50 text-rose-700 border border-rose-200'
     if (status === 'excused') return 'bg-amber-50 text-amber-700 border border-amber-200'
-    return 'bg-slate-50 text-slate-600 border border-slate-200'
+    return 'bg-[#034485]/5 text-slate-600 border border-[#034485]/20'
 }
 
 function isPastSchedule(item: any) {
@@ -148,6 +151,31 @@ function isToday(item: any) {
     return d.toDateString() === now.toDateString()
 }
 
+function hexToRgb(value: string) {
+    const hex = value.replace('#', '')
+    const normalized = hex.length === 3 ? hex.split('').map((c) => c + c).join('') : hex
+    const num = parseInt(normalized, 16)
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255,
+    }
+}
+
+function mixWithWhite(color: string, amount = 0.4) {
+    const { r, g, b } = hexToRgb(color)
+    const mix = (channel: number) => Math.round(channel + (255 - channel) * amount)
+    return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
+}
+
+function stripeColors(sport: any) {
+    const base = sportColor(sport)
+    return {
+        base,
+        lighter: mixWithWhite(base, 0.5),
+    }
+}
+
 function timingLabel(item: any) {
     if (isPastSchedule(item)) return 'Completed'
     return 'Upcoming'
@@ -155,8 +183,8 @@ function timingLabel(item: any) {
 
 function timingClass(item: any) {
     return isPastSchedule(item)
-        ? 'bg-slate-100 text-slate-600 border border-slate-200'
-        : 'bg-slate-50 text-[#1f2937] border border-slate-100'
+        ? 'bg-[#034485]/5 text-slate-600 border border-[#034485]/25'
+        : 'bg-[#034485]/5 text-[#1f2937] border border-[#034485]/20'
 }
 
 function needsResponse(item: any) {
@@ -340,42 +368,56 @@ onUnmounted(() => {
                 <h1 class="text-2xl font-bold text-slate-900">My Schedule</h1>
                 <p class="text-sm text-slate-500">Confirm your attendance for practices, trainings, and meetings.</p>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div v-if="!accessLocked" class="flex flex-wrap gap-2">
                 <button
                     @click="printSchedule"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
                 >
                     Print
                 </button>
                 <button
                     @click="showCalendar = !showCalendar"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
                 >
                     {{ showCalendar ? 'Hide Calendar' : 'Show Calendar' }}
                 </button>
                 <button
                     @click="showCompleted = !showCompleted"
-                    class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
                 >
                     {{ showCompleted ? 'Hide Completed' : 'Show Completed' }}
                 </button>
             </div>
         </div>
 
+        <div v-if="accessLocked" class="rounded-xl border border-[#034485]/30 bg-[#034485]/5 p-6 text-slate-700">
+            <h2 class="text-sm font-semibold text-slate-800">Schedule Access Paused</h2>
+            <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Schedule access is paused during the academic submission window.' }}</p>
+            <div class="mt-3 text-xs text-slate-600">
+                Status:
+                <span class="ml-2 inline-flex rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {{ lockStatus || 'Suspended' }}
+                </span>
+            </div>
+            <Link href="/AcademicSubmissions" class="mt-4 inline-flex rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] hover:bg-[#034485]/10">
+                Go to Academic Submissions
+            </Link>
+        </div>
+
+        <template v-else>
         <div v-if="props.teams.length" class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
             <div v-if="props.teams.length > 1" class="flex items-center gap-2">
                 <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team</span>
                 <select
                     v-model.number="selectedTeamId"
                     @change="changeTeam"
-                    class="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700"
+                    class="rounded-md border border-[#034485]/40 px-2 py-1 text-xs text-slate-700"
                 >
                     <option v-for="teamOption in props.teams" :key="teamOption.id" :value="teamOption.id">
                         {{ teamOption.team_name }}
                     </option>
                 </select>
             </div>
-            <span v-else-if="team" class="text-slate-500">Team: {{ team.team_name }}</span>
         </div>
 
         <div v-if="team" class="flex flex-wrap items-center gap-2 text-sm text-slate-700">
@@ -385,24 +427,24 @@ onUnmounted(() => {
             <span class="text-slate-500">{{ team.team_name }}</span>
         </div>
 
-        <div v-if="!team" class="bg-white border border-slate-200 rounded-xl p-6 text-slate-600">
+        <div v-if="!team" class="bg-white border border-[#034485]/35 rounded-xl p-6 text-slate-600">
             You are not assigned to a team yet.
         </div>
 
         <div v-else class="space-y-4">
             <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Next session</p>
                     <p v-if="nextSchedule" class="mt-1 text-sm font-semibold text-slate-900">{{ nextSchedule.title }}</p>
                     <p v-if="nextSchedule" class="text-xs text-slate-500">{{ formatPHT(nextSchedule.start) }}</p>
                     <p v-else class="mt-1 text-sm text-slate-500">No upcoming sessions</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Upcoming sessions</p>
                     <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ upcomingSchedules.length }}</p>
                     <p class="text-xs text-slate-500">Scheduled this season</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="rounded-[44px] border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Needs response</p>
                     <p class="mt-1 text-2xl font-semibold text-rose-600">{{ needsResponseCount }}</p>
                     <p class="text-xs text-slate-500">Attendance to confirm</p>
@@ -410,7 +452,7 @@ onUnmounted(() => {
             </section>
 
             <div class="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                <section v-if="showCalendar" class="xl:col-span-3 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                <section v-if="showCalendar" class="xl:col-span-3 bg-white border border-[#034485]/35 rounded-xl p-4">
                     <p class="text-xs text-slate-500 mb-3">
                         Tip: Click a schedule on the calendar to focus it on the right panel.
                     </p>
@@ -421,7 +463,7 @@ onUnmounted(() => {
                 </section>
 
                 <aside
-                    class="bg-white border border-slate-200 rounded-xl p-4 max-h-162.5 overflow-y-auto shadow-sm"
+                    class="bg-white border border-[#034485]/35 rounded-xl p-4 max-h-162.5 overflow-y-auto"
                     :class="showCalendar ? 'xl:col-span-2' : 'xl:col-span-5'"
                 >
                     <div class="flex items-center justify-between mb-3">
@@ -437,9 +479,16 @@ onUnmounted(() => {
                     </div>
 
                         <div v-else class="space-y-3">
-                            <div v-for="item in upcomingSchedules" :key="item.id"
-                                class="student-schedule-card rounded-lg border p-3 transition"
-                                :class="item.id === selectedScheduleId ? 'student-schedule-card--active border-[#1f2937] bg-[#f8fafc]' : 'border-slate-200 bg-slate-50'">
+                            <div
+                                v-for="item in upcomingSchedules"
+                                :key="item.id"
+                                class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
+                            >
+                            <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
+                                <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
+                                <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
+                            </div>
                             <div class="flex items-start justify-between gap-2">
                                 <div>
                                     <div class="text-slate-900 font-medium leading-tight">{{ item.title }}</div>
@@ -450,7 +499,7 @@ onUnmounted(() => {
                                         {{ statusLabel(item.attendance_status) }}
                                     </span>
                                     <button @click="focusSchedule(item)"
-                                        class="px-2.5 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
+                                        class="px-2.5 py-1 text-xs rounded border border-[#034485]/35 bg-white text-slate-600 hover:bg-[#034485]/5">
                                         Focus
                                     </button>
                                     <button @click="openQrModal(item.id)"
@@ -479,7 +528,7 @@ onUnmounted(() => {
                                 Reason: {{ item.attendance_notes }}
                             </div>
 
-                            <div class="mt-3 pt-3 border-t border-slate-200">
+                            <div class="mt-3 pt-3 border-t border-[#034485]/20">
                                 <p class="text-[11px] text-slate-500 mb-2">Attendance Response</p>
                                 <div class="flex gap-2">
                                     <button @click="setAttendance(item.id, 'present')"
@@ -511,8 +560,16 @@ onUnmounted(() => {
                             No completed sessions yet.
                         </div>
                         <div v-else class="space-y-3">
-                            <div v-for="item in completedSchedules" :key="item.id"
-                                class="student-schedule-card student-schedule-card--completed rounded-lg border p-3 transition border-slate-200 bg-slate-50/70">
+                            <div
+                                v-for="item in completedSchedules"
+                                :key="item.id"
+                                class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
+                            >
+                                <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
+                                    <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
+                                    <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
+                                </div>
                                 <div class="flex items-start justify-between gap-2">
                                     <div>
                                         <div class="text-slate-900 font-medium leading-tight">{{ item.title }}</div>
@@ -523,7 +580,7 @@ onUnmounted(() => {
                                             {{ statusLabel(item.attendance_status) }}
                                         </span>
                                         <button @click="focusSchedule(item)"
-                                            class="px-2.5 py-1 text-xs rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-100">
+                                            class="px-2.5 py-1 text-xs rounded border border-[#034485]/35 bg-white text-slate-600 hover:bg-[#034485]/5">
                                             Focus
                                         </button>
                                     </div>
@@ -551,8 +608,8 @@ onUnmounted(() => {
 
         <div v-if="showReasonModal" @click.self="closeReasonModal"
             class="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50">
-            <div class="bg-white border border-slate-200 rounded-xl w-full max-w-md">
-                <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+            <div class="bg-white border border-[#034485]/35 rounded-xl w-full max-w-md">
+                <div class="px-5 py-4 border-b border-[#034485]/20 flex items-center justify-between">
                     <h3 class="text-slate-900 font-semibold">
                         {{ reasonStatus === 'absent' ? 'Reason for Not Attending' : 'Reason for Excused' }}
                     </h3>
@@ -561,17 +618,17 @@ onUnmounted(() => {
 
                 <div class="p-5">
                     <textarea v-model="reasonText" rows="4"
-                        class="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-700"
+                        class="w-full bg-white border border-[#034485]/35 rounded-lg px-3 py-2 text-slate-700"
                         placeholder="Write your reason here..." />
                 </div>
 
-                <div class="px-5 py-4 border-t border-slate-200 flex justify-end gap-2">
+                <div class="px-5 py-4 border-t border-[#034485]/20 flex justify-end gap-2">
                     <button @click="closeReasonModal"
-                        class="px-3 py-1.5 text-sm rounded border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                        class="px-3 py-1.5 text-sm rounded border border-[#034485]/35 bg-white text-slate-600 hover:bg-[#034485]/5">
                         Cancel
                     </button>
                     <button @click="submitReason" :disabled="!reasonText.trim()"
-                        class="px-3 py-1.5 text-sm rounded bg-[#1f2937] hover:bg-[#334155] text-white disabled:opacity-50">
+                        class="px-3 py-1.5 text-sm rounded bg-[#034485] hover:bg-[#033a70] text-white disabled:opacity-50">
                         Submit
                     </button>
                 </div>
@@ -580,8 +637,8 @@ onUnmounted(() => {
 
         <div v-if="showQrModal" @click.self="closeQrModal"
             class="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4">
-            <div class="bg-white border border-slate-200 rounded-xl w-full max-w-sm">
-                <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+            <div class="bg-white border border-[#034485]/35 rounded-xl w-full max-w-sm">
+                <div class="px-4 py-3 border-b border-[#034485]/20 flex items-center justify-between">
                     <h3 class="text-slate-900 font-semibold">Schedule Check-in QR</h3>
                     <button @click="closeQrModal" class="text-slate-400 hover:text-slate-700">✕</button>
                 </div>
@@ -608,13 +665,13 @@ onUnmounted(() => {
                 </div>
             </div>
         </div>
+    </template>
     </div>
 </template>
 
 <style scoped>
 :deep(.vuecal__event.student-schedule--focused) {
-    outline: 2px solid #e2e8f0;
+    outline: 2px solid #034485;
     outline-offset: 1px;
-    box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.35);
 }
 </style>
