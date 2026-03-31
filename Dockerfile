@@ -28,8 +28,9 @@ ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libzip-dev \
+        libpq-dev \
         unzip \
-    && docker-php-ext-install pdo_mysql zip bcmath \
+    && docker-php-ext-install pdo_mysql pdo_pgsql zip bcmath \
     && a2enmod rewrite \
     && sed -ri -e "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf \
     && sed -ri -e 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf \
