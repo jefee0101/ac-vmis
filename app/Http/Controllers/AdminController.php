@@ -770,6 +770,8 @@ class AdminController extends Controller
     private function recentActivityLog(): array
     {
         $roleScope = ['student', 'student-athlete', 'coach'];
+        $driver = DB::getDriverName();
+        $injuryExpr = $driver === 'pgsql' ? 'wl.injury_observed IS TRUE' : 'wl.injury_observed = 1';
 
         $attendance = DB::table('schedule_attendances as sa')
             ->join('users as actor', 'actor.id', '=', 'sa.recorded_by')
@@ -801,7 +803,7 @@ class AdminController extends Controller
                 DB::raw("TRIM(CONCAT(COALESCE(actor.first_name, ''), ' ', COALESCE(actor.last_name, ''))) as actor_name"),
                 'actor.role as actor_role',
                 DB::raw("'wellness' as action_type"),
-                DB::raw("CONCAT('Logged wellness for ', COALESCE(su.first_name, ''), ' ', COALESCE(su.last_name, ''), CASE WHEN wl.injury_observed = 1 THEN ' (injury observed)' ELSE '' END) as description"),
+                DB::raw("CONCAT('Logged wellness for ', COALESCE(su.first_name, ''), ' ', COALESCE(su.last_name, ''), CASE WHEN {$injuryExpr} THEN ' (injury observed)' ELSE '' END) as description"),
                 DB::raw('COALESCE(wl.updated_at, wl.created_at) as happened_at'),
             ])
             ->limit(80)
