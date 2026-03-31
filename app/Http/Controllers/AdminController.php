@@ -609,6 +609,18 @@ class AdminController extends Controller
 
     private function attendanceHeatmap(CarbonInterface $start, CarbonInterface $end): array
     {
+        $driver = DB::getDriverName();
+        if ($driver === 'pgsql') {
+            $dayExpr = 'EXTRACT(DOW FROM ts.start_time) + 1';
+            $hourExpr = 'EXTRACT(HOUR FROM ts.start_time)';
+        } elseif ($driver === 'sqlite') {
+            $dayExpr = "CAST(strftime('%w', ts.start_time) AS INTEGER) + 1";
+            $hourExpr = "CAST(strftime('%H', ts.start_time) AS INTEGER)";
+        } else {
+            $dayExpr = 'DAYOFWEEK(ts.start_time)';
+            $hourExpr = 'HOUR(ts.start_time)';
+        }
+
         $rows = DB::table('team_schedules as ts')
             ->join('team_players as tp', 'tp.team_id', '=', 'ts.team_id')
             ->leftJoin('schedule_attendances as sa', function ($join) {
@@ -616,11 +628,11 @@ class AdminController extends Controller
                     ->on('sa.student_id', '=', 'tp.student_id');
             })
             ->whereBetween('ts.start_time', [$start->toDateTimeString(), $end->toDateTimeString()])
-            ->selectRaw('DAYOFWEEK(ts.start_time) as day_index')
-            ->selectRaw('HOUR(ts.start_time) as hour_key')
+            ->selectRaw("{$dayExpr} as day_index")
+            ->selectRaw("{$hourExpr} as hour_key")
             ->selectRaw("SUM(CASE WHEN sa.status = 'late' THEN 1 ELSE 0 END) as late_count")
             ->selectRaw('SUM(CASE WHEN sa.id IS NULL THEN 1 ELSE 0 END) as no_response_count')
-            ->groupByRaw('DAYOFWEEK(ts.start_time), HOUR(ts.start_time)')
+            ->groupByRaw("{$dayExpr}, {$hourExpr}")
             ->get();
 
         $hours = range(6, 21);

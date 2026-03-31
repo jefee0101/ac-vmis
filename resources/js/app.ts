@@ -8,7 +8,7 @@ import { initTheme, setStoredTheme } from '@/composables/useTheme';
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { useSessionExpired } from '@/composables/useSessionExpired';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'ACVMIS';
 
 function applyThemeFromProps(pageProps: any) {
     const storedTheme = typeof window !== 'undefined' ? window.localStorage.getItem('ac-vmis-theme-mode') : null;
