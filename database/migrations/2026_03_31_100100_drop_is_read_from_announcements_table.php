@@ -9,6 +9,26 @@ return new class extends Migration
 {
     private function indexExists(string $name): bool
     {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'sqlite') {
+            $rows = DB::select("PRAGMA index_list('announcements')");
+            foreach ($rows as $row) {
+                if (($row->name ?? null) === $name) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if ($driver === 'pgsql') {
+            $rows = DB::select(
+                "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'announcements' AND indexname = ? LIMIT 1",
+                [$name]
+            );
+            return !empty($rows);
+        }
+
         $dbName = Schema::getConnection()->getDatabaseName();
         $rows = DB::select(
             "SELECT 1 FROM information_schema.statistics WHERE table_schema = ? AND table_name = 'announcements' AND index_name = ? LIMIT 1",
@@ -28,7 +48,12 @@ return new class extends Migration
     private function dropIndexIfExists(string $name): void
     {
         if ($this->indexExists($name)) {
-            DB::statement("DROP INDEX {$name} ON announcements");
+            $driver = DB::getDriverName();
+            if ($driver === 'mysql') {
+                DB::statement("DROP INDEX {$name} ON announcements");
+            } else {
+                DB::statement("DROP INDEX IF EXISTS {$name}");
+            }
         }
     }
 
