@@ -99,7 +99,6 @@ watch(mobileMenuOpen, (open) => {
 
     <div class="public-layout public-page" ref="layoutRef">
         <header class="site-header px-3 py-1 sm:px-4 lg:px-6">
-            <div v-if="isLoading" class="loading-strip" />
             <div class="mx-auto max-w-6xl nav-shell">
                 <button
                     type="button"
@@ -626,16 +625,6 @@ watch(mobileMenuOpen, (open) => {
     background: #ffffff !important;
     border-bottom: none !important;
     backdrop-filter: blur(2px);
-}
-
-.loading-strip {
-    height: 3px;
-    width: 100%;
-    border-radius: 999px;
-    margin-bottom: 8px;
-    background: linear-gradient(90deg, var(--page-accent) 0%, var(--page-accent-strong) 45%, var(--page-accent-soft) 100%);
-    background-size: 200% 100%;
-    animation: loading-shimmer 1s linear infinite;
 }
 
 .nav-shell {
