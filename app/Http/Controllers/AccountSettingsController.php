@@ -233,13 +233,20 @@ class AccountSettingsController extends Controller
 
     public function updatePassword(Request $request)
     {
+        $user = $request->user();
+
         $validated = $request->validate([
-            'current_password' => ['required', 'current_password'],
+            'current_password' => [
+                Rule::requiredIf(!$user->must_change_password),
+                'nullable',
+                'current_password',
+            ],
             'new_password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
         ]);
 
-        $request->user()->update([
+        $user->update([
             'password' => Hash::make($validated['new_password']),
+            'must_change_password' => false,
         ]);
 
         return back();

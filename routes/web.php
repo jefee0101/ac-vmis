@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\CoachOnboardingController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Admin\CreateTeamController;
 use App\Http\Controllers\Admin\OperationsWorkspaceController;
@@ -39,37 +40,14 @@ Route::get('/', function () {
     return Inertia::render('Public/Welcome');
 })->name('Welcome');
 
-Route::get('/about', function () {
-    return Inertia::render('Public/About');
-})->name('about');
-
-Route::get('/services', function () {
-    return Inertia::render('Public/Services');
-})->name('services');
-
-Route::get('/how-it-works', function () {
-    return Inertia::render('Public/HowItWorks');
-})->name('how-it-works');
-
-Route::get('/faq', function () {
-    return Inertia::render('Public/Faq');
-})->name('faq');
-
-Route::get('/policies', function () {
-    return Inertia::render('Public/Policies');
-})->name('policies');
-
-Route::get('/contact', function () {
-    return Inertia::render('Public/Contact');
-})->name('contact');
-
-Route::get('/privacy-policy', function () {
-    return Inertia::render('Public/PrivacyPolicy');
-})->name('privacy-policy');
-
-Route::get('/terms-of-use', function () {
-    return Inertia::render('Public/TermsOfUse');
-})->name('terms-of-use');
+Route::redirect('/about', '/#about')->name('about');
+Route::redirect('/services', '/#features')->name('services');
+Route::redirect('/how-it-works', '/#how-it-works')->name('how-it-works');
+Route::redirect('/faq', '/#faq')->name('faq');
+Route::redirect('/policies', '/#policies')->name('policies');
+Route::redirect('/contact', '/#contact')->name('contact');
+Route::redirect('/privacy-policy', '/#privacy-policy')->name('privacy-policy');
+Route::redirect('/terms-of-use', '/#terms-of-use')->name('terms-of-use');
 
 Route::get('/pending-approval', function () {
     if (Auth::check() && Auth::user()->status === 'approved') {
@@ -130,13 +108,13 @@ Route::middleware('guest')->group(function () {
         ->name('student.register.check_id');
     Route::post('/RegisterStudent-AthleteData', [RegisterController::class, 'registerStudentAthlete']);
 
-    Route::get('/CoachRegister', function () {
-        return Inertia::render('Auth/CoachRegister');
-    })->name('CoachRegister');
-    Route::post('/RegisterCoachData', [RegisterController::class, 'registerCoach']);
+    // Coach accounts are now provisioned by admins only.
+    Route::redirect('/CoachRegister', '/Register');
+    Route::get('/coach/onboarding/activate', [CoachOnboardingController::class, 'show'])->name('coach.onboarding.activate');
+    Route::post('/coach/onboarding/activate', [CoachOnboardingController::class, 'activate'])->name('coach.onboarding.activate.submit');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'force_password_change'])->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->middleware('auth');
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
     Route::put('/announcements/read-all', [AnnouncementController::class, 'markAllRead'])->name('announcements.readAll');
@@ -178,6 +156,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/people', [AdminController::class, 'userManagement'])
         ->name('admin.people.index');
+    Route::post('/admin/coaches', [AdminController::class, 'storeCoach'])
+        ->name('admin.coaches.store');
+    Route::post('/admin/coaches/{user}/regenerate-onboarding', [AdminController::class, 'regenerateCoachOnboarding'])
+        ->name('admin.coaches.regenerate-onboarding');
 
     Route::get('/teams', [CreateTeamController::class, 'teamSetup'])
         ->name('admin.teams.index');
@@ -347,4 +329,21 @@ Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold'])->gr
         ->name('student.schedules.attendance');
     Route::get('/Student/Schedules/{id}/qr-token', [ScheduleRecord::class, 'qrToken'])
         ->name('student.schedules.qr_token');
+});
+
+use Illuminate\Support\Facades\Mail;
+
+Route::get('/mail-test', function () {
+    $to = env('MAIL_TEST_TO', env('MAIL_FROM_ADDRESS'));
+
+    Mail::raw('SMTP test email from AC-VMIS via Brevo', function ($message) use ($to) {
+        $message->to($to)
+                ->subject('SMTP Test (Brevo)');
+    });
+
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'Test email sent (if no exception).',
+        'to' => $to,
+    ]);
 });

@@ -185,7 +185,8 @@ class WellnessMonitoringController extends Controller
                     (int) $wellness->fatigue_level
                 ),
                 'general',
-                Auth::id()
+                Auth::id(),
+                'notify_wellness_alerts'
             );
         }
 
@@ -201,7 +202,8 @@ class WellnessMonitoringController extends Controller
                 'Injury Observation Alert',
                 "Injury was observed for a student in {$schedule->title}. Please review wellness monitoring.",
                 'system',
-                Auth::id()
+                Auth::id(),
+                'notify_wellness_alerts'
             );
         }
 

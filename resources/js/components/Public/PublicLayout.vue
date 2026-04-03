@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 
 const props = withDefaults(
     defineProps<{
@@ -20,6 +20,15 @@ const { isLoading } = useInertiaLoading();
 const page = usePage();
 const layoutRef = ref<HTMLElement | null>(null);
 const currentYear = new Date().getFullYear();
+const publicSectionLinks = [
+    { id: 'home', label: 'Home', title: 'Overview of AC-VMIS' },
+    { id: 'how-it-works', label: 'How It Works', title: 'Step-by-step flow of using the platform' },
+    { id: 'about', label: 'About Us', title: 'What AC-VMIS is and who it serves' },
+    { id: 'features', label: 'Features', title: 'Core features and tools in AC-VMIS' },
+    { id: 'faq', label: 'FAQ', title: 'Quick answers to common questions' },
+    { id: 'policies', label: 'Policies', title: 'Policies, privacy, and terms' },
+    { id: 'contact', label: 'Contact', title: 'Contact details and support' },
+];
 const isAuthed = computed(() => Boolean(page.props.auth?.user));
 const userRole = computed(() => String(page.props.auth?.user?.role ?? ''));
 const isLoginPage = computed(() => page.component === 'Auth/Login' || page.url.toLowerCase().includes('/login'));
@@ -44,13 +53,8 @@ const currentPath = computed(() => {
 });
 const mobileMenuOpen = ref(false);
 
-function isActivePath(path: string) {
-    const target = path.toLowerCase();
-    const current = currentPath.value;
-    if (target === '/') {
-        return current === '/' || current === '';
-    }
-    return current === target || current.startsWith(`${target}/`);
+function sectionHref(id: string) {
+    return id === 'home' ? '/' : `/#${id}`;
 }
 
 function toLogin() {
@@ -99,37 +103,20 @@ watch(mobileMenuOpen, (open) => {
 
     <div class="public-layout public-page" ref="layoutRef">
         <header class="site-header px-3 py-1 sm:px-4 lg:px-6">
-            <div class="mx-auto max-w-6xl nav-shell">
-                <button
-                    type="button"
-                    class="mobile-menu-toggle"
-                    aria-label="Open menu"
-                    @click="mobileMenuOpen = true"
-                >
+            <div class="nav-shell mx-auto max-w-6xl">
+                <button type="button" class="mobile-menu-toggle" aria-label="Open menu" @click="mobileMenuOpen = true">
                     <span></span>
                     <span></span>
                     <span></span>
                 </button>
 
-                <div class="flex items-center gap-3 header-actions">
+                <div class="header-actions flex items-center gap-3">
                     <template v-if="!isStatusPage">
-                        <button
-                            v-if="isAuthed"
-                            @click="router.visit(dashboardPath)"
-                            class="btn-outline"
-                            :disabled="isLoading"
-                        >
+                        <button v-if="isAuthed" @click="router.visit(dashboardPath)" class="btn-outline" :disabled="isLoading">
                             Back to Dashboard
                         </button>
                         <template v-else>
-                            <button
-                                v-if="isRoleRegisterPage"
-                                @click="toRegister"
-                                class="btn-outline"
-                                :disabled="isLoading"
-                            >
-                                Back to Register
-                            </button>
+                            <button v-if="isRoleRegisterPage" @click="toRegister" class="btn-outline" :disabled="isLoading">Back to Register</button>
                             <template v-else>
                                 <button @click="toLogin" class="btn-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
                                     Login
@@ -162,72 +149,18 @@ watch(mobileMenuOpen, (open) => {
 
                 <nav v-if="!isStatusPage" class="header-links" aria-label="Public pages">
                     <Link
-                        href="/"
+                        v-for="item in publicSectionLinks"
+                        :key="item.id"
+                        :href="sectionHref(item.id)"
                         class="header-link"
-                        :class="{ 'is-active': isActivePath('/') }"
-                        title="Overview of AC-VMIS"
-                        aria-label="Home: Overview of AC-VMIS"
+                        :class="{ 'is-active': item.id === 'home' && (currentPath === '/' || currentPath === '') }"
+                        :title="item.title"
+                        :aria-label="`${item.label}: ${item.title}`"
                     >
-                        Home
-                    </Link>
-                    <Link
-                        href="/how-it-works"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/how-it-works') }"
-                        title="Step-by-step flow of using the platform"
-                        aria-label="How It Works: Step-by-step flow of using the platform"
-                    >
-                        How It Works
-                    </Link>
-                    <Link
-                        href="/about"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/about') }"
-                        title="What AC-VMIS is and who it serves"
-                        aria-label="About Us: What AC-VMIS is and who it serves"
-                    >
-                        About Us
-                    </Link>
-                    <Link
-                        href="/services"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/services') }"
-                        title="Core services and tools in AC-VMIS"
-                        aria-label="Services: Core services and tools in AC-VMIS"
-                    >
-                        Services
-                    </Link>
-                    <Link
-                        href="/faq"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/faq') }"
-                        title="Quick answers to common questions"
-                        aria-label="FAQ: Quick answers to common questions"
-                    >
-                        FAQ
-                    </Link>
-                    <Link
-                        href="/policies"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/policies') }"
-                        title="Policies, privacy, and terms"
-                        aria-label="Policies: Policies, privacy, and terms"
-                    >
-                        Policies
-                    </Link>
-                    <Link
-                        href="/contact"
-                        class="header-link"
-                        :class="{ 'is-active': isActivePath('/contact') }"
-                        title="Contact details and support"
-                        aria-label="Contact: Contact details and support"
-                    >
-                        Contact
+                        {{ item.label }}
                     </Link>
                 </nav>
-                <div v-else class="header-system-title" aria-label="System Title">
-                    Asian College Varsity Management Information System
-                </div>
+                <div v-else class="header-system-title" aria-label="System Title">Asian College Varsity Management Information System</div>
             </div>
         </header>
 
@@ -239,21 +172,46 @@ watch(mobileMenuOpen, (open) => {
             </div>
             <div class="mobile-menu-actions">
                 <template v-if="isAuthed">
-                    <button @click="router.visit(dashboardPath); mobileMenuOpen = false" class="btn-outline w-full">
+                    <button
+                        @click="
+                            router.visit(dashboardPath);
+                            mobileMenuOpen = false;
+                        "
+                        class="btn-outline w-full"
+                    >
                         Back to Dashboard
                     </button>
                 </template>
                 <template v-else>
                     <button
                         v-if="isRoleRegisterPage"
-                        @click="toRegister(); mobileMenuOpen = false"
+                        @click="
+                            toRegister();
+                            mobileMenuOpen = false;
+                        "
                         class="btn-outline w-full"
                     >
                         Back to Register
                     </button>
                     <template v-else>
-                        <button @click="toLogin(); mobileMenuOpen = false" class="btn-outline w-full">Login</button>
-                        <button @click="toRegister(); mobileMenuOpen = false" class="btn-fill w-full">Register</button>
+                        <button
+                            @click="
+                                toLogin();
+                                mobileMenuOpen = false;
+                            "
+                            class="btn-outline w-full"
+                        >
+                            Login
+                        </button>
+                        <button
+                            @click="
+                                toRegister();
+                                mobileMenuOpen = false;
+                            "
+                            class="btn-fill w-full"
+                        >
+                            Register
+                        </button>
                     </template>
                 </template>
             </div>
@@ -264,13 +222,15 @@ watch(mobileMenuOpen, (open) => {
                     <Link href="/Register" class="mobile-menu-link" @click="mobileMenuOpen = false">Register</Link>
                 </template>
                 <template v-else>
-                    <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
-                    <Link href="/how-it-works" class="mobile-menu-link" @click="mobileMenuOpen = false">How It Works</Link>
-                    <Link href="/about" class="mobile-menu-link" @click="mobileMenuOpen = false">About Us</Link>
-                    <Link href="/services" class="mobile-menu-link" @click="mobileMenuOpen = false">Services</Link>
-                    <Link href="/faq" class="mobile-menu-link" @click="mobileMenuOpen = false">FAQ</Link>
-                    <Link href="/policies" class="mobile-menu-link" @click="mobileMenuOpen = false">Policies</Link>
-                    <Link href="/contact" class="mobile-menu-link" @click="mobileMenuOpen = false">Contact</Link>
+                    <Link
+                        v-for="item in publicSectionLinks"
+                        :key="item.id"
+                        :href="sectionHref(item.id)"
+                        class="mobile-menu-link"
+                        @click="mobileMenuOpen = false"
+                    >
+                        {{ item.label }}
+                    </Link>
                 </template>
             </nav>
         </aside>
@@ -286,12 +246,13 @@ watch(mobileMenuOpen, (open) => {
         </main>
 
         <footer class="site-footer relative z-10 px-4 pb-5 sm:px-6 lg:px-10">
-            <div class="mx-auto max-w-6xl footer-shell">
+            <div class="footer-shell mx-auto max-w-6xl">
                 <div class="footer-grid">
                     <section class="footer-col footer-col-brand">
                         <p class="footer-brand">Asian College Varsity Management Information System</p>
                         <p class="footer-copy">
-                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and announcements.
+                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and
+                            announcements.
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
@@ -302,7 +263,9 @@ watch(mobileMenuOpen, (open) => {
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z" />
+                                <path
+                                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z"
+                                />
                             </svg>
                             <span>+63 000 000 0000</span>
                         </p>
@@ -318,21 +281,23 @@ watch(mobileMenuOpen, (open) => {
                     <nav class="footer-col" aria-label="Public Pages">
                         <p class="footer-heading"><span class="title-chip">Public Pages</span></p>
                         <div class="footer-link-list">
-                            <Link href="/" class="footer-link">Home</Link>
-                            <Link href="/services" class="footer-link">Services</Link>
-                            <Link href="/about" class="footer-link">About</Link>
-                            <Link href="/how-it-works" class="footer-link">How It Works</Link>
-                            <Link href="/faq" class="footer-link">FAQ</Link>
-                            <Link href="/contact" class="footer-link">Contact</Link>
+                            <Link
+                                v-for="item in publicSectionLinks.filter(({ id }) => id !== 'policies')"
+                                :key="item.id"
+                                :href="sectionHref(item.id)"
+                                class="footer-link"
+                            >
+                                {{ item.label === 'About Us' ? 'About' : item.label }}
+                            </Link>
                         </div>
                     </nav>
 
                     <nav class="footer-col" aria-label="Legal Pages">
                         <p class="footer-heading"><span class="title-chip">Legal</span></p>
                         <div class="footer-link-list">
-                            <Link href="/policies" class="footer-link">Policies</Link>
-                            <Link href="/privacy-policy" class="footer-link">Privacy Policy</Link>
-                            <Link href="/terms-of-use" class="footer-link">Terms of Use</Link>
+                            <Link href="/#policies" class="footer-link">Policies</Link>
+                            <Link href="/#privacy-policy" class="footer-link">Privacy Policy</Link>
+                            <Link href="/#terms-of-use" class="footer-link">Terms of Use</Link>
                         </div>
                     </nav>
 
@@ -350,7 +315,8 @@ watch(mobileMenuOpen, (open) => {
                             <div>
                                 <p class="footer-info-title"><span class="title-chip">Vision</span></p>
                                 <p class="footer-info-text">
-                                    To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.
+                                    To be a transformative educational institution committed to the success of its graduates through quality
+                                    instruction, relevant research, and strong community engagement.
                                 </p>
                             </div>
                             <div>
@@ -825,7 +791,9 @@ watch(mobileMenuOpen, (open) => {
     font-weight: 600;
     font-size: 0.85rem;
     text-decoration: none;
-    transition: background 150ms ease, border-color 150ms ease;
+    transition:
+        background 150ms ease,
+        border-color 150ms ease;
 }
 
 .mobile-menu-link:hover {

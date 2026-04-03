@@ -2,16 +2,35 @@
 
 namespace App\Services;
 
+use App\Mail\AnnouncementNotificationMail;
 use App\Models\Announcement;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class AnnouncementService
 {
+    /**
+     * @var array<int, string>
+     */
+    private const EMAIL_PREFERENCES = [
+        'notify_approvals',
+        'notify_schedule_changes',
+        'notify_attendance_changes',
+        'notify_wellness_alerts',
+        'notify_academic_alerts',
+        'notify_attendance_exceptions',
+        'notify_wellness_injury_threshold',
+    ];
+
     public function announce(
         int $userId,
         string $title,
         string $message,
         string $type = 'system',
-        ?int $createdBy = null
+        ?int $createdBy = null,
+        ?string $notificationPreference = null,
+        bool $sendEmail = true,
     ): void {
         $normalizedType = \App\Models\Announcement::normalizeType($type);
 
@@ -23,6 +42,17 @@ class AnnouncementService
             'published_at' => now(),
             'created_by' => $createdBy,
         ]);
+
+        if ($sendEmail) {
+            $this->sendAnnouncementEmail(
+                $userId,
+                $title,
+                $message,
+                $normalizedType,
+                $createdBy,
+                $notificationPreference
+            );
+        }
     }
 
     /**
@@ -33,7 +63,9 @@ class AnnouncementService
         string $title,
         string $message,
         string $type = 'system',
-        ?int $createdBy = null
+        ?int $createdBy = null,
+        ?string $notificationPreference = null,
+        bool $sendEmail = true,
     ): void {
         $normalizedType = \App\Models\Announcement::normalizeType($type);
         $uniqueIds = collect($userIds)
@@ -44,7 +76,78 @@ class AnnouncementService
             ->all();
 
         foreach ($uniqueIds as $userId) {
-            $this->announce($userId, $title, $message, $normalizedType, $createdBy);
+            $this->announce(
+                $userId,
+                $title,
+                $message,
+                $normalizedType,
+                $createdBy,
+                $notificationPreference,
+                $sendEmail
+            );
+        }
+    }
+
+    public function shouldSendEmailNotification(
+        User $user,
+        ?string $notificationPreference = null,
+        ?int $createdBy = null
+    ): bool {
+        if (!filter_var((string) $user->email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        if (($createdBy ?? 0) > 0 && (int) $createdBy === (int) $user->id) {
+            return false;
+        }
+
+        $settings = $user->relationLoaded('settings') ? $user->getRelation('settings') : $user->settings;
+        if ($settings && !$settings->notification_email_enabled) {
+            return false;
+        }
+
+        if (!$notificationPreference || !in_array($notificationPreference, self::EMAIL_PREFERENCES, true)) {
+            return true;
+        }
+
+        if (!$settings) {
+            return true;
+        }
+
+        return (bool) data_get($settings, $notificationPreference, true);
+    }
+
+    private function sendAnnouncementEmail(
+        int $userId,
+        string $title,
+        string $message,
+        string $type,
+        ?int $createdBy,
+        ?string $notificationPreference
+    ): void {
+        $user = User::query()
+            ->with('settings')
+            ->find($userId);
+
+        if (!$user || !$this->shouldSendEmailNotification($user, $notificationPreference, $createdBy)) {
+            return;
+        }
+
+        try {
+            Mail::to($user->email)->send(new AnnouncementNotificationMail(
+                $user,
+                $title,
+                $message,
+                Announcement::labelForType($type),
+                url('/announcements'),
+            ));
+        } catch (\Throwable $e) {
+            Log::notice('Announcement email not sent. Check mail credentials/settings.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'title' => $title,
+                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+            ]);
         }
     }
 }

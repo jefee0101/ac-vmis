@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
-import Spinner from '@/components/ui/spinner/Spinner.vue';
 import PublicLayout from '@/components/Public/PublicLayout.vue';
+import Spinner from '@/components/ui/spinner/Spinner.vue';
+import { useInertiaLoading } from '@/composables/useInertiaLoading';
+import { router, usePage } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 const email = ref('');
 const password = ref('');
 const remember = ref(false);
-const error = ref('');
+const page = usePage();
+const error = ref(String((page.props as any)?.errors?.message ?? (page.props as any)?.flash?.error ?? ''));
 const isSubmitting = ref(false);
 const showPassword = ref(false);
 const { isLoading } = useInertiaLoading();
+const flashSuccess = ref(String((page.props as any)?.flash?.success ?? ''));
 function toRegister() {
     router.visit('Register');
 }
@@ -23,21 +25,25 @@ function login() {
         return;
     }
 
-    router.post('/login', {
-        email: email.value,
-        password: password.value,
-        remember: remember.value,
-    }, {
-        onStart: () => {
-            isSubmitting.value = true;
+    router.post(
+        '/login',
+        {
+            email: email.value,
+            password: password.value,
+            remember: remember.value,
         },
-        onFinish: () => {
-            isSubmitting.value = false;
+        {
+            onStart: () => {
+                isSubmitting.value = true;
+            },
+            onFinish: () => {
+                isSubmitting.value = false;
+            },
+            onError: (e: any) => {
+                error.value = e.message || 'Login failed.';
+            },
         },
-        onError: (e: any) => {
-            error.value = e.message || 'Login failed.';
-        }
-    });
+    );
 }
 </script>
 
@@ -48,27 +54,22 @@ function login() {
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Account Access</p>
                     <h1>Welcome Back</h1>
-                    <p>
-                        Sign in to continue with schedules, attendance, wellness monitoring,
-                        academic tracking, and varsity announcements.
-                    </p>
+                    <p>Sign in to continue with schedules, attendance, wellness monitoring, academic tracking, and varsity announcements.</p>
                 </section>
 
                 <section class="public-card login-card">
                     <h2>Login</h2>
 
                     <form @submit.prevent="login" class="login-form">
+                        <div v-if="flashSuccess" class="success-text">
+                            {{ flashSuccess }}
+                        </div>
                         <div v-if="error" class="error-text">
                             {{ error }}
                         </div>
 
                         <div class="form-stack">
-                            <input
-                                v-model="email"
-                                type="email"
-                                placeholder="Email"
-                                :class="['field-input', { 'is-error': !!error }]"
-                            />
+                            <input v-model="email" type="email" placeholder="Email" :class="['field-input', { 'is-error': !!error }]" />
 
                             <div class="relative">
                                 <input
@@ -79,17 +80,33 @@ function login() {
                                 />
                                 <button
                                     type="button"
-                                    class="absolute right-3 top-1/2 -translate-y-1/2 toggle-eye"
+                                    class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
                                     :aria-label="showPassword ? 'Hide password' : 'Show password'"
                                     @click="showPassword = !showPassword"
                                 >
-                                    <svg v-if="showPassword" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <svg
+                                        v-if="showPassword"
+                                        class="h-4 w-4"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
                                         <path d="M3 3l18 18" />
                                         <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
                                         <path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c5 0 9.3 3.1 11 7-0.6 1.4-1.6 2.8-2.8 3.9" />
                                         <path d="M6.7 6.7C4.7 8.1 3.3 10 2 12c1.6 3.9 6 7 10 7 1.4 0 2.8-0.3 4.1-0.9" />
                                     </svg>
-                                    <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <svg
+                                        v-else
+                                        class="h-4 w-4"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1.8"
+                                        aria-hidden="true"
+                                    >
                                         <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
                                         <circle cx="12" cy="12" r="3" />
                                     </svg>
@@ -181,6 +198,12 @@ function login() {
     color: #ffffff;
     -webkit-text-stroke: 0.45px #dc2626;
     text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
+}
+
+.success-text {
+    margin-top: 0.65rem;
+    font-size: 0.88rem;
+    color: #d1fae5;
 }
 
 .form-stack {

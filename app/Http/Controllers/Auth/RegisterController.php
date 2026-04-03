@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Mail\AccountPendingApprovalMail;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Student;
-use App\Models\Coach;
-use App\Models\AthleteHealthClearance;
+use App\Models\Announcement;
 use App\Models\AcademicDocument;
+use App\Models\AthleteHealthClearance;
+use App\Models\Coach;
+use App\Models\Student;
+use App\Models\User;
+use App\Services\AnnouncementService;
 use App\Services\SecureUploadService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,8 +20,10 @@ use Illuminate\Support\Facades\Mail;
 
 class RegisterController extends Controller
 {
-    public function __construct(private SecureUploadService $secureUpload)
-    {
+    public function __construct(
+        private SecureUploadService $secureUpload,
+        private AnnouncementService $announcements,
+    ) {
     }
 
     public function registerStudentAthlete(Request $request)
@@ -69,6 +73,7 @@ class RegisterController extends Controller
             });
 
             $this->sendPendingApprovalMail($user);
+            $this->notifyAdminsOfPendingAccount($user);
 
             // --- Redirect on success ---
             return inertia('Status/PendingApproval', [
@@ -239,6 +244,7 @@ class RegisterController extends Controller
             });
 
             $this->sendPendingApprovalMail($user);
+            $this->notifyAdminsOfPendingAccount($user);
 
 
             // --- Redirect with success ---
@@ -252,6 +258,10 @@ class RegisterController extends Controller
 
     private function sendPendingApprovalMail(User $user): void
     {
+        if (!$this->announcements->shouldSendEmailNotification($user, 'notify_approvals')) {
+            return;
+        }
+
         try {
             Mail::to($user->email)->send(new AccountPendingApprovalMail($user));
         } catch (\Throwable $e) {
@@ -263,5 +273,29 @@ class RegisterController extends Controller
                 'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
             ]);
         }
+    }
+
+    private function notifyAdminsOfPendingAccount(User $user): void
+    {
+        $adminUserIds = User::query()
+            ->where('status', 'approved')
+            ->where('role', 'admin')
+            ->pluck('id')
+            ->all();
+
+        if (empty($adminUserIds)) {
+            return;
+        }
+
+        $roleLabel = ucwords(str_replace('-', ' ', (string) $user->role));
+
+        $this->announcements->announceMany(
+            $adminUserIds,
+            'New Pending Account',
+            "{$user->name} registered as {$roleLabel} and is waiting for approval.\nEmail: {$user->email}",
+            Announcement::TYPE_APPROVAL,
+            $user->id,
+            'notify_approvals'
+        );
     }
 }

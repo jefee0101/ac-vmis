@@ -256,7 +256,8 @@ class AcademicEligibilityController extends Controller
                 'Academic Evaluation Result',
                 $message,
                 'academic',
-                Auth::id()
+                Auth::id(),
+                'notify_academic_alerts'
             );
         }
 
@@ -282,7 +283,8 @@ class AcademicEligibilityController extends Controller
                 'Athlete Academic Evaluation',
                 "{$studentName} was evaluated as {$status} for {$periodLabel}.",
                 'academic',
-                Auth::id()
+                Auth::id(),
+                'notify_academic_alerts'
             );
         }
 

@@ -1,32 +1,26 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3'
-import { useInertiaLoading } from '@/composables/useInertiaLoading'
-import Spinner from '@/components/ui/spinner/Spinner.vue'
-import PublicLayout from '@/components/Public/PublicLayout.vue'
+import PublicLayout from '@/components/Public/PublicLayout.vue';
+import Spinner from '@/components/ui/spinner/Spinner.vue';
+import { useInertiaLoading } from '@/composables/useInertiaLoading';
+import { router } from '@inertiajs/vue3';
 
-const { isLoading } = useInertiaLoading()
+const { isLoading } = useInertiaLoading();
 function toLogin() {
-    router.visit('Login')
+    router.visit('Login');
 }
 function registerStudentAthlete() {
-    router.visit('Student-AthleteRegister')
-}
-function registerCoach() {
-    router.visit('CoachRegister')
+    router.visit('Student-AthleteRegister');
 }
 </script>
 
 <template>
-    <PublicLayout title="Register" page-title="Register" page-description="Choose your account type to get started.">
+    <PublicLayout title="Register" page-title="Register" page-description="Student-athlete registration starts here.">
         <section class="register-shell">
             <div class="register-grid">
                 <section class="public-card register-copy">
                     <p class="copy-kicker">Account Creation</p>
-                    <h1>Choose Your Account Type</h1>
-                    <p>
-                        Select the role you want to register with so AC-VMIS can route your onboarding,
-                        profile requirements, and approval workflow correctly.
-                    </p>
+                    <h1>Create Your Student-Athlete Account</h1>
+                    <p>Coach accounts are provisioned by the administration team. Public registration is available for student-athletes only.</p>
                 </section>
 
                 <section class="public-card register-card">
@@ -34,12 +28,6 @@ function registerCoach() {
                         <span class="inline-flex items-center gap-2">
                             <Spinner v-if="isLoading" class="h-4 w-4 text-[#034485]" />
                             {{ isLoading ? 'Opening...' : 'Student-Athlete' }}
-                        </span>
-                    </button>
-                    <button @click="registerCoach" class="role-btn role-btn-outline" :disabled="isLoading">
-                        <span class="inline-flex items-center gap-2">
-                            <Spinner v-if="isLoading" class="h-4 w-4 text-white" />
-                            {{ isLoading ? 'Opening...' : 'Coach' }}
                         </span>
                     </button>
                     <p class="login-note">
@@ -99,6 +87,7 @@ function registerCoach() {
 .register-card {
     display: grid;
     gap: 0.75rem;
+    align-content: start;
 }
 
 .role-btn {
@@ -113,12 +102,6 @@ function registerCoach() {
     border: 1px solid #ffffff;
     background: #ffffff;
     color: #034485;
-}
-
-.role-btn-outline {
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    background: transparent;
-    color: #ffffff;
 }
 
 .login-note {

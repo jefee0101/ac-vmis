@@ -1,101 +1,246 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Head, Link, router } from '@inertiajs/vue3'
-import { useInertiaLoading } from '@/composables/useInertiaLoading'
+import { useInertiaLoading } from '@/composables/useInertiaLoading';
+import { Head, router } from '@inertiajs/vue3';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-const currentYear = new Date().getFullYear()
-const fallbackLogo = '/images/aclogo.svg'
-const featureTitles = [
-    'Account Onboarding',
-    'Team Management',
-    'Schedule Management',
-    'QR Attendance',
-    'Wellness Monitoring',
-    'Academic Eligibility',
-    'Announcements & Alerts',
-]
-const prefersReducedMotion = ref(false)
-let motionQuery: MediaQueryList | null = null
-let revealObserver: IntersectionObserver | null = null
-const { isLoading } = useInertiaLoading()
-const mobileMenuOpen = ref(false)
+const currentYear = new Date().getFullYear();
+const fallbackLogo = '/images/aclogo.svg';
+const publicNavItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'how-it-works', label: 'How It Works' },
+    { id: 'about', label: 'About Us' },
+    { id: 'features', label: 'Features' },
+    { id: 'faq', label: 'FAQ' },
+    { id: 'policies', label: 'Policies' },
+    { id: 'contact', label: 'Contact' },
+];
+const howItWorksSteps = [
+    'Join tryouts first. Student-athletes can register only after a coach confirms they are part of the varsity roster.',
+    'Once selected, create your student-athlete account.',
+    'Submit the required documents during signup.',
+    'Wait for account approval before full access.',
+    'Use daily features for schedules, attendance, wellness, and academic updates in one place.',
+];
+const aboutHighlights = [
+    {
+        title: 'What Problem It Solves',
+        description:
+            'Varsity updates are often scattered across chats, paper logs, and separate files. AC-VMIS puts core tasks in one place so users can act faster and avoid missed updates.',
+    },
+    {
+        title: 'Who Benefits',
+        items: [
+            'Student-athletes who need one place for schedules, attendance, wellness, and academic status',
+            'Coaches who need clear team records and consistent session monitoring',
+            'School staff who need structured approval and compliance visibility',
+        ],
+    },
+    {
+        title: 'Scope Note',
+        description: 'AC-VMIS is a management and tracking system. It does not provide medical diagnosis, treatment management, or legal advice.',
+    },
+];
+const featureCards = [
+    {
+        title: 'Account Onboarding',
+        description: 'Create an account, submit required files, and wait for approval before full access.',
+    },
+    {
+        title: 'Team Management',
+        description: 'Assign players and coaches to teams so everyone is connected to the correct roster.',
+    },
+    {
+        title: 'Schedule Management',
+        description: 'Post practice and game schedules so students and coaches always see the latest plan.',
+    },
+    {
+        title: 'QR Attendance',
+        description: 'Scan QR codes to verify sessions and keep clear attendance records for each schedule.',
+    },
+    {
+        title: 'Wellness Monitoring',
+        description: 'Record post-session condition updates to monitor fatigue, injuries, and readiness.',
+    },
+    {
+        title: 'Academic Eligibility',
+        description: 'Track academic submissions and eligibility status for each student-athlete.',
+    },
+    {
+        title: 'Announcements & Alerts',
+        description: 'Send important updates to users so they do not miss schedule and status changes.',
+    },
+    {
+        title: 'Email Notifications',
+        description: 'Deliver approval and system updates through email for faster user communication.',
+    },
+    {
+        title: 'Reports & Printing',
+        description: 'Generate printable summaries for attendance, wellness, and academic monitoring.',
+    },
+];
+const faqs = [
+    {
+        question: 'How do I register as a student-athlete?',
+        answer: 'Open Register, choose Student-Athlete, fill in required details, and upload the needed files.',
+    },
+    {
+        question: 'How long does account approval take?',
+        answer: 'Approval time depends on review workload. Keep your documents complete to avoid delays.',
+    },
+    {
+        question: 'How are coach accounts created?',
+        answer: 'Coach accounts are created by administrators, then onboarding details are sent through email.',
+    },
+    {
+        question: 'Where do I check schedules and attendance?',
+        answer: 'After login, use your schedule page to view sessions and attendance status.',
+    },
+    {
+        question: 'What is Attendance Verification?',
+        answer: 'It records who attended each session and keeps attendance history per schedule.',
+    },
+    {
+        question: 'What is Wellness Monitoring used for?',
+        answer: 'It tracks post-session condition updates such as fatigue and injury observations.',
+    },
+    {
+        question: 'How does Academic Eligibility work?',
+        answer: 'Students submit academic documents per period, then reviewers post eligibility results.',
+    },
+    {
+        question: 'Where can I ask for help?',
+        answer: 'Use the contact section for official email, phone support, and office hours.',
+    },
+];
+const privacyPolicyItems = [
+    'Account and profile details',
+    'Team, schedule, and attendance records',
+    'Wellness and health clearance submissions',
+    'Academic documents and eligibility results',
+    'System announcements and notification logs',
+];
+const termsOfUseItems = [
+    'Use AC-VMIS only for valid varsity and school-related activities.',
+    'Do not upload false or misleading records.',
+    'Do not access data that is outside your role permissions.',
+    'Do not misuse personal information or uploaded files.',
+];
+const prefersReducedMotion = ref(false);
+let motionQuery: MediaQueryList | null = null;
+let revealObserver: IntersectionObserver | null = null;
+const { isLoading } = useInertiaLoading();
+const mobileMenuOpen = ref(false);
+const selectedFeatureIndex = ref(0);
+const openFaqIndex = ref<number | null>(null);
+
+function scrollToSection(id: string) {
+    const behavior: ScrollBehavior = prefersReducedMotion.value ? 'auto' : 'smooth';
+    const nextHash = id === 'home' ? '' : `#${id}`;
+
+    if (id === 'home') {
+        window.scrollTo({ top: 0, behavior });
+    } else {
+        document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' });
+    }
+
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash}`;
+    window.history.replaceState(window.history.state, '', nextUrl);
+}
+
+function handleSectionNavigation(id: string) {
+    mobileMenuOpen.value = false;
+    window.requestAnimationFrame(() => scrollToSection(id));
+}
+
+function toggleFaq(index: number) {
+    openFaqIndex.value = openFaqIndex.value === index ? null : index;
+}
+
+function syncSectionFromHash() {
+    const hash = window.location.hash.replace(/^#/, '');
+
+    if (!hash) {
+        return;
+    }
+
+    window.setTimeout(() => scrollToSection(hash), 80);
+}
 
 function toLogin() {
-    router.visit('Login')
+    router.visit('Login');
 }
 
 function toRegister() {
-    router.visit('Register')
+    router.visit('Register');
 }
 
 function onSealError(event: Event) {
-    const target = event.target as HTMLImageElement | null
+    const target = event.target as HTMLImageElement | null;
 
     if (!target || target.src.endsWith(fallbackLogo)) {
-        return
+        return;
     }
 
-    target.src = fallbackLogo
+    target.src = fallbackLogo;
 }
 
 function onMotionPreferenceChange(event: MediaQueryListEvent) {
-    prefersReducedMotion.value = event.matches
+    prefersReducedMotion.value = event.matches;
 }
 
 onMounted(() => {
-    motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    prefersReducedMotion.value = motionQuery.matches
+    motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    prefersReducedMotion.value = motionQuery.matches;
 
-    motionQuery.addEventListener('change', onMotionPreferenceChange)
+    motionQuery.addEventListener('change', onMotionPreferenceChange);
 
-    const revealTargets = document.querySelectorAll<HTMLElement>('.welcome-reveal')
+    const revealTargets = document.querySelectorAll<HTMLElement>('.welcome-reveal');
     if (!prefersReducedMotion.value && revealTargets.length) {
         revealObserver = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
-                        entry.target.classList.add('is-visible')
+                        entry.target.classList.add('is-visible');
                     }
-                })
+                });
             },
             { threshold: 0.14, rootMargin: '0px 0px -48px 0px' },
-        )
+        );
 
-        revealTargets.forEach((target) => revealObserver?.observe(target))
+        revealTargets.forEach((target) => revealObserver?.observe(target));
     } else {
-        revealTargets.forEach((target) => target.classList.add('is-visible'))
+        revealTargets.forEach((target) => target.classList.add('is-visible'));
     }
-})
+
+    syncSectionFromHash();
+    window.addEventListener('hashchange', syncSectionFromHash);
+});
 
 onBeforeUnmount(() => {
-    motionQuery?.removeEventListener('change', onMotionPreferenceChange)
-    revealObserver?.disconnect()
-    document.body.style.overflow = ''
-})
+    motionQuery?.removeEventListener('change', onMotionPreferenceChange);
+    revealObserver?.disconnect();
+    window.removeEventListener('hashchange', syncSectionFromHash);
+    document.body.style.overflow = '';
+});
 
 watch(mobileMenuOpen, (open) => {
-    document.body.style.overflow = open ? 'hidden' : ''
-})
+    document.body.style.overflow = open ? 'hidden' : '';
+});
 </script>
 
 <template>
     <Head title="Welcome" />
 
-    <div class="min-h-screen page">
+    <div class="page min-h-screen">
         <header class="site-header px-3 py-0 sm:px-4 lg:px-6">
-            <div class="mx-auto max-w-6xl nav-shell">
-                <button
-                    type="button"
-                    class="mobile-menu-toggle"
-                    aria-label="Open menu"
-                    @click="mobileMenuOpen = true"
-                >
+            <div class="nav-shell mx-auto max-w-6xl">
+                <button type="button" class="mobile-menu-toggle" aria-label="Open menu" @click="mobileMenuOpen = true">
                     <span></span>
                     <span></span>
                     <span></span>
                 </button>
 
-                <div class="flex items-center gap-3 header-actions">
+                <div class="header-actions flex items-center gap-3">
                     <button @click="toLogin" class="btn-outline" :disabled="isLoading">Login</button>
                     <button @click="toRegister" class="btn-fill" :disabled="isLoading">Register</button>
                 </div>
@@ -113,24 +258,15 @@ watch(mobileMenuOpen, (open) => {
                                    L34 18
                                    Q38 12 46 12Z"
                             />
-
                         </svg>
-                        <img
-                            src="/images/aclogo.svg"
-                            alt="Asian College Logo"
-                            class="logo-inside-triangle"
-                        />
+                        <img src="/images/aclogo.svg" alt="Asian College Logo" class="logo-inside-triangle" />
                     </div>
                 </div>
 
                 <nav class="header-links header-actions" aria-label="Public pages">
-                    <Link href="/" class="header-link">Home</Link>
-                    <Link href="/how-it-works" class="header-link">How It Works</Link>
-                    <Link href="/about" class="header-link">About Us</Link>
-                    <Link href="/services" class="header-link">Services</Link>
-                    <Link href="/faq" class="header-link">FAQ</Link>
-                    <Link href="/policies" class="header-link">Policies</Link>
-                    <Link href="/contact" class="header-link">Contact</Link>
+                    <button v-for="item in publicNavItems" :key="item.id" type="button" class="header-link" @click="handleSectionNavigation(item.id)">
+                        {{ item.label }}
+                    </button>
                 </nav>
 
                 <div class="mobile-brand">
@@ -146,22 +282,40 @@ watch(mobileMenuOpen, (open) => {
                 <button type="button" class="mobile-menu-close" @click="mobileMenuOpen = false">Close</button>
             </div>
             <div class="mobile-menu-actions">
-                <button @click="toLogin(); mobileMenuOpen = false" class="btn-outline w-full">Login</button>
-                <button @click="toRegister(); mobileMenuOpen = false" class="btn-fill w-full">Register</button>
+                <button
+                    @click="
+                        toLogin();
+                        mobileMenuOpen = false;
+                    "
+                    class="btn-outline w-full"
+                >
+                    Login
+                </button>
+                <button
+                    @click="
+                        toRegister();
+                        mobileMenuOpen = false;
+                    "
+                    class="btn-fill w-full"
+                >
+                    Register
+                </button>
             </div>
             <nav class="mobile-menu-links">
-                <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
-                <Link href="/how-it-works" class="mobile-menu-link" @click="mobileMenuOpen = false">How It Works</Link>
-                <Link href="/about" class="mobile-menu-link" @click="mobileMenuOpen = false">About Us</Link>
-                <Link href="/services" class="mobile-menu-link" @click="mobileMenuOpen = false">Services</Link>
-                <Link href="/faq" class="mobile-menu-link" @click="mobileMenuOpen = false">FAQ</Link>
-                <Link href="/policies" class="mobile-menu-link" @click="mobileMenuOpen = false">Policies</Link>
-                <Link href="/contact" class="mobile-menu-link" @click="mobileMenuOpen = false">Contact</Link>
+                <button
+                    v-for="item in publicNavItems"
+                    :key="item.id"
+                    type="button"
+                    class="mobile-menu-link"
+                    @click="handleSectionNavigation(item.id)"
+                >
+                    {{ item.label }}
+                </button>
             </nav>
         </aside>
 
         <main class="pb-10">
-            <section class="image-strip-hero" aria-label="Sports highlights">
+            <section id="home" class="image-strip-hero public-anchor-section" aria-label="Sports highlights">
                 <div class="image-strip">
                     <div class="strip-col strip-col-1" aria-hidden="true"></div>
                     <div class="strip-col strip-col-2" aria-hidden="true"></div>
@@ -175,8 +329,8 @@ watch(mobileMenuOpen, (open) => {
                         <span class="strip-kicker">Asian College Varsity Management Information System</span>
                         <h1>Manage Your Varsity Day in One Place</h1>
                         <p>
-                            AC-VMIS helps student-athletes and coaches handle daily varsity work faster. Use one system to check schedules,
-                            verify attendance, monitor wellness, submit academic requirements, and receive updates.
+                            AC-VMIS helps student-athletes and coaches handle daily varsity work faster. Use one system to check schedules, verify
+                            attendance, monitor wellness, submit academic requirements, and receive updates.
                         </p>
                         <div class="strip-version">Version 2.0</div>
                     </div>
@@ -185,15 +339,45 @@ watch(mobileMenuOpen, (open) => {
 
             <div class="hero-divider" aria-hidden="true"></div>
 
+            <section id="how-it-works" class="section-shell welcome-reveal public-anchor-section info-section how-it-works-section">
+                <div class="info-panel how-it-works-panel mx-auto max-w-6xl">
+                    <div class="info-intro how-it-works-intro">
+                        <p class="how-it-works-title-wrap">
+                            <span class="how-it-works-title">How It Works</span>
+                        </p>
+                        <h2><span class="title-chip title-chip-blue">Five simple steps from tryouts to daily varsity use.</span></h2>
+                        <p class="section-copy">AC-VMIS is designed to be easy for first-time student-athletes and coaches to follow.</p>
+                    </div>
+
+                    <div class="steps-grid how-it-works-grid">
+                        <article
+                            v-for="(step, index) in howItWorksSteps"
+                            :key="step"
+                            class="info-card step-card how-it-works-card"
+                            :style="{ transitionDelay: `${index * 90}ms` }"
+                        >
+                            <span class="step-number">{{ index + 1 }}</span>
+                            <p>{{ step }}</p>
+                        </article>
+                    </div>
+
+                    <article class="info-card info-card-wide how-it-works-summary">
+                        <h3>After Approval</h3>
+                        <p>
+                            Log in and use your role-based pages right away. Student-athletes stay linked to their coach’s roster so schedules,
+                            attendance, and wellness updates flow in one place.
+                        </p>
+                    </article>
+                </div>
+            </section>
+
             <section class="role-strip-wrap section-shell welcome-reveal">
-                <div class="mx-auto max-w-6xl role-strip">
+                <div class="role-strip mx-auto max-w-6xl">
                     <article class="role-card role-card-left">
                         <div class="role-icon student-icon" aria-hidden="true"></div>
                         <div>
                             <h3>Student-Athletes</h3>
-                            <p>
-                                Check your schedule, verify attendance, submit requirements, and track your wellness after every session.
-                            </p>
+                            <p>Check your schedule, verify attendance, submit requirements, and track your wellness after every session.</p>
                         </div>
                     </article>
                     <div class="coach-card-wrap">
@@ -201,9 +385,7 @@ watch(mobileMenuOpen, (open) => {
                             <div class="role-icon coach-icon" aria-hidden="true"></div>
                             <div>
                                 <h3>Coaches</h3>
-                                <p>
-                                    Manage team schedules, verify attendance, monitor player condition, and review athlete compliance status.
-                                </p>
+                                <p>Manage team schedules, verify attendance, monitor player condition, and review athlete compliance status.</p>
                             </div>
                         </article>
                     </div>
@@ -211,13 +393,13 @@ watch(mobileMenuOpen, (open) => {
             </section>
 
             <section class="mobile-first-wrap section-shell welcome-reveal">
-                <div class="mx-auto max-w-6xl mobile-first">
+                <div class="mobile-first mx-auto max-w-6xl">
                     <p class="mobile-first-kicker"><span class="title-chip">Mobile-First Experience</span></p>
                     <h2><span class="title-chip title-chip-blue">Built for quick use on your phone during training days.</span></h2>
                     <div class="mobile-first-media" aria-hidden="true"></div>
                     <p>
-                        Open AC-VMIS from your mobile browser to view sessions, verify attendance, and log wellness right after practice or games.
-                        The same flow also works on tablet and desktop.
+                        Open AC-VMIS from your mobile browser to view sessions, verify attendance, and log wellness right after practice or games. The
+                        same flow also works on tablet and desktop.
                     </p>
                 </div>
             </section>
@@ -225,7 +407,7 @@ watch(mobileMenuOpen, (open) => {
             <div class="full-divider mobile-divider" aria-hidden="true"></div>
 
             <section class="pathway-wrap section-shell welcome-reveal">
-                <div class="mx-auto max-w-6xl pathway-grid">
+                <div class="pathway-grid mx-auto max-w-6xl">
                     <div class="departments-showcase">
                         <p class="pathway-kicker"><span class="title-chip">Department Pathway</span></p>
                         <h2><span class="title-chip">From Senior High to College, managed in one unified varsity platform.</span></h2>
@@ -240,7 +422,12 @@ watch(mobileMenuOpen, (open) => {
                                 <div class="dept-tooltip">College of Business Administration</div>
                             </div>
                             <div class="dept-item" role="listitem" tabindex="0">
-                                <img src="/images/cs.png" alt="College of Computer Studies and Engineering Seal" class="dept-logo" @error="onSealError" />
+                                <img
+                                    src="/images/cs.png"
+                                    alt="College of Computer Studies and Engineering Seal"
+                                    class="dept-logo"
+                                    @error="onSealError"
+                                />
                                 <div class="dept-tooltip">College of Computer Studies and Engineering</div>
                             </div>
                             <div class="dept-item" role="listitem" tabindex="0">
@@ -254,17 +441,17 @@ watch(mobileMenuOpen, (open) => {
                         </div>
 
                         <p class="departments-desc">
-                            Students from Senior High to College use the same platform, so schedules, attendance, wellness, and academic status
-                            stay clear and updated in one place.
+                            Students from Senior High to College use the same platform, so schedules, attendance, wellness, and academic status stay
+                            clear and updated in one place.
                         </p>
                     </div>
                 </div>
 
-                <div class="mx-auto max-w-6xl pathway-footer">
+                <div class="pathway-footer mx-auto max-w-6xl">
                     <div class="pathway-footer-inner">
                         <div class="pathway-divider" aria-hidden="true"></div>
                         <div class="pathway-note">
-                        <h3><span class="title-chip title-chip-blue">Eligibility Checklist</span></h3>
+                            <h3><span class="title-chip title-chip-blue">Eligibility Checklist</span></h3>
                             <div class="eligibility-media" aria-hidden="true"></div>
                             <p>Required docs, grades, and attendance thresholds—tracked in one place.</p>
                         </div>
@@ -272,27 +459,185 @@ watch(mobileMenuOpen, (open) => {
                 </div>
             </section>
 
-            <section class="features-wrap welcome-reveal">
-                <div class="mx-auto max-w-6xl section-shell features-minimal">
+            <section id="features" class="features-wrap welcome-reveal public-anchor-section">
+                <div class="section-shell features-minimal mx-auto max-w-6xl">
                     <p class="features-kicker"><span class="title-chip">Core Features</span></p>
-                    <h2><span class="title-chip">Everything you need to run varsity operations.</span></h2>
+                    <h2><span class="title-chip">Daily varsity tools built for speed, visibility, and fewer missed updates.</span></h2>
+                    <p class="features-copy">
+                        Each feature is designed to help student-athletes and coaches complete daily varsity tasks faster without jumping between
+                        scattered tools.
+                    </p>
 
-                    <div class="feature-list" role="list">
-                        <div v-for="(title, idx) in featureTitles" :key="title" class="feature-item" role="listitem">
-                            <span class="feature-chip">{{ idx + 1 }}</span>
-                            <span class="feature-text">{{ title }}</span>
+                    <div class="features-interactive-shell">
+                        <div class="feature-title-list" role="tablist" aria-label="Core features">
+                            <button
+                                v-for="(feature, index) in featureCards"
+                                :key="feature.title"
+                                type="button"
+                                class="feature-title-button"
+                                :class="{ 'is-active': selectedFeatureIndex === index }"
+                                :aria-selected="selectedFeatureIndex === index"
+                                :tabindex="selectedFeatureIndex === index ? 0 : -1"
+                                @click="selectedFeatureIndex = index"
+                            >
+                                <span class="feature-title-index">{{ String(index + 1).padStart(2, '0') }}</span>
+                                <span class="feature-title-text">{{ feature.title }}</span>
+                            </button>
+                        </div>
+
+                        <div class="feature-detail-stage">
+                            <Transition name="feature-detail" mode="out-in">
+                                <article
+                                    :key="featureCards[selectedFeatureIndex].title"
+                                    class="feature-detail-card"
+                                    role="tabpanel"
+                                    :aria-label="featureCards[selectedFeatureIndex].title"
+                                >
+                                    <p class="feature-detail-kicker">Selected Feature</p>
+                                    <h3>{{ featureCards[selectedFeatureIndex].title }}</h3>
+                                    <p>{{ featureCards[selectedFeatureIndex].description }}</p>
+                                </article>
+                            </Transition>
                         </div>
                     </div>
                 </div>
             </section>
 
+            <section id="about" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="about-section mx-auto max-w-6xl">
+                    <div class="about-hero">
+                        <div class="about-intro">
+                            <p class="section-kicker"><span class="title-chip">About AC-VMIS</span></p>
+                            <h2>
+                                <span class="title-chip title-chip-blue">A cleaner way to manage varsity work across teams and departments.</span>
+                            </h2>
+                            <p class="section-copy">
+                                AC-VMIS keeps varsity work simple, organized, and easy to follow for student-athletes, coaches, and school staff.
+                            </p>
+                        </div>
+
+                        <div class="about-spotlight">
+                            <p class="about-spotlight-label">Built For Everyday Use</p>
+                            <p class="about-spotlight-copy">
+                                One connected space for schedules, attendance, wellness, academic monitoring, and team coordination.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="about-grid">
+                        <article
+                            v-for="(item, index) in aboutHighlights"
+                            :key="item.title"
+                            class="about-card"
+                            :style="{ transitionDelay: `${index * 100}ms` }"
+                        >
+                            <p class="about-card-eyebrow">0{{ index + 1 }}</p>
+                            <h3>{{ item.title }}</h3>
+                            <p v-if="item.description">{{ item.description }}</p>
+                            <ul v-else class="about-list">
+                                <li v-for="entry in item.items" :key="entry">{{ entry }}</li>
+                            </ul>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section id="faq" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="faq-section mx-auto max-w-4xl">
+                    <div class="info-intro faq-intro">
+                        <p class="section-kicker"><span class="title-chip">FAQ</span></p>
+                        <h2><span class="title-chip title-chip-blue">Quick answers for first-time student-athletes and coaches.</span></h2>
+                    </div>
+
+                    <div class="faq-accordion">
+                        <article v-for="(item, index) in faqs" :key="item.question" class="faq-item" :class="{ 'is-open': openFaqIndex === index }">
+                            <button type="button" class="faq-trigger" :aria-expanded="openFaqIndex === index" @click="toggleFaq(index)">
+                                <span class="faq-question">{{ item.question }}</span>
+                                <span class="faq-chevron" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
+                                </span>
+                            </button>
+
+                            <div class="faq-answer-shell">
+                                <div class="faq-answer-body">
+                                    <p>{{ item.answer }}</p>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section id="policies" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="info-panel mx-auto max-w-6xl">
+                    <div class="info-intro">
+                        <p class="section-kicker"><span class="title-chip">Policies</span></p>
+                        <h2><span class="title-chip title-chip-blue">Privacy, acceptable use, and user responsibility in one place.</span></h2>
+                        <p class="section-copy">
+                            These policy notes explain what data is collected, why it is used, and what users are expected to follow.
+                        </p>
+                    </div>
+
+                    <div class="info-grid info-grid-2">
+                        <article id="privacy-policy" class="info-card public-anchor-section">
+                            <h3>Privacy Policy</h3>
+                            <p>How AC-VMIS collects, uses, and protects user data.</p>
+                            <ul class="info-list">
+                                <li v-for="item in privacyPolicyItems" :key="item">{{ item }}</li>
+                            </ul>
+                            <p>
+                                Access is limited by role and login permissions. The institution should maintain secure storage, backups, and proper
+                                account control.
+                            </p>
+                        </article>
+
+                        <article id="terms-of-use" class="info-card public-anchor-section">
+                            <h3>Terms of Use</h3>
+                            <p>User responsibilities and acceptable use of AC-VMIS.</p>
+                            <ul class="info-list">
+                                <li v-for="item in termsOfUseItems" :key="item">{{ item }}</li>
+                            </ul>
+                            <p>Accounts may be restricted, rejected, or suspended when policies or security rules are violated.</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section id="contact" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="info-panel mx-auto max-w-6xl">
+                    <div class="info-intro">
+                        <p class="section-kicker"><span class="title-chip">Contact</span></p>
+                        <h2><span class="title-chip title-chip-blue">Official support channels for account and system concerns.</span></h2>
+                    </div>
+
+                    <div class="info-grid info-grid-2">
+                        <article class="info-card">
+                            <h3>Contact and Support</h3>
+                            <p><strong>Official Email:</strong> varsity.support@asiancollege.edu.ph</p>
+                            <p><strong>Office Contact:</strong> +63 000 000 0000</p>
+                            <p><strong>Office:</strong> Student Affairs and Sports Development</p>
+                            <p>For faster support, include your full name, role, and the issue you are reporting.</p>
+                        </article>
+
+                        <article class="info-card">
+                            <h3>Socials</h3>
+                            <p><strong>Facebook:</strong> @AsianCollegeVarsity</p>
+                            <p><strong>Instagram:</strong> @asiancollege.varsity</p>
+                            <p><strong>YouTube:</strong> Asian College Varsity</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
             <section class="register-cta-wrap section-shell welcome-reveal">
-                <div class="mx-auto max-w-6xl register-cta">
+                <div class="register-cta mx-auto max-w-6xl">
                     <p class="cta-kicker"><span class="title-chip">Ready To Start?</span></p>
                     <h2><span class="title-chip title-chip-blue">Create your account and start using AC-VMIS today.</span></h2>
                     <p>
-                        Register as a student-athlete or coach, submit your required documents, then wait for approval.
-                        Once approved, log in and use your daily varsity tools.
+                        Register as a student-athlete, submit your required documents, then wait for approval. Coach accounts are provisioned by
+                        administrators.
                     </p>
 
                     <div class="cta-actions">
@@ -303,13 +648,14 @@ watch(mobileMenuOpen, (open) => {
             </section>
         </main>
 
-        <footer class="site-footer relative z-10 section-shell">
-            <div class="mx-auto max-w-6xl footer-shell">
+        <footer class="site-footer section-shell relative z-10">
+            <div class="footer-shell mx-auto max-w-6xl">
                 <div class="footer-grid">
                     <section class="footer-col footer-col-brand">
                         <p class="footer-brand">Asian College Varsity Management Information System</p>
                         <p class="footer-copy">
-                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and announcements.
+                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and
+                            announcements.
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
@@ -320,7 +666,9 @@ watch(mobileMenuOpen, (open) => {
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
-                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z" />
+                                <path
+                                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z"
+                                />
                             </svg>
                             <span>+63 000 000 0000</span>
                         </p>
@@ -336,21 +684,28 @@ watch(mobileMenuOpen, (open) => {
                     <nav class="footer-col" aria-label="Public Pages">
                         <p class="footer-heading"><span class="title-chip">Public Pages</span></p>
                         <div class="footer-link-list">
-                            <Link href="/" class="footer-link">Home</Link>
-                            <Link href="/services" class="footer-link">Services</Link>
-                            <Link href="/about" class="footer-link">About</Link>
-                            <Link href="/how-it-works" class="footer-link">How It Works</Link>
-                            <Link href="/faq" class="footer-link">FAQ</Link>
-                            <Link href="/contact" class="footer-link">Contact</Link>
+                            <button
+                                v-for="item in publicNavItems.filter(({ id }) => id !== 'policies')"
+                                :key="item.id"
+                                type="button"
+                                class="footer-link footer-link-btn"
+                                @click="handleSectionNavigation(item.id)"
+                            >
+                                {{ item.label === 'About Us' ? 'About' : item.label }}
+                            </button>
                         </div>
                     </nav>
 
                     <nav class="footer-col" aria-label="Legal Pages">
                         <p class="footer-heading"><span class="title-chip">Legal</span></p>
                         <div class="footer-link-list">
-                            <Link href="/policies" class="footer-link">Policies</Link>
-                            <Link href="/privacy-policy" class="footer-link">Privacy Policy</Link>
-                            <Link href="/terms-of-use" class="footer-link">Terms of Use</Link>
+                            <button type="button" class="footer-link footer-link-btn" @click="handleSectionNavigation('policies')">Policies</button>
+                            <button type="button" class="footer-link footer-link-btn" @click="handleSectionNavigation('privacy-policy')">
+                                Privacy Policy
+                            </button>
+                            <button type="button" class="footer-link footer-link-btn" @click="handleSectionNavigation('terms-of-use')">
+                                Terms of Use
+                            </button>
                         </div>
                     </nav>
 
@@ -368,7 +723,8 @@ watch(mobileMenuOpen, (open) => {
                             <div>
                                 <p class="footer-info-title"><span class="title-chip">Vision</span></p>
                                 <p class="footer-info-text">
-                                    To be a transformative educational institution committed to the success of its graduates through quality instruction, relevant research, and strong community engagement.
+                                    To be a transformative educational institution committed to the success of its graduates through quality
+                                    instruction, relevant research, and strong community engagement.
                                 </p>
                             </div>
                             <div>
@@ -480,12 +836,18 @@ watch(mobileMenuOpen, (open) => {
 .welcome-reveal {
     opacity: 0;
     transform: translateY(14px);
-    transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1), transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition:
+        opacity 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .welcome-reveal.is-visible {
     opacity: 1;
     transform: translateY(0);
+}
+
+.public-anchor-section {
+    scroll-margin-top: 6.5rem;
 }
 
 .section-shell {
@@ -623,6 +985,7 @@ watch(mobileMenuOpen, (open) => {
     border-radius: 999px;
     background: var(--brand-blue);
     white-space: nowrap;
+    cursor: pointer;
 }
 
 .header-link:hover {
@@ -691,6 +1054,8 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .mobile-menu-link {
+    display: block;
+    width: 100%;
     padding: 0.6rem 0.75rem;
     border-radius: 999px;
     border: 1px solid var(--brand-line-soft);
@@ -698,14 +1063,17 @@ watch(mobileMenuOpen, (open) => {
     font-weight: 600;
     font-size: 0.85rem;
     text-decoration: none;
-    transition: background 150ms ease, border-color 150ms ease;
+    text-align: left;
+    background: #ffffff;
+    transition:
+        background 150ms ease,
+        border-color 150ms ease;
 }
 
 .mobile-menu-link:hover {
     background: rgba(3, 68, 133, 0.08);
     border-color: var(--brand-blue);
 }
-
 
 .btn-fill,
 .btn-outline {
@@ -895,9 +1263,6 @@ watch(mobileMenuOpen, (open) => {
     color: #ffffff;
 }
 
-
-
-
 .role-strip-wrap {
     margin-top: 1rem;
     min-height: auto;
@@ -930,7 +1295,9 @@ watch(mobileMenuOpen, (open) => {
     border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 18px;
     box-shadow: 0 14px 26px -20px rgba(3, 20, 40, 0.6);
-    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition:
+        transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
     flex: 1;
     max-width: 520px;
 }
@@ -966,7 +1333,7 @@ watch(mobileMenuOpen, (open) => {
 .student-icon::before {
     width: 14px;
     height: 14px;
-    border:  1px solid rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 999px;
     top: 6px;
     left: 11px;
@@ -1058,7 +1425,6 @@ watch(mobileMenuOpen, (open) => {
     aspect-ratio: 1 / 1;
 }
 
-
 .full-divider {
     width: 100%;
     height: 2px;
@@ -1134,14 +1500,17 @@ watch(mobileMenuOpen, (open) => {
     width: 104px;
     height: 104px;
     border-radius: 999px;
-    border:  1px solid var(--brand-line);
+    border: 1px solid var(--brand-line);
     background: var(--page-surface);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0.35rem;
     box-shadow: 0 10px 20px var(--page-card-shadow);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease,
+        border-color 0.18s ease;
     cursor: default;
 }
 
@@ -1178,7 +1547,9 @@ watch(mobileMenuOpen, (open) => {
     overflow-wrap: anywhere;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.16s ease, transform 0.16s ease;
+    transition:
+        opacity 0.16s ease,
+        transform 0.16s ease;
     box-shadow: 0 10px 18px var(--page-card-shadow-strong);
     z-index: 5;
 }
@@ -1271,7 +1642,8 @@ watch(mobileMenuOpen, (open) => {
 
 .features-minimal {
     display: grid;
-    gap: 1.5rem;
+    gap: 1rem;
+    max-width: 62rem;
 }
 
 .features-kicker {
@@ -1290,40 +1662,727 @@ watch(mobileMenuOpen, (open) => {
     color: #ffffff;
 }
 
-.feature-list {
+.features-copy {
+    margin: -0.2rem 0 0;
+    max-width: 48rem;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.94rem;
+    line-height: 1.6;
+}
+
+.features-interactive-shell {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.85rem 1.2rem;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: stretch;
 }
 
-.feature-item {
-    display: flex;
+.feature-title-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.feature-title-button {
+    display: grid;
+    grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.9rem 1rem;
-    border-radius: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.78rem 0.9rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms ease,
+        background 220ms ease,
+        box-shadow 220ms ease;
 }
 
-.feature-chip {
-    width: 32px;
-    height: 32px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
+.feature-title-button:hover,
+.feature-title-button:focus-visible {
+    transform: translateX(3px);
+    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 20px 38px -34px rgba(3, 20, 40, 0.78);
+    outline: none;
+}
+
+.feature-title-button.is-active {
+    border-color: rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 24px 42px -34px rgba(3, 20, 40, 0.82);
+}
+
+.feature-title-index {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    min-width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.72rem;
     font-weight: 700;
-    font-size: 0.9rem;
-    color: #ffffff;
-    flex-shrink: 0;
+    letter-spacing: 0.08em;
 }
 
-.feature-text {
-    font-size: clamp(0.92rem, 1.6vw, 1rem);
-    font-weight: 600;
+.feature-title-button.is-active .feature-title-index {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.5);
     color: #ffffff;
+}
+
+.feature-title-text {
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.feature-detail-stage {
+    position: relative;
+    min-height: 100%;
+}
+
+.feature-detail-card {
+    display: grid;
+    align-content: center;
+    gap: 0.75rem;
+    min-height: 100%;
+    padding: clamp(1.1rem, 2.8vw, 1.7rem);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background:
+        radial-gradient(circle at top right, rgba(147, 197, 253, 0.24), transparent 35%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.08));
+    box-shadow: 0 30px 62px -42px rgba(3, 20, 40, 0.8);
+    backdrop-filter: blur(8px);
+}
+
+.feature-detail-kicker {
+    margin: 0;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.feature-detail-card h3 {
+    margin: 0;
+    font-size: clamp(1.2rem, 2.4vw, 1.75rem);
+    line-height: 1.1;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.feature-detail-card p:last-child {
+    margin: 0;
+    max-width: 32rem;
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: rgba(255, 255, 255, 0.84);
+}
+
+.feature-detail-enter-active,
+.feature-detail-leave-active {
+    transition:
+        opacity 240ms ease,
+        transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.feature-detail-enter-from {
+    opacity: 0;
+    transform: translateY(18px);
+}
+
+.feature-detail-leave-to {
+    opacity: 0;
+    transform: translateY(-14px);
+}
+
+.about-section {
+    display: grid;
+    gap: 1.15rem;
+}
+
+.about-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.8fr);
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.about-intro {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.about-spotlight {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    align-content: end;
+    gap: 0.7rem;
+    min-height: 100%;
+    padding: 1.25rem 1.2rem;
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(147, 197, 253, 0.34), transparent 38%),
+        linear-gradient(135deg, rgba(3, 68, 133, 0.98), rgba(27, 110, 194, 0.92));
+    box-shadow: 0 28px 54px -40px rgba(3, 20, 40, 0.8);
+    color: #ffffff;
+}
+
+.about-spotlight::before {
+    content: '';
+    position: absolute;
+    inset: auto -18% -42% auto;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    filter: blur(4px);
+}
+
+.about-spotlight-label,
+.about-spotlight-copy {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+}
+
+.about-spotlight-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.about-spotlight-copy {
+    font-size: 1rem;
+    line-height: 1.75;
+    font-weight: 600;
+}
+
+.info-section {
+    padding-top: clamp(1.5rem, 4vw, 2.6rem);
+}
+
+.how-it-works-section {
+    padding-top: clamp(1.8rem, 4.8vw, 3rem);
+}
+
+.info-panel {
+    display: grid;
+    gap: 1.2rem;
+}
+
+.how-it-works-panel {
+    justify-items: center;
+    gap: 1.5rem;
+}
+
+.info-intro {
+    display: grid;
+    gap: 0.45rem;
+    max-width: 72ch;
+}
+
+.how-it-works-intro {
+    text-align: center;
+    max-width: 56rem;
+}
+
+.how-it-works-title-wrap {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.how-it-works-title {
+    display: inline-block;
+    font-size: clamp(2.8rem, 10vw, 6.2rem);
+    line-height: 0.95;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    text-transform: uppercase;
+    color: var(--brand-blue);
+    text-shadow:
+        0 10px 24px rgba(147, 197, 253, 0.4),
+        0 20px 44px rgba(3, 68, 133, 0.18);
+    transform: translateY(18px) scale(0.94);
+    opacity: 0;
+}
+
+.how-it-works-section.is-visible .how-it-works-title {
+    animation: howItWorksTitleReveal 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.how-it-works-title::after {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 0.38rem;
+    margin-top: 0.45rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(3, 68, 133, 0.12), rgba(3, 68, 133, 0.95), rgba(147, 197, 253, 0.65));
+    transform-origin: center;
+    transform: scaleX(0.12);
+    opacity: 0;
+    animation: howItWorksUnderline 900ms cubic-bezier(0.22, 1, 0.36, 1) 180ms forwards;
+}
+
+.section-kicker {
+    margin: 0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--page-text-muted);
+    font-weight: 700;
+}
+
+.info-intro h2 {
+    margin: 0;
+    font-size: var(--title-lg);
+    line-height: 1.25;
+    color: var(--page-text);
+    font-weight: 800;
+}
+
+.section-copy {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: var(--body-md);
+}
+
+.info-grid,
+.steps-grid {
+    display: grid;
+    gap: 1rem;
+}
+
+.info-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.info-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.about-card {
+    position: relative;
+    display: grid;
+    gap: 0.8rem;
+    min-height: 100%;
+    padding: 1.2rem 1.15rem;
+    border-radius: 22px;
+    border: 1px solid rgba(3, 68, 133, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(244, 249, 255, 0.98)), var(--page-surface);
+    box-shadow: 0 24px 46px -38px rgba(3, 68, 133, 0.34);
+    transition:
+        transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease,
+        opacity 420ms ease;
+}
+
+.about-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(3, 68, 133, 0.28);
+    box-shadow: 0 30px 54px -38px rgba(3, 68, 133, 0.42);
+}
+
+.about-card-eyebrow {
+    margin: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brand-blue);
+}
+
+.about-card h3 {
+    margin: 0;
+    font-size: 1.06rem;
+    line-height: 1.28;
+    color: var(--page-text);
+    font-weight: 800;
+}
+
+.about-card p {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: 0.97rem;
+    line-height: 1.72;
+}
+
+.about-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.7rem;
+}
+
+.about-list li {
+    position: relative;
+    padding-left: 1.3rem;
+    color: var(--page-text-muted);
+    line-height: 1.6;
+}
+
+.about-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.52rem;
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--brand-blue), var(--page-accent-soft));
+    box-shadow: 0 0 0 6px rgba(147, 197, 253, 0.18);
+}
+
+.about-section.welcome-reveal .about-spotlight,
+.about-section.welcome-reveal .about-card {
+    opacity: 0;
+    transform: translateY(18px);
+}
+
+.about-section.is-visible .about-spotlight,
+.about-section.is-visible .about-card {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.about-section.is-visible .about-spotlight {
+    transition:
+        opacity 480ms ease,
+        transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.about-section.is-visible .about-card {
+    transition:
+        opacity 520ms ease,
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease;
+}
+
+.faq-section {
+    display: grid;
+    gap: 1rem;
+}
+
+.faq-intro {
+    justify-items: center;
+    text-align: center;
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+.faq-accordion {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.faq-item {
+    border-radius: 22px;
+    border: 1px solid rgba(3, 68, 133, 0.14);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.98));
+    box-shadow: 0 18px 40px -34px rgba(3, 68, 133, 0.28);
+    overflow: hidden;
+    transition:
+        border-color 220ms ease,
+        box-shadow 220ms ease,
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-item:hover {
+    transform: translateY(-2px);
+    border-color: rgba(3, 68, 133, 0.24);
+    box-shadow: 0 24px 44px -34px rgba(3, 68, 133, 0.34);
+}
+
+.faq-item.is-open {
+    border-color: rgba(3, 68, 133, 0.32);
+    box-shadow: 0 28px 48px -34px rgba(3, 68, 133, 0.38);
+}
+
+.faq-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 200ms ease;
+}
+
+.faq-trigger:hover,
+.faq-trigger:focus-visible {
+    background: rgba(147, 197, 253, 0.12);
+    outline: none;
+}
+
+.faq-item.is-open .faq-trigger {
+    background: rgba(147, 197, 253, 0.14);
+}
+
+.faq-question {
+    font-size: 1rem;
+    line-height: 1.45;
+    font-weight: 700;
+    color: var(--page-text);
+}
+
+.faq-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.2rem;
+    height: 2.2rem;
+    flex-shrink: 0;
+    border-radius: 999px;
+    color: var(--brand-blue);
+    background: rgba(3, 68, 133, 0.08);
+    transition:
+        transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+        background 200ms ease,
+        color 200ms ease;
+}
+
+.faq-chevron svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.faq-item.is-open .faq-chevron {
+    transform: rotate(180deg);
+    background: rgba(3, 68, 133, 0.16);
+    color: var(--page-accent-strong);
+}
+
+.faq-answer-shell {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-item.is-open .faq-answer-shell {
+    grid-template-rows: 1fr;
+}
+
+.faq-answer-body {
+    overflow: hidden;
+}
+
+.faq-answer-body p {
+    margin: 0;
+    padding: 0 1.1rem 1rem;
+    color: var(--page-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition:
+        opacity 220ms ease,
+        transform 220ms ease;
+}
+
+.faq-item.is-open .faq-answer-body p {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.steps-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.how-it-works-grid {
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 300px));
+    justify-content: center;
+    gap: 1.2rem;
+}
+
+.info-card {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1.15rem 1.1rem;
+    border-radius: 18px;
+    border: 1px solid var(--brand-line);
+    background: var(--page-surface);
+    box-shadow: 0 12px 24px -22px var(--page-card-shadow-strong);
+}
+
+.info-card h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--page-text);
+    font-weight: 700;
+}
+
+.info-card p {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: 0.95rem;
+}
+
+.info-card-wide {
+    max-width: 860px;
+}
+
+.step-card {
+    position: relative;
+    padding-top: 1.45rem;
+}
+
+.how-it-works-card {
+    justify-items: center;
+    align-content: start;
+    min-height: 18rem;
+    padding: 1.75rem 1.35rem 1.45rem;
+    text-align: center;
+    border-color: rgba(3, 68, 133, 0.22);
+    background:
+        radial-gradient(circle at top, rgba(147, 197, 253, 0.28), transparent 52%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(236, 246, 255, 0.94));
+    box-shadow: 0 26px 54px -36px rgba(3, 68, 133, 0.4);
+    transform: translateY(0) scale(1);
+    transition:
+        transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 240ms ease,
+        background 240ms ease;
+}
+
+.how-it-works-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(3, 68, 133, 0.46);
+    box-shadow: 0 34px 70px -40px rgba(3, 68, 133, 0.5);
+}
+
+.how-it-works-card p {
+    font-size: 1.02rem;
+    line-height: 1.7;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: var(--brand-blue);
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 800;
+    width: 3.4rem;
+    height: 3.4rem;
+    box-shadow: 0 16px 34px -20px rgba(3, 68, 133, 0.7);
+}
+
+.how-it-works-summary {
+    width: min(100%, 56rem);
+    text-align: center;
+    justify-items: center;
+    padding: 1.5rem 1.4rem;
+    background: linear-gradient(135deg, rgba(3, 68, 133, 0.98), rgba(27, 110, 194, 0.92));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 24px 54px -38px rgba(3, 20, 40, 0.75);
+    transition:
+        transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.how-it-works-summary:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 30px 64px -40px rgba(3, 20, 40, 0.85);
+}
+
+.how-it-works-summary h3,
+.how-it-works-summary p {
+    color: #ffffff;
+}
+
+.how-it-works-section.welcome-reveal {
+    transition:
+        opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.how-it-works-section .how-it-works-card,
+.how-it-works-section .how-it-works-summary {
+    opacity: 0;
+    transform: translateY(28px);
+}
+
+.how-it-works-section.is-visible .how-it-works-card,
+.how-it-works-section.is-visible .how-it-works-summary {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.how-it-works-section.is-visible .how-it-works-summary {
+    transition-delay: 520ms;
+}
+
+@keyframes howItWorksTitleReveal {
+    0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.94);
+        letter-spacing: -0.08em;
+    }
+
+    65% {
+        opacity: 1;
+        transform: translateY(-4px) scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        letter-spacing: -0.05em;
+    }
+}
+
+@keyframes howItWorksUnderline {
+    0% {
+        opacity: 0;
+        transform: scaleX(0.12);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scaleX(1);
+    }
+}
+
+.info-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    color: var(--page-text-muted);
+    display: grid;
+    gap: 0.4rem;
 }
 
 .register-cta-wrap {
@@ -1596,6 +2655,19 @@ watch(mobileMenuOpen, (open) => {
     .footer-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .info-grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .features-interactive-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .about-hero,
+    .about-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1663,6 +2735,33 @@ watch(mobileMenuOpen, (open) => {
     .strip-version {
         font-size: 0.7rem;
     }
+
+    .info-grid-2,
+    .info-grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-title-button {
+        padding: 0.9rem 0.95rem;
+    }
+
+    .feature-detail-card {
+        padding: 1.25rem 1.05rem;
+    }
+
+    .about-spotlight,
+    .about-card {
+        padding: 1.05rem 1rem;
+        border-radius: 18px;
+    }
+
+    .faq-trigger {
+        padding: 0.92rem 0.95rem;
+    }
+
+    .faq-answer-body p {
+        padding: 0 0.95rem 0.95rem;
+    }
 }
 
 @media (min-width: 900px) {
@@ -1724,7 +2823,7 @@ watch(mobileMenuOpen, (open) => {
         width: 42px;
         height: 42px;
         padding: 4px;
-        }
+    }
 
     .dept-item {
         width: 88px;

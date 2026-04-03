@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
+use App\Services\AnnouncementService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,8 +22,10 @@ use Inertia\Inertia;
 
 class CreateTeamController extends Controller
 {
-    public function __construct(private SecureUploadService $secureUpload)
-    {
+    public function __construct(
+        private SecureUploadService $secureUpload,
+        private AnnouncementService $announcements,
+    ) {
     }
 
     public function create()
@@ -607,7 +610,8 @@ class CreateTeamController extends Controller
         $this->createAnnouncement(
             (int) $userId,
             'Team Assignment',
-            "You were assigned as {$roleLabel} for team {$this->teamLabel($team)}."
+            "You were assigned as {$roleLabel} for team {$this->teamLabel($team)}.",
+            'notify_schedule_changes'
         );
     }
 
@@ -625,7 +629,8 @@ class CreateTeamController extends Controller
         $this->createAnnouncement(
             (int) $userId,
             'Team Assignment Updated',
-            "You were removed as {$roleLabel} from team {$this->teamLabel($team)}."
+            "You were removed as {$roleLabel} from team {$this->teamLabel($team)}.",
+            'notify_schedule_changes'
         );
     }
 
@@ -640,7 +645,8 @@ class CreateTeamController extends Controller
             $this->createAnnouncement(
                 (int) $userId,
                 'Team Assignment',
-                "You were added to team {$this->teamLabel($team)}."
+                "You were added to team {$this->teamLabel($team)}.",
+                'notify_attendance_exceptions'
             );
         }
 
@@ -656,7 +662,8 @@ class CreateTeamController extends Controller
                 $this->createAnnouncement(
                     (int) $coachUserId,
                     'Roster Updated',
-                    "{$count} {$label} were added to {$this->teamLabel($team)}."
+                    "{$count} {$label} were added to {$this->teamLabel($team)}.",
+                    'notify_attendance_exceptions'
                 );
             }
         }
@@ -673,7 +680,8 @@ class CreateTeamController extends Controller
             $this->createAnnouncement(
                 (int) $userId,
                 'Team Assignment Updated',
-                "You were removed from team {$this->teamLabel($team)}."
+                "You were removed from team {$this->teamLabel($team)}.",
+                'notify_attendance_exceptions'
             );
         }
 
@@ -689,22 +697,28 @@ class CreateTeamController extends Controller
                 $this->createAnnouncement(
                     (int) $coachUserId,
                     'Roster Updated',
-                    "{$count} {$label} were removed from {$this->teamLabel($team)}."
+                    "{$count} {$label} were removed from {$this->teamLabel($team)}.",
+                    'notify_attendance_exceptions'
                 );
             }
         }
     }
 
-    private function createAnnouncement(int $userId, string $title, string $message): void
+    private function createAnnouncement(
+        int $userId,
+        string $title,
+        string $message,
+        ?string $notificationPreference = null
+    ): void
     {
-        Announcement::create([
-            'user_id' => $userId,
-            'title' => $title,
-            'message' => $message,
-            'type' => 'system',
-            'published_at' => now(),
-            'created_by' => auth()->id(),
-        ]);
+        $this->announcements->announce(
+            $userId,
+            $title,
+            $message,
+            'system',
+            auth()->id(),
+            $notificationPreference
+        );
     }
 
     private function teamLabel(Team $team): string

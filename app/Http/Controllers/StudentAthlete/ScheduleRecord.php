@@ -269,7 +269,8 @@ class ScheduleRecord extends Controller
                     Carbon::parse($schedule->start_time)->format('M j')
                 ),
                 'schedule',
-                Auth::id()
+                Auth::id(),
+                'notify_attendance_changes'
             );
         }
 

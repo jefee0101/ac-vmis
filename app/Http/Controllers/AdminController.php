@@ -3,24 +3,38 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Models\Student;
-use App\Models\Coach;
-use App\Models\AccountApproval;
-use App\Models\Announcement;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Mail;
 use App\Mail\AccountApprovedMail;
 use App\Mail\AccountRejectedMail;
+use App\Mail\CoachOnboardingMail;
+use App\Models\AccountApproval;
+use App\Models\Announcement;
+use App\Models\Coach;
+use App\Models\Sport;
+use App\Models\Student;
+use App\Models\Team;
+use App\Models\User;
+use App\Services\AnnouncementService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Http\Request;
+use Illuminate\Mail\Mailable;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class AdminController extends Controller
 {
+    public function __construct(private AnnouncementService $announcements)
+    {
+    }
+
     public function dashboard(Request $request)
     {
         $period = (string) $request->query('period', 'week');
@@ -78,6 +92,8 @@ class AdminController extends Controller
 
     public function approve(User $user)
     {
+        $clearance = null;
+
         if (in_array($user->role, ['student-athlete', 'student'], true)) {
             $student = $user->student;
             $clearance = $student?->latestHealthClearance;
@@ -112,22 +128,19 @@ class AdminController extends Controller
                 'admin_id' => Auth::id(),
                 'decision' => 'approved',
             ]);
-
-            Announcement::create([
-                'user_id' => $user->id,
-                'title' => 'Account Approved',
-                'message' => 'Your account has been approved. You may now log in and access the system.',
-                'type' => \App\Models\Announcement::TYPE_APPROVAL,
-                'published_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
         });
 
-        try {
-            Mail::to($user->email)->send(new AccountApprovedMail($user));
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        $this->announcements->announce(
+            $user->id,
+            'Account Approved',
+            'Your account has been approved. You may now log in and access the system.',
+            Announcement::TYPE_APPROVAL,
+            Auth::id(),
+            'notify_approvals',
+            false
+        );
+
+        $this->sendAccountStatusMail($user->fresh(['settings']), new AccountApprovedMail($user));
 
         return back()->with('success', 'User approved.');
     }
@@ -149,24 +162,19 @@ class AdminController extends Controller
                 'decision' => 'rejected',
                 'remarks' => $request->remarks,
             ]);
-
-            Announcement::create([
-                'user_id' => $user->id,
-                'title' => 'Account Rejected',
-                'message' => 'Your account registration was rejected.' . ($request->remarks ? " Remarks: {$request->remarks}" : ''),
-                'type' => \App\Models\Announcement::TYPE_APPROVAL,
-                'published_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
         });
 
-        try {
-            Mail::to($user->email)->send(
-                new AccountRejectedMail($user, $request->remarks)
-            );
-        } catch (\Throwable $e) {
-            report($e);
-        }
+        $this->announcements->announce(
+            $user->id,
+            'Account Rejected',
+            'Your account registration was rejected.' . ($request->remarks ? " Remarks: {$request->remarks}" : ''),
+            Announcement::TYPE_APPROVAL,
+            Auth::id(),
+            'notify_approvals',
+            false
+        );
+
+        $this->sendAccountStatusMail($user->fresh(['settings']), new AccountRejectedMail($user, $request->remarks));
 
         return back()->with('success', 'User rejected.');
     }
@@ -189,16 +197,16 @@ class AdminController extends Controller
             $user->update([
                 'status' => 'deactivated',
             ]);
-
-            Announcement::create([
-                'user_id' => $user->id,
-                'title' => 'Account Deactivated',
-                'message' => 'Your account has been temporarily deactivated. Contact administration for reactivation.',
-                'type' => \App\Models\Announcement::TYPE_SYSTEM,
-                'published_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
         });
+
+        $this->announcements->announce(
+            $user->id,
+            'Account Deactivated',
+            'Your account has been temporarily deactivated. Contact administration for reactivation.',
+            Announcement::TYPE_SYSTEM,
+            Auth::id(),
+            'notify_approvals'
+        );
 
         return back()->with('success', 'User deactivated.');
     }
@@ -221,16 +229,16 @@ class AdminController extends Controller
             $user->update([
                 'status' => 'approved',
             ]);
-
-            Announcement::create([
-                'user_id' => $user->id,
-                'title' => 'Account Reactivated',
-                'message' => 'Your account has been reactivated. You may log in again.',
-                'type' => \App\Models\Announcement::TYPE_SYSTEM,
-                'published_at' => now(),
-                'created_by' => Auth::id(),
-            ]);
         });
+
+        $this->announcements->announce(
+            $user->id,
+            'Account Reactivated',
+            'Your account has been reactivated. You may log in again.',
+            Announcement::TYPE_SYSTEM,
+            Auth::id(),
+            'notify_approvals'
+        );
 
         return back()->with('success', 'User reactivated.');
     }
@@ -435,6 +443,41 @@ class AdminController extends Controller
             'filtered' => (clone $baseQuery)->count(),
         ];
         $pendingCount = User::query()->where('status', 'pending')->count();
+        $sports = Sport::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Sport $sport) => [
+                'id' => (int) $sport->id,
+                'name' => $sport->name,
+            ])
+            ->values();
+
+        $assignableTeams = Team::query()
+            ->whereNull('archived_at')
+            ->with([
+                'sport:id,name',
+                'coach.user:id,first_name,last_name',
+                'assistantCoach.user:id,first_name,last_name',
+            ])
+            ->orderBy('team_name')
+            ->get()
+            ->map(function (Team $team) {
+                $headCoach = trim((string) ($team->coach?->first_name . ' ' . $team->coach?->last_name));
+                $assistantCoach = trim((string) ($team->assistantCoach?->first_name . ' ' . $team->assistantCoach?->last_name));
+
+                return [
+                    'id' => (int) $team->id,
+                    'team_name' => $team->team_name,
+                    'year' => $team->year,
+                    'sport_id' => (int) $team->sport_id,
+                    'sport_name' => $team->sport?->name,
+                    'coach_id' => $team->coach_id ? (int) $team->coach_id : null,
+                    'assistant_coach_id' => $team->assistant_coach_id ? (int) $team->assistant_coach_id : null,
+                    'coach_name' => $headCoach !== '' ? $headCoach : null,
+                    'assistant_coach_name' => $assistantCoach !== '' ? $assistantCoach : null,
+                ];
+            })
+            ->values();
 
         return Inertia::render('Admin/PeopleUsers', [
             'users' => $users,
@@ -447,7 +490,212 @@ class AdminController extends Controller
             ],
             'totals' => $totals,
             'pendingCount' => $pendingCount,
+            'sports' => $sports,
+            'assignableTeams' => $assignableTeams,
         ]);
+    }
+
+    public function storeCoach(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone_number' => 'nullable|string|max:30',
+            'date_of_birth' => 'nullable|date',
+            'gender' => 'nullable|in:Male,Female,Other',
+            'home_address' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:500',
+            'assignment_role' => 'nullable|in:head,assistant',
+            'team_ids' => 'nullable|array',
+            'team_ids.*' => 'integer|exists:teams,id',
+        ]);
+
+        $teamIds = collect($validated['team_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $assignmentRole = (string) ($validated['assignment_role'] ?? 'assistant');
+        $temporaryPassword = Str::random(12);
+
+        $activeTeams = Team::query()
+            ->whereIn('id', $teamIds)
+            ->whereNull('archived_at')
+            ->get(['id', 'team_name', 'sport_id', 'year', 'coach_id', 'assistant_coach_id']);
+
+        if (count($teamIds) !== $activeTeams->count()) {
+            throw ValidationException::withMessages([
+                'team_ids' => 'One or more selected teams are archived or unavailable.',
+            ]);
+        }
+
+        $conflicts = [];
+        foreach ($activeTeams as $team) {
+            if ($assignmentRole === 'head' && $team->coach_id) {
+                $conflicts[] = "{$team->team_name} ({$team->year}) already has a head coach.";
+            }
+            if ($assignmentRole === 'assistant' && $team->assistant_coach_id) {
+                $conflicts[] = "{$team->team_name} ({$team->year}) already has an assistant coach.";
+            }
+        }
+
+        if (!empty($conflicts)) {
+            throw ValidationException::withMessages([
+                'team_ids' => "Assignment conflicts found:\n- " . implode("\n- ", $conflicts),
+            ]);
+        }
+
+        $newUser = DB::transaction(function () use ($validated, $teamIds, $assignmentRole, $temporaryPassword) {
+            $user = User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($temporaryPassword),
+                'must_change_password' => true,
+                'role' => 'coach',
+                'status' => 'approved',
+            ]);
+
+            $coach = Coach::create([
+                'user_id' => $user->id,
+                'phone_number' => $validated['phone_number'] ?? null,
+                'date_of_birth' => $validated['date_of_birth'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+                'home_address' => $validated['home_address'] ?? null,
+                'coach_status' => 'Active',
+            ]);
+
+            if (!empty($teamIds)) {
+                $column = $assignmentRole === 'head' ? 'coach_id' : 'assistant_coach_id';
+                $teams = Team::query()
+                    ->whereIn('id', $teamIds)
+                    ->whereNull('archived_at')
+                    ->get(['id', 'team_name', 'year', 'coach_id', 'assistant_coach_id']);
+
+                foreach ($teams as $team) {
+                    $team->update([$column => $coach->id]);
+                    $roleLabel = $assignmentRole === 'head' ? 'head coach' : 'assistant coach';
+                    AccountApproval::create([
+                        'user_id' => $user->id,
+                        'admin_id' => Auth::id(),
+                        'decision' => 'approved',
+                        'remarks' => "Coach assignment audit: assigned as {$roleLabel} to {$team->team_name} ({$team->year}).",
+                    ]);
+                }
+            }
+
+            $remarks = "Admin-provisioned coach account created."
+                . (!empty($validated['notes']) ? " Notes: {$validated['notes']}" : '');
+            AccountApproval::create([
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'decision' => 'approved',
+                'remarks' => $remarks,
+            ]);
+
+            return $user;
+        });
+        $activationToken = Password::broker()->createToken($newUser);
+        $activationUrl = route('coach.onboarding.activate', [
+            'email' => $newUser->email,
+            'token' => $activationToken,
+        ]);
+
+        $this->announcements->announce(
+            $newUser->id,
+            'Coach Account Created',
+            'Your coach account has been provisioned by the administrator. Please sign in and update your profile details.',
+            Announcement::TYPE_APPROVAL,
+            Auth::id(),
+            'notify_approvals',
+            false
+        );
+
+        $emailSent = true;
+        try {
+            Mail::to($newUser->email)->send(new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl));
+        } catch (\Throwable $e) {
+            $emailSent = false;
+            Log::notice('Coach onboarding email not sent. Check mail credentials/settings.', [
+                'user_id' => $newUser->id,
+                'email' => $newUser->email,
+                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+            ]);
+        }
+
+        return back()
+            ->with('success', 'Coach account created successfully.')
+            ->with('coach_onboarding', [
+                'email' => $newUser->email,
+                'temporary_password' => $temporaryPassword,
+                'email_sent' => $emailSent,
+                'activation_url' => $activationUrl,
+            ]);
+    }
+
+    public function regenerateCoachOnboarding(User $user)
+    {
+        if ($user->role !== 'coach') {
+            return back()->withErrors([
+                'user_action' => 'Onboarding credentials can only be regenerated for coach accounts.',
+            ]);
+        }
+
+        $temporaryPassword = Str::random(12);
+
+        DB::transaction(function () use ($user, $temporaryPassword) {
+            $user->update([
+                'password' => Hash::make($temporaryPassword),
+                'must_change_password' => true,
+            ]);
+
+            AccountApproval::create([
+                'user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'decision' => 'approved',
+                'remarks' => 'Coach onboarding credentials regenerated by admin.',
+            ]);
+        });
+
+        $activationToken = Password::broker()->createToken($user);
+        $activationUrl = route('coach.onboarding.activate', [
+            'email' => $user->email,
+            'token' => $activationToken,
+        ]);
+
+        $this->announcements->announce(
+            $user->id,
+            'Coach Credentials Updated',
+            'Your coach onboarding credentials were refreshed by the administrator.',
+            Announcement::TYPE_APPROVAL,
+            Auth::id(),
+            'notify_approvals',
+            false
+        );
+
+        $emailSent = true;
+        try {
+            Mail::to($user->email)->send(new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl));
+        } catch (\Throwable $e) {
+            $emailSent = false;
+            Log::notice('Coach onboarding regeneration email not sent. Check mail credentials/settings.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+            ]);
+        }
+
+        return back()
+            ->with('success', 'Coach onboarding credentials regenerated.')
+            ->with('coach_onboarding', [
+                'email' => $user->email,
+                'temporary_password' => $temporaryPassword,
+                'email_sent' => $emailSent,
+                'activation_url' => $activationUrl,
+            ]);
     }
 
     private function dashboardRange(string $period): array
@@ -858,5 +1106,18 @@ class AdminController extends Controller
                 'coaches' => $byRole['coaches'],
             ],
         ];
+    }
+
+    private function sendAccountStatusMail(User $user, Mailable $mailable): void
+    {
+        if (!$this->announcements->shouldSendEmailNotification($user, 'notify_approvals', Auth::id())) {
+            return;
+        }
+
+        try {
+            Mail::to($user->email)->send($mailable);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

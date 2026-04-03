@@ -204,7 +204,8 @@ class AcademicSubmissionController extends Controller
             'Academic Submission Received',
             $message,
             'academic',
-            Auth::id()
+            Auth::id(),
+            'notify_academic_alerts'
         );
 
         return back()->with('success', 'Semestral grade document submitted.');

@@ -358,6 +358,13 @@ class CoachScheduleController extends Controller
             ->all();
 
         $recipientIds = array_merge($studentUserIds, $coachUserIds);
-        $this->announcements->announceMany($recipientIds, $title, $message, 'schedule', $actorUserId);
+        $this->announcements->announceMany(
+            $recipientIds,
+            $title,
+            $message,
+            'schedule',
+            $actorUserId,
+            'notify_schedule_changes'
+        );
     }
 }

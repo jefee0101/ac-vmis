@@ -40,6 +40,12 @@ class LoginController extends Controller
                 default => '/pending-approval',
             });
         }
+
+        if ($user->must_change_password) {
+            return redirect('/account/account-settings?force=1')
+                ->with('error', 'Please update your password before accessing other pages.');
+        }
+
         // Redirect by role
         if ($user->role === 'admin') {
             return redirect('/AdminDashboard');

@@ -202,7 +202,7 @@ function requirementIssues(user: QueueUser) {
 }
 
 function queuePosition(index: number) {
-    return ((props.queue.current_page - 1) * props.queue.per_page) + index + 1;
+    return (props.queue.current_page - 1) * props.queue.per_page + index + 1;
 }
 
 function formatRole(role: QueueUser['role']) {
@@ -259,18 +259,22 @@ function approveUser() {
 
     approvingId.value = approveTarget.value.id;
 
-    router.post(`/admin/users/${approveTarget.value.id}/approve`, {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            closeApproveDialog();
-            router.reload({
-                only: ['queue', 'filters', 'stats', 'pendingCount'],
-            });
+    router.post(
+        `/admin/users/${approveTarget.value.id}/approve`,
+        {},
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                closeApproveDialog();
+                router.reload({
+                    only: ['queue', 'filters', 'stats', 'pendingCount'],
+                });
+            },
+            onFinish: () => {
+                approvingId.value = null;
+            },
         },
-        onFinish: () => {
-            approvingId.value = null;
-        },
-    });
+    );
 }
 
 function rejectUser() {
@@ -278,20 +282,24 @@ function rejectUser() {
 
     rejectingId.value = rejectTarget.value.id;
 
-    router.post(`/admin/users/${rejectTarget.value.id}/reject`, {
-        remarks: rejectRemarks.value.trim() || null,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            closeRejectDialog();
-            router.reload({
-                only: ['queue', 'filters', 'stats', 'pendingCount'],
-            });
+    router.post(
+        `/admin/users/${rejectTarget.value.id}/reject`,
+        {
+            remarks: rejectRemarks.value.trim() || null,
         },
-        onFinish: () => {
-            rejectingId.value = null;
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                closeRejectDialog();
+                router.reload({
+                    only: ['queue', 'filters', 'stats', 'pendingCount'],
+                });
+            },
+            onFinish: () => {
+                rejectingId.value = null;
+            },
         },
-    });
+    );
 }
 </script>
 
@@ -332,20 +340,20 @@ function rejectUser() {
         </div>
 
         <section class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs uppercase tracking-wide text-slate-500">Pending Accounts</p>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs tracking-wide text-slate-500 uppercase">Pending Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ stats.pending_total }}</p>
             </article>
-            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs uppercase tracking-wide text-slate-500">Ready To Approve</p>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs tracking-wide text-slate-500 uppercase">Ready To Approve</p>
                 <p class="mt-1 text-2xl font-bold text-emerald-600">{{ stats.ready_total }}</p>
             </article>
-            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs uppercase tracking-wide text-slate-500">Needs Requirements</p>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs tracking-wide text-slate-500 uppercase">Needs Requirements</p>
                 <p class="mt-1 text-2xl font-bold text-amber-600">{{ stats.incomplete_total }}</p>
             </article>
-            <article class="rounded-full border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs uppercase tracking-wide text-slate-500">Rejected Accounts</p>
+            <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
+                <p class="text-xs tracking-wide text-slate-500 uppercase">Rejected Accounts</p>
                 <p class="mt-1 text-2xl font-bold text-rose-600">{{ stats.rejected_total }}</p>
             </article>
         </section>
@@ -379,13 +387,13 @@ function rejectUser() {
                     v-model="search"
                     type="text"
                     placeholder="Search by name or email"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-6"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-6"
                 />
 
                 <select
                     v-model="readiness"
                     :disabled="isRejectedView"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
                 >
                     <option value="all">All Readiness</option>
                     <option value="ready">Ready to Approve</option>
@@ -394,7 +402,7 @@ function rejectUser() {
 
                 <select
                     v-model="sort"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
+                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-3"
                 >
                     <option value="newest">Newest First</option>
                     <option value="oldest">Oldest First</option>
@@ -415,7 +423,7 @@ function rejectUser() {
         >
             <section :key="status" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div class="overflow-x-auto">
-                    <table class="min-w-[1100px] w-full text-sm">
+                    <table class="w-full min-w-[1100px] text-sm">
                         <thead class="bg-slate-50 text-slate-700">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold">#</th>
@@ -429,95 +437,113 @@ function rejectUser() {
                         </thead>
                         <tbody>
                             <tr v-for="(user, index) in queue.data" :key="user.id" class="border-t border-slate-200 align-top">
-                            <td class="px-4 py-3 font-semibold text-slate-600">{{ queuePosition(index) }}</td>
-                            <td class="px-4 py-3">
-                                <p class="font-semibold text-slate-900">{{ user.name }}</p>
-                                <p class="text-xs text-slate-500">{{ user.email }}</p>
-                                <p v-if="user.student?.student_id_number" class="text-xs text-slate-500">ID: {{ user.student.student_id_number }}</p>
-                            </td>
-                            <td class="px-4 py-3 capitalize text-slate-700">{{ formatRole(user.role) }}</td>
-                            <td class="px-4 py-3 text-slate-700">{{ formatDate(user.created_at) }}</td>
-                            <td class="px-4 py-3">
-                                <span
-                                    class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                    :class="isRejectedView
-                                        ? 'bg-rose-100 text-rose-700'
-                                        : hasRequirements(user)
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-amber-100 text-amber-700'"
-                                >
-                                    {{ isRejectedView ? 'Rejected' : (hasRequirements(user) ? 'Ready' : 'Incomplete') }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3">
-                                <template v-if="isStudentRole(user)">
-                                    <div class="space-y-1 text-xs">
-                                        <p :class="user.student?.latest_health_clearance ? 'text-emerald-700' : 'text-amber-700'">
-                                            {{ user.student?.latest_health_clearance ? `Health: ${formatClearanceStatus(user.student.latest_health_clearance.clearance_status)}` : 'Health: Missing' }}
-                                        </p>
-                                        <p :class="user.student?.latest_academic_document ? 'text-emerald-700' : 'text-amber-700'">
-                                            {{ user.student?.latest_academic_document ? `Academic: ${formatDocumentType(user.student.latest_academic_document.document_type)}` : 'Academic: Missing' }}
-                                        </p>
-                                        <div class="flex flex-wrap gap-2 pt-1">
-                                            <a
-                                                v-if="clearanceFileUrl(user.student?.latest_health_clearance?.id)"
-                                                :href="clearanceFileUrl(user.student?.latest_health_clearance?.id)!"
-                                                target="_blank"
-                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
-                                            >
-                                                View Clearance
-                                            </a>
-                                            <a
-                                                v-if="academicFileUrl(user.student?.latest_academic_document?.id)"
-                                                :href="academicFileUrl(user.student?.latest_academic_document?.id)!"
-                                                target="_blank"
-                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
-                                            >
-                                                View Academic
-                                            </a>
+                                <td class="px-4 py-3 font-semibold text-slate-600">{{ queuePosition(index) }}</td>
+                                <td class="px-4 py-3">
+                                    <p class="font-semibold text-slate-900">{{ user.name }}</p>
+                                    <p class="text-xs text-slate-500">{{ user.email }}</p>
+                                    <p v-if="user.student?.student_id_number" class="text-xs text-slate-500">
+                                        ID: {{ user.student.student_id_number }}
+                                    </p>
+                                </td>
+                                <td class="px-4 py-3 text-slate-700 capitalize">{{ formatRole(user.role) }}</td>
+                                <td class="px-4 py-3 text-slate-700">{{ formatDate(user.created_at) }}</td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                        :class="
+                                            isRejectedView
+                                                ? 'bg-rose-100 text-rose-700'
+                                                : hasRequirements(user)
+                                                  ? 'bg-emerald-100 text-emerald-700'
+                                                  : 'bg-amber-100 text-amber-700'
+                                        "
+                                    >
+                                        {{ isRejectedView ? 'Rejected' : hasRequirements(user) ? 'Ready' : 'Incomplete' }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <template v-if="isStudentRole(user)">
+                                        <div class="space-y-1 text-xs">
+                                            <p :class="user.student?.latest_health_clearance ? 'text-emerald-700' : 'text-amber-700'">
+                                                {{
+                                                    user.student?.latest_health_clearance
+                                                        ? `Health: ${formatClearanceStatus(user.student.latest_health_clearance.clearance_status)}`
+                                                        : 'Health: Missing'
+                                                }}
+                                            </p>
+                                            <p :class="user.student?.latest_academic_document ? 'text-emerald-700' : 'text-amber-700'">
+                                                {{
+                                                    user.student?.latest_academic_document
+                                                        ? `Academic: ${formatDocumentType(user.student.latest_academic_document.document_type)}`
+                                                        : 'Academic: Missing'
+                                                }}
+                                            </p>
+                                            <div class="flex flex-wrap gap-2 pt-1">
+                                                <a
+                                                    v-if="clearanceFileUrl(user.student?.latest_health_clearance?.id)"
+                                                    :href="clearanceFileUrl(user.student?.latest_health_clearance?.id)!"
+                                                    target="_blank"
+                                                    class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                                >
+                                                    View Clearance
+                                                </a>
+                                                <a
+                                                    v-if="academicFileUrl(user.student?.latest_academic_document?.id)"
+                                                    :href="academicFileUrl(user.student?.latest_academic_document?.id)!"
+                                                    target="_blank"
+                                                    class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                                >
+                                                    View Academic
+                                                </a>
+                                            </div>
                                         </div>
+                                    </template>
+                                    <p v-else class="text-xs text-slate-500">Coach accounts are approval-ready.</p>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <div v-if="!isRejectedView" class="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            @click="openApproveDialog(user)"
+                                            :disabled="!hasRequirements(user) || approvingId === user.id || rejectingId === user.id"
+                                            class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Approve
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="openRejectDialog(user)"
+                                            :disabled="approvingId === user.id || rejectingId === user.id"
+                                            class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Reject
+                                        </button>
                                     </div>
-                                </template>
-                                <p v-else class="text-xs text-slate-500">Coach accounts are approval-ready.</p>
-                            </td>
-                            <td class="px-4 py-3">
-                                <div v-if="!isRejectedView" class="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        @click="openApproveDialog(user)"
-                                        :disabled="!hasRequirements(user) || approvingId === user.id || rejectingId === user.id"
-                                        class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        Approve
-                                    </button>
-                                    <button
-                                        type="button"
-                                        @click="openRejectDialog(user)"
-                                        :disabled="approvingId === user.id || rejectingId === user.id"
-                                        class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        Reject
-                                    </button>
-                                </div>
-                                <p v-if="!isRejectedView && requirementIssues(user).length" class="mt-2 text-[11px] font-medium text-amber-700">
-                                    {{ requirementIssues(user).join(' | ') }}
-                                </p>
-                                <p v-if="isRejectedView" class="text-[11px] font-medium text-slate-500">
-                                    Rejected account for historical review.
-                                </p>
-                            </td>
-                        </tr>
+                                    <p v-if="!isRejectedView && requirementIssues(user).length" class="mt-2 text-[11px] font-medium text-amber-700">
+                                        {{ requirementIssues(user).join(' | ') }}
+                                    </p>
+                                    <p v-if="isRejectedView" class="text-[11px] font-medium text-slate-500">
+                                        Rejected account for historical review.
+                                    </p>
+                                </td>
+                            </tr>
 
-                        <tr v-if="queue.data.length === 0">
-                            <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                                {{ isRejectedView ? 'No rejected accounts for the selected filters.' : 'No accounts in the queue for the selected filters.' }}
-                            </td>
-                        </tr>
+                            <tr v-if="queue.data.length === 0">
+                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
+                                    {{
+                                        isRejectedView
+                                            ? 'No rejected accounts for the selected filters.'
+                                            : 'No accounts in the queue for the selected filters.'
+                                    }}
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
 
-                <div class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                    class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
+                >
                     <p>
                         Showing {{ queue.from ?? 0 }} to {{ queue.to ?? 0 }} of {{ queue.total }}
                         {{ isRejectedView ? 'rejected accounts' : 'pending accounts' }}
@@ -530,9 +556,11 @@ function rejectUser() {
                             :disabled="!link.url"
                             @click="visitPage(link.url)"
                             class="min-w-9 rounded-md border px-2 py-1 text-xs transition"
-                            :class="link.active
-                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'"
+                            :class="
+                                link.active
+                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40'
+                            "
                             v-html="link.label"
                         />
                     </nav>
@@ -545,9 +573,14 @@ function rejectUser() {
         <div v-if="approveTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeApproveDialog">
             <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
                 <h2 class="text-lg font-bold text-slate-900">Confirm Approval</h2>
-                <p class="mt-2 text-sm text-slate-600">Approve <span class="font-semibold text-slate-900">{{ approveTarget.name }}</span> and grant system access?</p>
+                <p class="mt-2 text-sm text-slate-600">
+                    Approve <span class="font-semibold text-slate-900">{{ approveTarget.name }}</span> and grant system access?
+                </p>
 
-                <div v-if="requirementIssues(approveTarget).length" class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700">
+                <div
+                    v-if="requirementIssues(approveTarget).length"
+                    class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-700"
+                >
                     {{ requirementIssues(approveTarget).join(' | ') }}
                 </div>
 
@@ -576,13 +609,16 @@ function rejectUser() {
         <div v-if="rejectTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeRejectDialog">
             <div class="modal-panel w-full max-w-lg rounded-xl border border-[#034485]/45 bg-white p-5">
                 <h2 class="text-lg font-bold text-slate-900">Reject Account</h2>
-                <p class="mt-2 text-sm text-slate-600">Provide optional remarks for <span class="font-semibold text-slate-900">{{ rejectTarget.name }}</span>.</p>
+                <p class="mt-2 text-sm text-slate-600">
+                    Provide optional remarks for <span class="font-semibold text-slate-900">{{ rejectTarget.name }}</span
+                    >.
+                </p>
 
                 <textarea
                     v-model="rejectRemarks"
                     rows="4"
                     placeholder="Add context for the rejection (optional)"
-                    class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                    class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
                 />
 
                 <div class="mt-5 flex justify-end gap-2">
@@ -620,7 +656,9 @@ function rejectUser() {
 
 .modal-fade-enter-active .modal-panel,
 .modal-fade-leave-active .modal-panel {
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease;
 }
 
 .modal-fade-enter-from .modal-panel,

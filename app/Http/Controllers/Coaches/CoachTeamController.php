@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Coaches;
 
 use App\Http\Controllers\Controller;
-use App\Models\Announcement;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\User;
@@ -163,14 +162,14 @@ class CoachTeamController extends Controller
                 ? "Your team position in {$team->team_name} was cleared by your coach."
                 : "Your team position in {$team->team_name} was set to {$position}.";
 
-            Announcement::create([
-                'user_id' => $studentUserId,
-                'title' => 'Team Position Update',
-                'message' => $message,
-                'type' => 'system',
-                'published_at' => now(),
-                'created_by' => $request->user()?->id,
-            ]);
+            $this->announcements->announce(
+                (int) $studentUserId,
+                'Team Position Update',
+                $message,
+                'system',
+                $request->user()?->id,
+                'notify_attendance_exceptions'
+            );
         }
 
         return back()->with('success', 'Player position updated.');
@@ -272,7 +271,8 @@ class CoachTeamController extends Controller
             $title,
             implode("\n", $messageLines),
             'system',
-            $request->user()?->id ?? 0
+            $request->user()?->id ?? 0,
+            'notify_attendance_exceptions'
         );
 
         return back()->with('success', 'Request sent to admin.');

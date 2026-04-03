@@ -9,18 +9,42 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasColumn('academic_periods', 'status')) {
+            try {
+                Schema::table('academic_periods', function (Blueprint $table) {
+                    $table->dropIndex(['status']);
+                });
+            } catch (\Throwable $e) {
+                // SQLite may already have rebuilt or skipped this index.
+            }
+
             Schema::table('academic_periods', function (Blueprint $table) {
                 $table->dropColumn('status');
             });
         }
 
         if (Schema::hasColumn('athlete_health_clearances', 'clearance_status')) {
+            try {
+                Schema::table('athlete_health_clearances', function (Blueprint $table) {
+                    $table->dropIndex(['clearance_status', 'valid_until']);
+                });
+            } catch (\Throwable $e) {
+                // Best-effort cleanup before dropping the column.
+            }
+
             Schema::table('athlete_health_clearances', function (Blueprint $table) {
                 $table->dropColumn('clearance_status');
             });
         }
 
         if (Schema::hasColumn('academic_eligibility_evaluations', 'status')) {
+            try {
+                Schema::table('academic_eligibility_evaluations', function (Blueprint $table) {
+                    $table->dropIndex('academic_eligibility_status_evaluated_index');
+                });
+            } catch (\Throwable $e) {
+                // Best-effort cleanup before dropping the column.
+            }
+
             Schema::table('academic_eligibility_evaluations', function (Blueprint $table) {
                 $table->dropColumn('status');
             });
