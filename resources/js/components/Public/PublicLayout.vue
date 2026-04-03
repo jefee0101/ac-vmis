@@ -34,16 +34,6 @@ const userRole = computed(() => String(page.props.auth?.user?.role ?? ''));
 const isLoginPage = computed(() => page.component === 'Auth/Login' || page.url.toLowerCase().includes('/login'));
 const isRegisterPage = computed(() => page.component.includes('Register') || page.url.toLowerCase().includes('/register'));
 const isStatusPage = computed(() => page.component.startsWith('Status/') || page.component.toLowerCase().includes('status/'));
-const isRoleRegisterPage = computed(() => {
-    const component = page.component.toLowerCase();
-    const url = page.url.toLowerCase();
-    return (
-        component.includes('student-athleteregister') ||
-        component.includes('coachregister') ||
-        url.includes('/student-athlete-register') ||
-        url.includes('/coach-register')
-    );
-});
 const currentPath = computed(() => {
     const path = page.url.split('?')[0].toLowerCase();
     if (path.length > 1 && path.endsWith('/')) {
@@ -62,7 +52,7 @@ function toLogin() {
 }
 
 function toRegister() {
-    router.visit('Register');
+    router.visit('/Register');
 }
 
 const dashboardPath = computed(() => {
@@ -116,15 +106,12 @@ watch(mobileMenuOpen, (open) => {
                             Back to Dashboard
                         </button>
                         <template v-else>
-                            <button v-if="isRoleRegisterPage" @click="toRegister" class="btn-outline" :disabled="isLoading">Back to Register</button>
-                            <template v-else>
-                                <button @click="toLogin" class="btn-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
-                                    Login
-                                </button>
-                                <button @click="toRegister" class="btn-fill" :class="{ 'is-active': isRegisterPage }" :disabled="isLoading">
-                                    Register
-                                </button>
-                            </template>
+                            <button @click="toLogin" class="btn-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
+                                Login
+                            </button>
+                            <button @click="toRegister" class="btn-fill" :class="{ 'is-active': isRegisterPage }" :disabled="isLoading">
+                                Register
+                            </button>
                         </template>
                     </template>
                 </div>
@@ -184,35 +171,23 @@ watch(mobileMenuOpen, (open) => {
                 </template>
                 <template v-else>
                     <button
-                        v-if="isRoleRegisterPage"
                         @click="
-                            toRegister();
+                            toLogin();
                             mobileMenuOpen = false;
                         "
                         class="btn-outline w-full"
                     >
-                        Back to Register
+                        Login
                     </button>
-                    <template v-else>
-                        <button
-                            @click="
-                                toLogin();
-                                mobileMenuOpen = false;
-                            "
-                            class="btn-outline w-full"
-                        >
-                            Login
-                        </button>
-                        <button
-                            @click="
-                                toRegister();
-                                mobileMenuOpen = false;
-                            "
-                            class="btn-fill w-full"
-                        >
-                            Register
-                        </button>
-                    </template>
+                    <button
+                        @click="
+                            toRegister();
+                            mobileMenuOpen = false;
+                        "
+                        class="btn-fill w-full"
+                    >
+                        Register
+                    </button>
                 </template>
             </div>
             <nav class="mobile-menu-links">

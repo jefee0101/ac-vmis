@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import FormAlert from '@/components/ui/form/FormAlert.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useSportColors } from '@/composables/useSportColors'
@@ -909,7 +910,7 @@ onBeforeUnmount(() => {
                         muted
                         class="w-full rounded-lg border border-gray-700 bg-black min-h-64"
                     />
-                    <p v-if="scannerError" class="text-sm text-red-400">{{ scannerError }}</p>
+                    <FormAlert tone="error" compact :message="scannerError" />
                 </div>
             </div>
         </div>

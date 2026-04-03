@@ -5,6 +5,7 @@ import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 import PublicLayout from '@/components/Public/PublicLayout.vue';
+import FormAlert from '@/components/ui/form/FormAlert.vue';
 
 type Step = 1 | 2 | 3;
 type AcademicDocumentType = 'tor' | 'grade_report' | 'other';
@@ -68,6 +69,7 @@ const form = reactive({
 });
 
 const fieldErrors = reactive<Record<string, string>>({});
+const formAlert = ref('');
 
 const yearLevelOptions = computed(() => ['11', '12', '1', '2', '3', '4']);
 
@@ -344,6 +346,10 @@ watch(
     },
 );
 
+watch(step, () => {
+    formAlert.value = '';
+});
+
 watch(
     () => form.student_id_number,
     (value) => {
@@ -419,9 +425,11 @@ function validateStep(currentStep: Step): boolean {
 
 function nextStep() {
     if (!validateStep(step.value)) {
+        formAlert.value = 'Please fix the highlighted fields before continuing.';
         openModal('Incomplete Step', 'Please fix the highlighted fields before continuing.');
         return;
     }
+    formAlert.value = '';
 
     if (step.value < 3) {
         isStepTransitioning.value = true;
@@ -638,6 +646,7 @@ function clearDraft() {
 
 function submit() {
     if (!validateStep(3) || !validateStep(2) || !validateStep(1)) {
+        formAlert.value = 'Please complete all required fields first.';
         openModal('Cannot Submit', 'Please complete all required fields first.');
         return;
     }
@@ -708,6 +717,7 @@ function submit() {
         },
         onSuccess: () => {
             clearDraft();
+            formAlert.value = '';
             router.visit('/pending-approval');
         },
         onError: (errors) => {
@@ -730,6 +740,7 @@ function submit() {
             }
 
             const generic = fieldErrors.error || 'Please review the form and try again.';
+            formAlert.value = generic;
             openModal('Registration Error', generic);
         },
     });
@@ -762,6 +773,7 @@ onBeforeUnmount(() => {
             <div class="mx-auto w-full max-w-4xl public-card register-card">
                 <h1 class="register-title">Student-Athlete Registration</h1>
                 <p class="register-subtitle">3-step signup. Required now: account, identity basics, and requirements.</p>
+                <FormAlert class="mt-4" tone="error" :message="formAlert" />
 
                 <div class="mt-6 stepper">
                     <div class="step" :class="{ active: step >= 1 }"><span>1</span><small>Account</small></div>

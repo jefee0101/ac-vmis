@@ -99,11 +99,10 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:login')
         ->name('login');
     Route::get('/Register', function () {
-        return Inertia::render('Auth/Register');
-    })->name('Register');
-    Route::get('/Student-AthleteRegister', function () {
         return Inertia::render('Auth/Student-AthleteRegister');
-    })->name('Student-AthleteRegister');
+    })->name('Register');
+    Route::redirect('/register', '/Register');
+    Route::redirect('/Student-AthleteRegister', '/Register')->name('Student-AthleteRegister');
     Route::get('/RegisterStudent-AthleteData/check-student-id', [RegisterController::class, 'checkStudentIdAvailability'])
         ->name('student.register.check_id');
     Route::post('/RegisterStudent-AthleteData', [RegisterController::class, 'registerStudentAthlete']);

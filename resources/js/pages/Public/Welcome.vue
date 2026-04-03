@@ -81,7 +81,7 @@ const featureCards = [
 const faqs = [
     {
         question: 'How do I register as a student-athlete?',
-        answer: 'Open Register, choose Student-Athlete, fill in required details, and upload the needed files.',
+        answer: 'Open Register, complete the student-athlete form, then submit the required details and files.',
     },
     {
         question: 'How long does account approval take?',
@@ -171,7 +171,7 @@ function toLogin() {
 }
 
 function toRegister() {
-    router.visit('Register');
+    router.visit('/Register');
 }
 
 function onSealError(event: Event) {

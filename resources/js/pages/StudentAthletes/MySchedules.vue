@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 import { useSportColors } from '@/composables/useSportColors';
@@ -690,9 +691,7 @@ onUnmounted(() => {
                     <div class="space-y-3 p-4">
                         <p class="text-xs text-slate-500">Show this to your coach. QR rotates automatically for security.</p>
                         <p v-if="qrSecondsLeft > 0" class="text-xs text-amber-600">Token refresh in about {{ qrSecondsLeft }}s</p>
-                        <p v-if="qrError" class="text-sm text-rose-600">
-                            {{ qrError }}
-                        </p>
+                        <FormAlert tone="error" compact :message="qrError" />
                         <div v-if="qrLoading" class="space-y-2 rounded-lg bg-slate-100 p-3">
                             <Skeleton class="h-5 w-1/2 bg-slate-200" />
                             <Skeleton class="h-60 w-full bg-slate-200" />

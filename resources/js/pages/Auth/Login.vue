@@ -1,27 +1,65 @@
 <script setup lang="ts">
 import PublicLayout from '@/components/Public/PublicLayout.vue';
+import FieldError from '@/components/ui/form/FieldError.vue';
+import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import { router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { reactive, ref } from 'vue';
 
 const email = ref('');
 const password = ref('');
 const remember = ref(false);
 const page = usePage();
 const error = ref(String((page.props as any)?.errors?.message ?? (page.props as any)?.flash?.error ?? ''));
+const fieldErrors = reactive({
+    email: '',
+    password: '',
+});
 const isSubmitting = ref(false);
 const showPassword = ref(false);
 const { isLoading } = useInertiaLoading();
 const flashSuccess = ref(String((page.props as any)?.flash?.success ?? ''));
+
+function pickFirstError(errors: Record<string, unknown>) {
+    const preferredOrder = ['message', 'email', 'password', 'error'];
+    for (const key of preferredOrder) {
+        const raw = errors[key];
+        const message = Array.isArray(raw) ? raw[0] : raw;
+        if (typeof message === 'string' && message.trim()) {
+            return message;
+        }
+    }
+
+    for (const value of Object.values(errors)) {
+        const message = Array.isArray(value) ? value[0] : value;
+        if (typeof message === 'string' && message.trim()) {
+            return message;
+        }
+    }
+
+    return '';
+}
+
 function toRegister() {
-    router.visit('Register');
+    router.visit('/Register');
 }
 function login() {
     if (isSubmitting.value) return;
+    error.value = '';
+    fieldErrors.email = '';
+    fieldErrors.password = '';
 
-    if (!email.value || !password.value) {
-        error.value = 'Please fill in all fields.';
+    if (!email.value) {
+        fieldErrors.email = 'Email is required.';
+    }
+
+    if (!password.value) {
+        fieldErrors.password = 'Password is required.';
+    }
+
+    if (fieldErrors.email || fieldErrors.password) {
+        error.value = 'Please complete the required fields.';
         return;
     }
 
@@ -40,7 +78,15 @@ function login() {
                 isSubmitting.value = false;
             },
             onError: (e: any) => {
-                error.value = e.message || 'Login failed.';
+                const payload = (e && typeof e === 'object' ? e : {}) as Record<string, unknown>;
+                const resolved = pickFirstError(payload);
+                if (typeof payload.email === 'string') {
+                    fieldErrors.email = payload.email;
+                }
+                if (typeof payload.password === 'string') {
+                    fieldErrors.password = payload.password;
+                }
+                error.value = resolved || 'Login failed. Please check your credentials and try again.';
             },
         },
     );
@@ -61,22 +107,30 @@ function login() {
                     <h2>Login</h2>
 
                     <form @submit.prevent="login" class="login-form">
-                        <div v-if="flashSuccess" class="success-text">
-                            {{ flashSuccess }}
-                        </div>
-                        <div v-if="error" class="error-text">
-                            {{ error }}
-                        </div>
+                        <FormAlert tone="success" :message="flashSuccess" />
+                        <FormAlert tone="error" :message="error" />
 
                         <div class="form-stack">
-                            <input v-model="email" type="email" placeholder="Email" :class="['field-input', { 'is-error': !!error }]" />
+                            <div>
+                                <input
+                                    v-model="email"
+                                    type="email"
+                                    placeholder="Email"
+                                    :class="['field-input', { 'is-error': !!fieldErrors.email }]"
+                                    :aria-invalid="fieldErrors.email ? 'true' : 'false'"
+                                    aria-describedby="login-email-error"
+                                />
+                                <FieldError id="login-email-error" :message="fieldErrors.email" />
+                            </div>
 
                             <div class="relative">
                                 <input
                                     v-model="password"
                                     :type="showPassword ? 'text' : 'password'"
                                     placeholder="Password"
-                                    :class="['field-input', 'pr-10', { 'is-error': !!error }]"
+                                    :class="['field-input', 'pr-10', { 'is-error': !!fieldErrors.password }]"
+                                    :aria-invalid="fieldErrors.password ? 'true' : 'false'"
+                                    aria-describedby="login-password-error"
                                 />
                                 <button
                                     type="button"
@@ -111,6 +165,7 @@ function login() {
                                         <circle cx="12" cy="12" r="3" />
                                     </svg>
                                 </button>
+                                <FieldError id="login-password-error" :message="fieldErrors.password" />
                             </div>
 
                             <label class="remember-row">
@@ -190,20 +245,6 @@ function login() {
     font-size: 1.35rem;
     color: #ffffff;
     font-weight: 800;
-}
-
-.error-text {
-    margin-top: 0.65rem;
-    font-size: 0.88rem;
-    color: #ffffff;
-    -webkit-text-stroke: 0.45px #dc2626;
-    text-shadow: 0 0 1px rgba(220, 38, 38, 0.65);
-}
-
-.success-text {
-    margin-top: 0.65rem;
-    font-size: 0.88rem;
-    color: #d1fae5;
 }
 
 .form-stack {
