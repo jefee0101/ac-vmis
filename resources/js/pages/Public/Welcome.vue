@@ -10,8 +10,8 @@ const publicNavItems = [
     { id: 'how-it-works', label: 'How It Works' },
     { id: 'about', label: 'About Us' },
     { id: 'features', label: 'Features' },
-    { id: 'faq', label: 'FAQ' },
     { id: 'policies', label: 'Policies' },
+    { id: 'faq', label: 'FAQ' },
     { id: 'contact', label: 'Contact' },
 ];
 const howItWorksSteps = [
@@ -542,6 +542,43 @@ watch(mobileMenuOpen, (open) => {
                 </div>
             </section>
 
+            <section id="policies" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="info-panel mx-auto max-w-6xl">
+                    <div class="info-intro policies-intro">
+                        <p class="section-kicker"><span class="title-chip">Policies</span></p>
+                        <h2><span class="title-chip title-chip-blue">Privacy, acceptable use, and user responsibility in one place.</span></h2>
+                        <p class="section-copy">
+                            These policy notes explain what data is collected, why it is used, and what users are expected to follow.
+                        </p>
+                    </div>
+
+                    <div class="policies-grid">
+                        <article id="privacy-policy" class="policy-card policy-card-privacy public-anchor-section">
+                            <p class="policy-card-label">Trust &amp; Data</p>
+                            <h3>Privacy Policy</h3>
+                            <p>How AC-VMIS collects, uses, and protects user data.</p>
+                            <ul class="policy-chip-list">
+                                <li v-for="item in privacyPolicyItems" :key="item">{{ item }}</li>
+                            </ul>
+                            <p class="policy-note">
+                                Access is limited by role and login permissions. The institution should maintain secure storage, backups, and proper
+                                account control.
+                            </p>
+                        </article>
+
+                        <article id="terms-of-use" class="policy-card policy-card-terms public-anchor-section">
+                            <p class="policy-card-label">Compliance &amp; Use</p>
+                            <h3>Terms of Use</h3>
+                            <p>User responsibilities and acceptable use of AC-VMIS.</p>
+                            <ul class="policy-chip-list">
+                                <li v-for="item in termsOfUseItems" :key="item">{{ item }}</li>
+                            </ul>
+                            <p class="policy-note">Accounts may be restricted, rejected, or suspended when policies or security rules are violated.</p>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
             <section id="faq" class="section-shell welcome-reveal public-anchor-section info-section">
                 <div class="faq-section mx-auto max-w-4xl">
                     <div class="info-intro faq-intro">
@@ -565,41 +602,6 @@ watch(mobileMenuOpen, (open) => {
                                     <p>{{ item.answer }}</p>
                                 </div>
                             </div>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
-            <section id="policies" class="section-shell welcome-reveal public-anchor-section info-section">
-                <div class="info-panel mx-auto max-w-6xl">
-                    <div class="info-intro">
-                        <p class="section-kicker"><span class="title-chip">Policies</span></p>
-                        <h2><span class="title-chip title-chip-blue">Privacy, acceptable use, and user responsibility in one place.</span></h2>
-                        <p class="section-copy">
-                            These policy notes explain what data is collected, why it is used, and what users are expected to follow.
-                        </p>
-                    </div>
-
-                    <div class="info-grid info-grid-2">
-                        <article id="privacy-policy" class="info-card public-anchor-section">
-                            <h3>Privacy Policy</h3>
-                            <p>How AC-VMIS collects, uses, and protects user data.</p>
-                            <ul class="info-list">
-                                <li v-for="item in privacyPolicyItems" :key="item">{{ item }}</li>
-                            </ul>
-                            <p>
-                                Access is limited by role and login permissions. The institution should maintain secure storage, backups, and proper
-                                account control.
-                            </p>
-                        </article>
-
-                        <article id="terms-of-use" class="info-card public-anchor-section">
-                            <h3>Terms of Use</h3>
-                            <p>User responsibilities and acceptable use of AC-VMIS.</p>
-                            <ul class="info-list">
-                                <li v-for="item in termsOfUseItems" :key="item">{{ item }}</li>
-                            </ul>
-                            <p>Accounts may be restricted, rejected, or suspended when policies or security rules are violated.</p>
                         </article>
                     </div>
                 </div>
@@ -2385,6 +2387,158 @@ watch(mobileMenuOpen, (open) => {
     gap: 0.4rem;
 }
 
+.policies-intro {
+    max-width: 64ch;
+}
+
+.policies-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.policy-card {
+    position: relative;
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.15rem 1.1rem;
+    border-radius: 20px;
+    border: 1px solid rgba(3, 68, 133, 0.18);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 249, 255, 0.96));
+    box-shadow: 0 18px 36px -30px rgba(3, 68, 133, 0.34);
+    transition:
+        transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease;
+}
+
+.policy-card::before {
+    content: '';
+    position: absolute;
+    left: 1.1rem;
+    right: 1.1rem;
+    top: 0.75rem;
+    height: 3px;
+    border-radius: 999px;
+    opacity: 0.95;
+}
+
+.policy-card-privacy::before {
+    background: linear-gradient(90deg, rgba(3, 68, 133, 0.45), rgba(3, 68, 133, 1));
+}
+
+.policy-card-terms::before {
+    background: linear-gradient(90deg, rgba(217, 119, 6, 0.55), rgba(180, 83, 9, 0.95));
+}
+
+.policy-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(3, 68, 133, 0.3);
+    box-shadow: 0 28px 50px -36px rgba(3, 68, 133, 0.42);
+}
+
+.policy-card-label {
+    margin: 0;
+    padding-top: 0.25rem;
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    color: var(--page-text-muted);
+}
+
+.policy-card h3 {
+    margin: 0;
+    font-size: 1.06rem;
+    color: var(--page-text);
+    font-weight: 800;
+}
+
+.policy-card > p {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+.policy-chip-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.48rem;
+}
+
+.policy-chip-list li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    max-width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(3, 68, 133, 0.18);
+    background: rgba(3, 68, 133, 0.06);
+    color: var(--page-text);
+    font-size: 0.84rem;
+    font-weight: 600;
+    line-height: 1.4;
+    padding: 0.34rem 0.62rem;
+}
+
+.policy-chip-list li::before {
+    content: '';
+    width: 0.58rem;
+    height: 0.58rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(3, 68, 133, 1), rgba(147, 197, 253, 0.82));
+    flex-shrink: 0;
+}
+
+.policy-card-terms .policy-chip-list li {
+    border-color: rgba(180, 83, 9, 0.22);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+.policy-card-terms .policy-chip-list li::before {
+    background: linear-gradient(135deg, rgba(180, 83, 9, 0.95), rgba(245, 158, 11, 0.85));
+}
+
+.policy-note {
+    margin-top: 0.2rem !important;
+    border-radius: 12px;
+    border: 1px solid rgba(3, 68, 133, 0.18);
+    background: rgba(239, 246, 255, 0.92);
+    color: #0f3f74 !important;
+    padding: 0.6rem 0.72rem;
+    font-size: 0.84rem !important;
+    font-weight: 600;
+}
+
+.policy-card-terms .policy-note {
+    border-color: rgba(180, 83, 9, 0.24);
+    background: rgba(255, 247, 237, 0.95);
+    color: #8a3f08 !important;
+}
+
+#policies.welcome-reveal .policy-card {
+    opacity: 0;
+    transform: translateY(16px);
+}
+
+#policies.is-visible .policy-card {
+    opacity: 1;
+    transform: translateY(0);
+    transition:
+        opacity 460ms ease,
+        transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 260ms ease;
+}
+
+#policies.is-visible .policy-card:nth-child(2) {
+    transition-delay: 80ms;
+}
+
 .register-cta-wrap {
     padding-top: clamp(1.6rem, 4vw, 2.5rem);
     padding-bottom: 1rem;
@@ -2668,6 +2822,10 @@ watch(mobileMenuOpen, (open) => {
     .about-grid {
         grid-template-columns: 1fr;
     }
+
+    .policies-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -2761,6 +2919,15 @@ watch(mobileMenuOpen, (open) => {
 
     .faq-answer-body p {
         padding: 0 0.95rem 0.95rem;
+    }
+
+    .policy-card {
+        padding: 1rem 0.95rem;
+        border-radius: 16px;
+    }
+
+    .policy-chip-list li {
+        width: 100%;
     }
 }
 
