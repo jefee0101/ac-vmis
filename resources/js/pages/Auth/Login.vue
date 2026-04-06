@@ -44,6 +44,9 @@ function pickFirstError(errors: Record<string, unknown>) {
 function toRegister() {
     router.visit('/Register');
 }
+function toForgotPassword() {
+    router.visit('/forgot-password');
+}
 function login() {
     if (isSubmitting.value) return;
     error.value = '';
@@ -172,6 +175,10 @@ function login() {
                                 <input v-model="remember" type="checkbox" class="remember-checkbox" />
                                 <span>Remember me</span>
                             </label>
+
+                            <button type="button" class="forgot-link" @click="toForgotPassword" :disabled="isSubmitting">
+                                Forgot your password?
+                            </button>
                         </div>
 
                         <button type="submit" class="login-btn" :disabled="isSubmitting">
@@ -284,6 +291,21 @@ function login() {
 
 .remember-checkbox {
     accent-color: #ffffff;
+}
+
+.forgot-link {
+    width: fit-content;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 0;
+    cursor: pointer;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
 }
 
 .login-btn {

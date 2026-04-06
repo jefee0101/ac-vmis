@@ -61,5 +61,11 @@ class AppServiceProvider extends ServiceProvider
             $key = $email !== '' ? $email . '|' . $request->ip() : $request->ip();
             return Limit::perMinute(5)->by($key);
         });
+
+        RateLimiter::for('forgot-password', function (Request $request) {
+            $email = strtolower((string) $request->input('email', ''));
+            $key = $email !== '' ? $email . '|' . $request->ip() : $request->ip();
+            return Limit::perMinute(3)->by($key);
+        });
     }
 }
