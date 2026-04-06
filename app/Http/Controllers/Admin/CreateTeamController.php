@@ -57,14 +57,12 @@ class CreateTeamController extends Controller
         }
 
         $this->validateCoachAssignmentConflicts(
-            (int) $validated['sport_id'],
-            (string) $validated['year'],
             (int) $validated['coach_id'],
             isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
             null
         );
 
-        $this->validatePlayerConflicts((int) $validated['sport_id'], $playerIds, null);
+        $this->validatePlayerConflicts($playerIds, null);
 
         $team = DB::transaction(function () use ($request, $validated, $playerIds) {
             $avatarPath = null;
@@ -143,14 +141,12 @@ class CreateTeamController extends Controller
         }
 
         $this->validateCoachAssignmentConflicts(
-            (int) $validated['sport_id'],
-            (string) $validated['year'],
             (int) $validated['coach_id'],
             isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
             $team->id
         );
 
-        $this->validatePlayerConflicts((int) $validated['sport_id'], $playerIds, $team->id);
+        $this->validatePlayerConflicts($playerIds, $team->id);
 
         DB::transaction(function () use ($request, $validated, $playerIds, $team) {
             $avatarPath = $team->team_avatar;
@@ -471,38 +467,28 @@ class CreateTeamController extends Controller
 
     private function buildFormPayload(?Team $team = null): array
     {
-        $coaches = Coach::query()
-            ->with('user')
-            ->select('id', 'user_id', 'coach_status')
-            ->orderBy('id')
-            ->get()
-            ->map(fn ($c) => [
-                'id' => $c->id,
-                'name' => $this->resolveCoachDisplayName($c),
-                'status' => $c->coach_status,
-                'email' => $c->user?->email,
-            ])->values();
-
-        $players = Student::query()
-            ->with('user')
-            ->select('id', 'user_id', 'student_id_number', 'current_grade_level')
-            ->orderBy('id')
-            ->get()
-            ->map(fn ($p) => [
-                'id' => $p->id,
-                'name' => $this->resolveStudentDisplayName($p),
-                'student_id_number' => $p->student_id_number,
-                'education_level' => $p->education_level,
-                'current_grade_level' => $p->current_grade_level,
-                'email' => $p->user?->email,
-            ])->values();
+        $editingTeamId = $team?->id;
 
         $coachTeamLoad = Team::query()
             ->whereNull('archived_at')
+            ->with('sport:id,name')
             ->get(['id', 'coach_id', 'assistant_coach_id', 'team_name', 'sport_id', 'year']);
 
         $coachWorkloads = [];
+        $coachAvailabilityMap = [];
         foreach ($coachTeamLoad as $t) {
+            if ($editingTeamId && $t->id === $editingTeamId) {
+                continue;
+            }
+
+            $teamLabel = $t->team_name;
+            if ($t->sport?->name) {
+                $teamLabel .= " ({$t->sport->name})";
+            }
+            if (!empty($t->year)) {
+                $teamLabel .= " - {$t->year}";
+            }
+
             if ($t->coach_id) {
                 $coachWorkloads[$t->coach_id][] = [
                     'team_id' => $t->id,
@@ -511,6 +497,15 @@ class CreateTeamController extends Controller
                     'sport_id' => $t->sport_id,
                     'year' => $t->year,
                 ];
+
+                if (!isset($coachAvailabilityMap[$t->coach_id])) {
+                    $coachAvailabilityMap[$t->coach_id] = [
+                        'is_available' => false,
+                        'assigned_team_id' => (int) $t->id,
+                        'assigned_role' => 'Head Coach',
+                        'unavailable_reason' => "Assigned as Head Coach to {$teamLabel}.",
+                    ];
+                }
             }
             if ($t->assistant_coach_id) {
                 $coachWorkloads[$t->assistant_coach_id][] = [
@@ -520,8 +515,92 @@ class CreateTeamController extends Controller
                     'sport_id' => $t->sport_id,
                     'year' => $t->year,
                 ];
+
+                if (!isset($coachAvailabilityMap[$t->assistant_coach_id])) {
+                    $coachAvailabilityMap[$t->assistant_coach_id] = [
+                        'is_available' => false,
+                        'assigned_team_id' => (int) $t->id,
+                        'assigned_role' => 'Assistant Coach',
+                        'unavailable_reason' => "Assigned as Assistant Coach to {$teamLabel}.",
+                    ];
+                }
             }
         }
+
+        $playerAssignmentRows = TeamPlayer::query()
+            ->join('teams', 'teams.id', '=', 'team_players.team_id')
+            ->leftJoin('sports', 'sports.id', '=', 'teams.sport_id')
+            ->whereNull('teams.archived_at')
+            ->when($editingTeamId, fn ($query) => $query->where('teams.id', '!=', $editingTeamId))
+            ->orderBy('teams.id')
+            ->get([
+                'team_players.student_id',
+                'teams.id as team_id',
+                'teams.team_name',
+                'teams.year',
+                'sports.name as sport_name',
+            ]);
+
+        $playerAvailabilityMap = [];
+        foreach ($playerAssignmentRows as $row) {
+            $studentId = (int) $row->student_id;
+            if (isset($playerAvailabilityMap[$studentId])) {
+                continue;
+            }
+
+            $teamLabel = (string) $row->team_name;
+            if (!empty($row->sport_name)) {
+                $teamLabel .= " ({$row->sport_name})";
+            }
+            if (!empty($row->year)) {
+                $teamLabel .= " - {$row->year}";
+            }
+
+            $playerAvailabilityMap[$studentId] = [
+                'is_available' => false,
+                'assigned_team_id' => (int) $row->team_id,
+                'unavailable_reason' => "Assigned to {$teamLabel}.",
+            ];
+        }
+
+        $coaches = Coach::query()
+            ->with('user')
+            ->select('id', 'user_id', 'coach_status')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($c) use ($coachAvailabilityMap) {
+                $availability = $coachAvailabilityMap[$c->id] ?? null;
+                return [
+                    'id' => $c->id,
+                    'name' => $this->resolveCoachDisplayName($c),
+                    'status' => $c->coach_status,
+                    'email' => $c->user?->email,
+                    'is_available' => $availability['is_available'] ?? true,
+                    'assigned_team_id' => $availability['assigned_team_id'] ?? null,
+                    'assigned_role' => $availability['assigned_role'] ?? null,
+                    'unavailable_reason' => $availability['unavailable_reason'] ?? null,
+                ];
+            })->values();
+
+        $players = Student::query()
+            ->with('user')
+            ->select('id', 'user_id', 'student_id_number', 'current_grade_level')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($p) use ($playerAvailabilityMap) {
+                $availability = $playerAvailabilityMap[$p->id] ?? null;
+                return [
+                    'id' => $p->id,
+                    'name' => $this->resolveStudentDisplayName($p),
+                    'student_id_number' => $p->student_id_number,
+                    'education_level' => $p->education_level,
+                    'current_grade_level' => $p->current_grade_level,
+                    'email' => $p->user?->email,
+                    'is_available' => $availability['is_available'] ?? true,
+                    'assigned_team_id' => $availability['assigned_team_id'] ?? null,
+                    'unavailable_reason' => $availability['unavailable_reason'] ?? null,
+                ];
+            })->values();
 
         $selectedTeam = null;
         if ($team) {
@@ -533,6 +612,10 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveCoachDisplayName($team->coach),
                     'status' => $team->coach->coach_status ?? null,
                     'email' => $team->coach->user?->email,
+                    'is_available' => true,
+                    'assigned_team_id' => null,
+                    'assigned_role' => null,
+                    'unavailable_reason' => null,
                 ]);
             }
             if ($team->assistantCoach && !$coaches->contains('id', $team->assistantCoach->id)) {
@@ -541,6 +624,10 @@ class CreateTeamController extends Controller
                     'name' => $this->resolveCoachDisplayName($team->assistantCoach),
                     'status' => $team->assistantCoach->coach_status ?? null,
                     'email' => $team->assistantCoach->user?->email,
+                    'is_available' => true,
+                    'assigned_team_id' => null,
+                    'assigned_role' => null,
+                    'unavailable_reason' => null,
                 ]);
             }
 
@@ -553,6 +640,9 @@ class CreateTeamController extends Controller
                         'education_level' => $player->student->education_level,
                         'current_grade_level' => $player->student->current_grade_level,
                         'email' => $player->student->user?->email,
+                        'is_available' => true,
+                        'assigned_team_id' => null,
+                        'unavailable_reason' => null,
                     ]);
                 }
             }
@@ -787,7 +877,7 @@ class CreateTeamController extends Controller
         return $playerIds;
     }
 
-    private function validateCoachAssignmentConflicts(int $sportId, string $year, int $headCoachId, ?int $assistantCoachId, ?int $ignoreTeamId): void
+    private function validateCoachAssignmentConflicts(int $headCoachId, ?int $assistantCoachId, ?int $ignoreTeamId): void
     {
         $coachIds = array_filter([$headCoachId, $assistantCoachId]);
         if (empty($coachIds)) {
@@ -796,8 +886,6 @@ class CreateTeamController extends Controller
 
         $query = Team::query()
             ->whereNull('archived_at')
-            ->where('sport_id', $sportId)
-            ->where('year', $year)
             ->where(function ($q) use ($coachIds) {
                 $q->whereIn('coach_id', $coachIds)->orWhereIn('assistant_coach_id', $coachIds);
             });
@@ -808,12 +896,12 @@ class CreateTeamController extends Controller
 
         if ($query->exists()) {
             throw ValidationException::withMessages([
-                'coach_id' => 'Coach assignment conflict: one selected coach is already assigned to an active team in the same sport and year.',
+                'coach_id' => 'Coach assignment conflict: one selected coach is already assigned to another active team.',
             ]);
         }
     }
 
-    private function validatePlayerConflicts(int $sportId, Collection $playerIds, ?int $ignoreTeamId): void
+    private function validatePlayerConflicts(Collection $playerIds, ?int $ignoreTeamId): void
     {
         if ($playerIds->isEmpty()) {
             return;
@@ -822,7 +910,6 @@ class CreateTeamController extends Controller
         $query = TeamPlayer::query()
             ->join('teams', 'teams.id', '=', 'team_players.team_id')
             ->whereNull('teams.archived_at')
-            ->where('teams.sport_id', $sportId)
             ->whereIn('team_players.student_id', $playerIds->all());
 
         if ($ignoreTeamId) {
@@ -845,7 +932,7 @@ class CreateTeamController extends Controller
                 ->all();
 
             throw ValidationException::withMessages([
-                'players' => 'Player conflict: one or more selected players are already assigned to an active same-sport team. ' . implode(', ', array_slice($names, 0, 4)),
+                'players' => 'Player conflict: one or more selected players are already assigned to another active team. ' . implode(', ', array_slice($names, 0, 4)),
             ]);
         }
     }

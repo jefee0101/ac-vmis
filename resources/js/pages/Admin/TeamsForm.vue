@@ -30,10 +30,22 @@ type PlayerOption = {
     email?: string | null
     education_level?: string | null
     current_grade_level?: string | null
+    is_available?: boolean
+    assigned_team_id?: number | null
+    unavailable_reason?: string | null
 }
 
 const props = defineProps<{
-    coaches: { id: number; name: string; status?: string | null; email?: string | null }[]
+    coaches: {
+        id: number
+        name: string
+        status?: string | null
+        email?: string | null
+        is_available?: boolean
+        assigned_team_id?: number | null
+        assigned_role?: string | null
+        unavailable_reason?: string | null
+    }[]
     players: PlayerOption[]
     sports: { id: number; name: string; max_players: number }[]
     selectedTeam?: TeamPayload | null
@@ -73,6 +85,7 @@ const sportSelected = computed(() => !!sport.value)
 const selectableCoaches = computed(() =>
     allCoaches.value.map((coachOption) => ({
         ...coachOption,
+        disabled: coachOption.is_available === false,
         meta: [coachOption.email ? `Email: ${coachOption.email}` : null, coachOption.status ? `Status: ${coachOption.status}` : null, `ID: ${coachOption.id}`]
             .filter(Boolean)
             .join(' • '),
@@ -105,6 +118,7 @@ const selectablePlayers = computed(() => {
         ...filtered.filter((player) => !selectedSet.has(player.id)),
     ].map((playerOption) => ({
         ...playerOption,
+        disabled: playerOption.is_available === false,
         meta: [
             playerOption.student_id_number ? `Student ID: ${playerOption.student_id_number}` : null,
             playerOption.email ? `Email: ${playerOption.email}` : null,
@@ -168,6 +182,9 @@ const assistantConflictHint = computed(() => {
         return String(assignment.sport_id) === sport.value && String(assignment.year) === year.value
     })
 })
+
+const unavailableCoaches = computed(() => allCoaches.value.filter((c) => c.is_available === false))
+const unavailablePlayers = computed(() => allPlayers.value.filter((p) => p.is_available === false))
 
 function captureCurrentState() {
     return {
@@ -306,6 +323,24 @@ function validate() {
 
     if (assistantConflictHint.value.length > 0) {
         nextErrors.assistant_coach_id = 'Selected assistant coach already has an assignment in the same sport and year.'
+    }
+
+    const headCoachOption = allCoaches.value.find((c) => c.id === coach.value)
+    if (headCoachOption && headCoachOption.is_available === false) {
+        nextErrors.coach_id = headCoachOption.unavailable_reason || 'Selected head coach is already assigned to another active team.'
+    }
+
+    const assistantOption = allCoaches.value.find((c) => c.id === assistantCoach.value)
+    if (assistantOption && assistantOption.is_available === false) {
+        nextErrors.assistant_coach_id = assistantOption.unavailable_reason || 'Selected assistant coach is already assigned to another active team.'
+    }
+
+    const unavailableSelectedPlayers = players.value
+        .map((id) => allPlayers.value.find((p) => p.id === id))
+        .filter((p): p is PlayerOption => Boolean(p) && p.is_available === false)
+
+    if (unavailableSelectedPlayers.length > 0) {
+        nextErrors.players = unavailableSelectedPlayers[0].unavailable_reason || 'One or more selected players are already assigned to another active team.'
     }
 
     errors.value = nextErrors
@@ -455,6 +490,9 @@ onBeforeUnmount(() => {
                             Remove head coach
                         </button>
                         <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first for conflict-aware guidance.</p>
+                        <p v-if="sportSelected && unavailableCoaches.length" class="mt-1 text-xs text-slate-500">
+                            {{ unavailableCoaches.length }} coach(es) unavailable due to active assignments.
+                        </p>
                         <p v-if="sportSelected && selectableCoaches.length === 0" class="mt-1 text-xs text-amber-700">No coaches loaded. Check coach records in People.</p>
                         <p v-else-if="headCoachConflictHint.length" class="mt-1 text-xs text-amber-700">
                             Coach conflict hint: already assigned to {{ headCoachConflictHint.map((x) => x.team_name).join(', ') }} in this sport/year.
@@ -534,6 +572,9 @@ onBeforeUnmount(() => {
                             Clear selected players
                         </button>
                         <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first to apply roster limits correctly.</p>
+                        <p v-if="sportSelected && unavailablePlayers.length" class="mt-1 text-xs text-slate-500">
+                            {{ unavailablePlayers.length }} player(s) unavailable due to active team assignment.
+                        </p>
                         <p v-if="sportSelected && selectablePlayers.length === 0" class="mt-1 text-xs text-amber-700">No players loaded. Check student-athlete records in People.</p>
                         <p v-else class="mt-1 text-xs text-slate-500">
                             Max players for {{ selectedSport?.name }}: {{ maxPlayersForSelectedSport }}.

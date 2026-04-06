@@ -6,6 +6,8 @@ interface Option {
     id: number;
     name: string;
     meta?: string | null;
+    disabled?: boolean;
+    unavailable_reason?: string | null;
     [key: string]: any;
 }
 
@@ -37,6 +39,7 @@ const selectedOptions = computed(() =>
 );
 
 function addOption(option: Option) {
+    if (option.disabled) return;
     emit('update:modelValue', [...props.modelValue, option.id]);
     search.value = '';
 }
@@ -109,9 +112,13 @@ onBeforeUnmount(() => {
             <div v-for="option in filteredOptions"
                  :key="option.id"
                  @click="addOption(option)"
-                 class="cursor-pointer px-3 py-2 hover:bg-gray-100">
+                 class="px-3 py-2"
+                 :class="option.disabled ? 'cursor-not-allowed bg-slate-50 opacity-70' : 'cursor-pointer hover:bg-gray-100'">
                 <p class="text-sm font-medium text-slate-800">{{ option.name }}</p>
                 <p v-if="option.meta" class="text-xs text-slate-500">{{ option.meta }}</p>
+                <p v-if="option.disabled" class="text-xs font-medium text-amber-700">
+                    {{ option.unavailable_reason || 'Unavailable for assignment' }}
+                </p>
             </div>
         </div>
 
