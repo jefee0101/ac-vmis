@@ -27,12 +27,13 @@ type PlayerOption = {
     id: number
     name: string
     student_id_number: string | null
+    email?: string | null
     education_level?: string | null
     current_grade_level?: string | null
 }
 
 const props = defineProps<{
-    coaches: { id: number; name: string; status?: string | null }[]
+    coaches: { id: number; name: string; status?: string | null; email?: string | null }[]
     players: PlayerOption[]
     sports: { id: number; name: string; max_players: number }[]
     selectedTeam?: TeamPayload | null
@@ -72,7 +73,7 @@ const sportSelected = computed(() => !!sport.value)
 const selectableCoaches = computed(() =>
     allCoaches.value.map((coachOption) => ({
         ...coachOption,
-        meta: [coachOption.status ? `Status: ${coachOption.status}` : null, `ID: ${coachOption.id}`]
+        meta: [coachOption.email ? `Email: ${coachOption.email}` : null, coachOption.status ? `Status: ${coachOption.status}` : null, `ID: ${coachOption.id}`]
             .filter(Boolean)
             .join(' • '),
     }))
@@ -106,6 +107,7 @@ const selectablePlayers = computed(() => {
         ...playerOption,
         meta: [
             playerOption.student_id_number ? `Student ID: ${playerOption.student_id_number}` : null,
+            playerOption.email ? `Email: ${playerOption.email}` : null,
             playerOption.education_level ? playerOption.education_level : null,
             playerOption.current_grade_level ? `Level: ${playerOption.current_grade_level}` : null,
         ]
@@ -444,6 +446,14 @@ onBeforeUnmount(() => {
                             badge-class="bg-[#034485] text-white"
                             remove-class="text-white/80 hover:text-white"
                         />
+                        <button
+                            v-if="coach"
+                            type="button"
+                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
+                            @click="coach = null"
+                        >
+                            Remove head coach
+                        </button>
                         <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first for conflict-aware guidance.</p>
                         <p v-if="sportSelected && selectableCoaches.length === 0" class="mt-1 text-xs text-amber-700">No coaches loaded. Check coach records in People.</p>
                         <p v-else-if="headCoachConflictHint.length" class="mt-1 text-xs text-amber-700">
@@ -462,6 +472,14 @@ onBeforeUnmount(() => {
                             badge-class="bg-[#034485] text-white"
                             remove-class="text-white/80 hover:text-white"
                         />
+                        <button
+                            v-if="assistantCoach"
+                            type="button"
+                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
+                            @click="assistantCoach = null"
+                        >
+                            Remove assistant coach
+                        </button>
                         <p v-if="coach && assistantCoach && coach === assistantCoach" class="mt-1 text-xs text-amber-700">
                             Assistant coach cannot be the same as head coach.
                         </p>
@@ -507,6 +525,14 @@ onBeforeUnmount(() => {
                             :placeholder="sportSelected ? `Search players (max ${maxPlayersForSelectedSport})...` : 'Select sport first'"
                             :tag-style="playerTagStyle"
                         />
+                        <button
+                            v-if="players.length"
+                            type="button"
+                            class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
+                            @click="players = []"
+                        >
+                            Clear selected players
+                        </button>
                         <p v-if="!sportSelected" class="mt-1 text-xs text-slate-500">Select sport first to apply roster limits correctly.</p>
                         <p v-if="sportSelected && selectablePlayers.length === 0" class="mt-1 text-xs text-amber-700">No players loaded. Check student-athlete records in People.</p>
                         <p v-else class="mt-1 text-xs text-slate-500">

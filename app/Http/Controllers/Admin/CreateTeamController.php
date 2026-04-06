@@ -473,28 +473,31 @@ class CreateTeamController extends Controller
     {
         $coaches = Coach::query()
             ->join('users', 'users.id', '=', 'coaches.user_id')
-            ->select('coaches.id', 'coaches.coach_status', 'users.first_name', 'users.middle_name', 'users.last_name')
+            ->select('coaches.id', 'coaches.coach_status', 'users.first_name', 'users.middle_name', 'users.last_name', 'users.email')
             ->orderBy('users.first_name')
             ->orderBy('users.last_name')
             ->get()
             ->map(fn ($c) => [
                 'id' => $c->id,
-                'name' => trim($c->first_name . ' ' . $c->last_name) ?: "Coach #{$c->id}",
+                'name' => trim($c->first_name . ' ' . ($c->middle_name ?? '') . ' ' . $c->last_name) ?: (string) ($c->email ?? 'Unknown Coach'),
                 'status' => $c->coach_status,
+                'email' => $c->email,
             ])->values();
 
         $players = Student::query()
             ->join('users', 'users.id', '=', 'students.user_id')
-            ->select('students.id', 'students.student_id_number', 'students.current_grade_level', 'users.first_name', 'users.middle_name', 'users.last_name')
+            ->select('students.id', 'students.student_id_number', 'students.current_grade_level', 'users.first_name', 'users.middle_name', 'users.last_name', 'users.email')
             ->orderBy('users.first_name')
             ->orderBy('users.last_name')
             ->get()
             ->map(fn ($p) => [
                 'id' => $p->id,
-                'name' => trim($p->first_name . ' ' . ($p->middle_name ?? '') . ' ' . $p->last_name) ?: "Student #{$p->id}",
+                'name' => trim($p->first_name . ' ' . ($p->middle_name ?? '') . ' ' . $p->last_name)
+                    ?: (string) ($p->email ?? ($p->student_id_number ? "Student {$p->student_id_number}" : 'Unknown Student')),
                 'student_id_number' => $p->student_id_number,
-                'education_level' => $p->education_level,
+                'education_level' => in_array((int) preg_replace('/[^0-9]/', '', (string) ($p->current_grade_level ?? '')), [11, 12], true) ? 'Senior High' : 'College',
                 'current_grade_level' => $p->current_grade_level,
+                'email' => $p->email,
             ])->values();
 
         $coachTeamLoad = Team::query()
@@ -530,13 +533,17 @@ class CreateTeamController extends Controller
             if ($team->coach && !$coaches->contains('id', $team->coach->id)) {
                 $coaches->push([
                     'id' => $team->coach->id,
-                    'name' => trim($team->coach->first_name . ' ' . $team->coach->last_name) ?: "Coach #{$team->coach->id}",
+                    'name' => $team->coach->full_name ?: ((string) ($team->coach->user?->email ?? 'Unknown Coach')),
+                    'status' => $team->coach->coach_status ?? null,
+                    'email' => $team->coach->user?->email,
                 ]);
             }
             if ($team->assistantCoach && !$coaches->contains('id', $team->assistantCoach->id)) {
                 $coaches->push([
                     'id' => $team->assistantCoach->id,
-                    'name' => trim($team->assistantCoach->first_name . ' ' . $team->assistantCoach->last_name) ?: "Coach #{$team->assistantCoach->id}",
+                    'name' => $team->assistantCoach->full_name ?: ((string) ($team->assistantCoach->user?->email ?? 'Unknown Coach')),
+                    'status' => $team->assistantCoach->coach_status ?? null,
+                    'email' => $team->assistantCoach->user?->email,
                 ]);
             }
 
@@ -544,10 +551,11 @@ class CreateTeamController extends Controller
                 if ($player->student && !$players->contains('id', $player->student->id)) {
                     $players->push([
                         'id' => $player->student->id,
-                        'name' => trim($player->student->first_name . ' ' . ($player->student->middle_name ?? '') . ' ' . $player->student->last_name) ?: "Student #{$player->student->id}",
+                        'name' => $player->student->full_name ?: ((string) ($player->student->user?->email ?? 'Unknown Student')),
                         'student_id_number' => $player->student->student_id_number,
                         'education_level' => $player->student->education_level,
                         'current_grade_level' => $player->student->current_grade_level,
+                        'email' => $player->student->user?->email,
                     ]);
                 }
             }
