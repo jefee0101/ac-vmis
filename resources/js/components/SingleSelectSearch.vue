@@ -5,6 +5,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 interface Option {
     id: number;
     name: string;
+    meta?: string | null;
 }
 
 const props = defineProps<{
@@ -72,9 +73,12 @@ onBeforeUnmount(() => {
 <template>
     <div ref="rootRef" class="relative w-full overflow-visible">
         <!-- Selected Badge -->
-        <div v-if="selectedOption" class="flex items-center gap-2 mb-2">
+        <div v-if="selectedOption" class="mb-2 flex flex-wrap items-center gap-2">
             <span class="px-3 py-1 rounded-full text-sm" :class="badgeClass || 'bg-slate-100 text-slate-700'">
                 {{ selectedOption.name }}
+            </span>
+            <span v-if="selectedOption.meta" class="text-xs text-slate-500">
+                {{ selectedOption.meta }}
             </span>
             <button @click="removeSelection" class="font-bold" :class="removeClass || 'text-red-500'">
                 ×
@@ -108,9 +112,10 @@ onBeforeUnmount(() => {
                 v-for="option in filteredOptions"
                 :key="option.id"
                 @click="selectOption(option)"
-                class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                class="cursor-pointer px-3 py-2 hover:bg-gray-100"
             >
-                {{ option.name }}
+                <p class="text-sm font-medium text-slate-800">{{ option.name }}</p>
+                <p v-if="option.meta" class="text-xs text-slate-500">{{ option.meta }}</p>
             </div>
         </div>
 

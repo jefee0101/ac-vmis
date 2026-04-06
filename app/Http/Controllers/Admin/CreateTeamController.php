@@ -44,11 +44,11 @@ class CreateTeamController extends Controller
             'year' => 'required|digits:4',
             'coach_id' => 'required|exists:coaches,id',
             'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
-            'players' => 'required|string',
+            'players' => 'nullable|string',
             'description' => 'nullable|string',
         ]);
 
-        $playerIds = $this->decodePlayerIds($validated['players']);
+        $playerIds = $this->decodePlayerIds($validated['players'] ?? '[]');
         $maxPlayers = $this->maxPlayersForSport((int) $validated['sport_id']);
         if ($playerIds->count() > $maxPlayers) {
             throw ValidationException::withMessages([
@@ -130,11 +130,11 @@ class CreateTeamController extends Controller
             'year' => 'required|digits:4',
             'coach_id' => 'required|exists:coaches,id',
             'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
-            'players' => 'required|string',
+            'players' => 'nullable|string',
             'description' => 'nullable|string',
         ]);
 
-        $playerIds = $this->decodePlayerIds($validated['players']);
+        $playerIds = $this->decodePlayerIds($validated['players'] ?? '[]');
         $maxPlayers = $this->maxPlayersForSport((int) $validated['sport_id']);
         if ($playerIds->count() > $maxPlayers) {
             throw ValidationException::withMessages([
@@ -743,12 +743,6 @@ class CreateTeamController extends Controller
             ->unique()
             ->values();
 
-        if ($playerIds->isEmpty()) {
-            throw ValidationException::withMessages([
-                'players' => 'Select at least one player.',
-            ]);
-        }
-
         return $playerIds;
     }
 
@@ -780,6 +774,10 @@ class CreateTeamController extends Controller
 
     private function validatePlayerConflicts(int $sportId, Collection $playerIds, ?int $ignoreTeamId): void
     {
+        if ($playerIds->isEmpty()) {
+            return;
+        }
+
         $query = TeamPlayer::query()
             ->join('teams', 'teams.id', '=', 'team_players.team_id')
             ->whereNull('teams.archived_at')

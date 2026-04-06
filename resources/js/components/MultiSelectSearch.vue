@@ -5,6 +5,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 interface Option {
     id: number;
     name: string;
+    meta?: string | null;
     [key: string]: any;
 }
 
@@ -73,6 +74,9 @@ onBeforeUnmount(() => {
                 :style="tagStyle ? tagStyle(option) : undefined"
             >
                 {{ option.name }}
+                <span v-if="option.meta" class="text-[11px] opacity-75">
+                    · {{ option.meta }}
+                </span>
                 <button
                     @click="removeOption(option.id)"
                     class="font-bold"
@@ -105,8 +109,9 @@ onBeforeUnmount(() => {
             <div v-for="option in filteredOptions"
                  :key="option.id"
                  @click="addOption(option)"
-                 class="px-3 py-2 hover:bg-gray-100 cursor-pointer">
-                {{ option.name }}
+                 class="cursor-pointer px-3 py-2 hover:bg-gray-100">
+                <p class="text-sm font-medium text-slate-800">{{ option.name }}</p>
+                <p v-if="option.meta" class="text-xs text-slate-500">{{ option.meta }}</p>
             </div>
         </div>
 

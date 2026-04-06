@@ -32,7 +32,7 @@ type PlayerOption = {
 }
 
 const props = defineProps<{
-    coaches: { id: number; name: string }[]
+    coaches: { id: number; name: string; status?: string | null }[]
     players: PlayerOption[]
     sports: { id: number; name: string; max_players: number }[]
     selectedTeam?: TeamPayload | null
@@ -69,7 +69,14 @@ const isEditMode = computed(() => !!props.selectedTeam?.id)
 const selectedSport = computed(() => allSports.value.find((s) => String(s.id) === sport.value) || null)
 const maxPlayersForSelectedSport = computed(() => selectedSport.value?.max_players ?? 0)
 const sportSelected = computed(() => !!sport.value)
-const selectableCoaches = computed(() => allCoaches.value)
+const selectableCoaches = computed(() =>
+    allCoaches.value.map((coachOption) => ({
+        ...coachOption,
+        meta: [coachOption.status ? `Status: ${coachOption.status}` : null, `ID: ${coachOption.id}`]
+            .filter(Boolean)
+            .join(' • '),
+    }))
+)
 const playerRoleOptions = computed(() => {
     const set = new Set<string>()
     allPlayers.value.forEach((player) => {
@@ -95,7 +102,16 @@ const selectablePlayers = computed(() => {
     return [
         ...selectedOptions,
         ...filtered.filter((player) => !selectedSet.has(player.id)),
-    ]
+    ].map((playerOption) => ({
+        ...playerOption,
+        meta: [
+            playerOption.student_id_number ? `Student ID: ${playerOption.student_id_number}` : null,
+            playerOption.education_level ? playerOption.education_level : null,
+            playerOption.current_grade_level ? `Level: ${playerOption.current_grade_level}` : null,
+        ]
+            .filter(Boolean)
+            .join(' • '),
+    }))
 })
 const draftKey = computed(() => `ac-vmis:teams:draft:${isEditMode.value ? `edit:${props.selectedTeam?.id}` : 'create'}`)
 const isOverLimit = computed(() => maxPlayersForSelectedSport.value > 0 && selectedPlayerCount.value > maxPlayersForSelectedSport.value)
@@ -277,7 +293,6 @@ function validate() {
     if (!sport.value) nextErrors.sport_id = 'Select a sport.'
     if (!year.value) nextErrors.year = 'Select a year.'
     if (!coach.value) nextErrors.coach_id = 'Select a head coach.'
-    if (!players.value.length) nextErrors.players = 'Select at least one player.'
 
     if (players.value.length > maxPlayersForSelectedSport.value) {
         nextErrors.players = `Maximum players for ${selectedSport.value?.name ?? 'this sport'} is ${maxPlayersForSelectedSport.value}.`
