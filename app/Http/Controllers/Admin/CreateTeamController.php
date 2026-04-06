@@ -479,7 +479,7 @@ class CreateTeamController extends Controller
             ->get()
             ->map(fn ($c) => [
                 'id' => $c->id,
-                'name' => trim($c->first_name . ' ' . $c->last_name),
+                'name' => trim($c->first_name . ' ' . $c->last_name) ?: "Coach #{$c->id}",
                 'status' => $c->coach_status,
             ])->values();
 
@@ -491,7 +491,7 @@ class CreateTeamController extends Controller
             ->get()
             ->map(fn ($p) => [
                 'id' => $p->id,
-                'name' => trim($p->first_name . ' ' . ($p->middle_name ?? '') . ' ' . $p->last_name),
+                'name' => trim($p->first_name . ' ' . ($p->middle_name ?? '') . ' ' . $p->last_name) ?: "Student #{$p->id}",
                 'student_id_number' => $p->student_id_number,
                 'education_level' => $p->education_level,
                 'current_grade_level' => $p->current_grade_level,
@@ -530,13 +530,13 @@ class CreateTeamController extends Controller
             if ($team->coach && !$coaches->contains('id', $team->coach->id)) {
                 $coaches->push([
                     'id' => $team->coach->id,
-                    'name' => trim($team->coach->first_name . ' ' . $team->coach->last_name),
+                    'name' => trim($team->coach->first_name . ' ' . $team->coach->last_name) ?: "Coach #{$team->coach->id}",
                 ]);
             }
             if ($team->assistantCoach && !$coaches->contains('id', $team->assistantCoach->id)) {
                 $coaches->push([
                     'id' => $team->assistantCoach->id,
-                    'name' => trim($team->assistantCoach->first_name . ' ' . $team->assistantCoach->last_name),
+                    'name' => trim($team->assistantCoach->first_name . ' ' . $team->assistantCoach->last_name) ?: "Coach #{$team->assistantCoach->id}",
                 ]);
             }
 
@@ -544,7 +544,7 @@ class CreateTeamController extends Controller
                 if ($player->student && !$players->contains('id', $player->student->id)) {
                     $players->push([
                         'id' => $player->student->id,
-                        'name' => trim($player->student->first_name . ' ' . ($player->student->middle_name ?? '') . ' ' . $player->student->last_name),
+                        'name' => trim($player->student->first_name . ' ' . ($player->student->middle_name ?? '') . ' ' . $player->student->last_name) ?: "Student #{$player->student->id}",
                         'student_id_number' => $player->student->student_id_number,
                         'education_level' => $player->student->education_level,
                         'current_grade_level' => $player->student->current_grade_level,

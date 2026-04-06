@@ -15,6 +15,7 @@ use App\Models\TeamSchedule;
 use App\Models\Student;
 use App\Models\WellnessLog;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Log;
 
 class StudentAthleteController extends Controller
 {
@@ -22,9 +23,21 @@ class StudentAthleteController extends Controller
     {
         $student = Student::where('user_id', Auth::id())->first();
 
-        return Inertia::render('StudentAthletes/StudentAthleteDashboard', [
-            'dashboard' => $this->buildDashboard($student),
-        ]);
+        try {
+            return Inertia::render('StudentAthletes/StudentAthleteDashboard', [
+                'dashboard' => $this->buildDashboard($student),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Student dashboard load failed', [
+                'user_id' => Auth::id(),
+                'student_id' => $student?->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return Inertia::render('StudentAthletes/StudentAthleteDashboard', [
+                'dashboard' => $this->emptyDashboardPayload(),
+            ]);
+        }
     }
 
     public function index(Request $request)
@@ -289,4 +302,30 @@ class StudentAthleteController extends Controller
             ],
         ];
     }
-}   
+
+    private function emptyDashboardPayload(): array
+    {
+        return [
+            'kpis' => [
+                'attendance_rate' => null,
+                'pending_responses' => 0,
+                'wellness_logs_30d' => 0,
+                'academic_status' => null,
+            ],
+            'charts' => [
+                'upcoming_sessions' => [],
+                'wellness_trend' => [],
+                'attendance_breakdown' => [
+                    'present' => 0,
+                    'absent' => 0,
+                    'excused' => 0,
+                    'no_response' => 0,
+                ],
+                'academic_submissions' => [
+                    'submitted' => 0,
+                    'pending' => 0,
+                ],
+            ],
+        ];
+    }
+}

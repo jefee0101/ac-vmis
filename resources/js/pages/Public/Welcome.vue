@@ -607,32 +607,6 @@ watch(mobileMenuOpen, (open) => {
                 </div>
             </section>
 
-            <section id="contact" class="section-shell welcome-reveal public-anchor-section info-section">
-                <div class="info-panel mx-auto max-w-6xl">
-                    <div class="info-intro">
-                        <p class="section-kicker"><span class="title-chip">Contact</span></p>
-                        <h2><span class="title-chip title-chip-blue">Official support channels for account and system concerns.</span></h2>
-                    </div>
-
-                    <div class="info-grid info-grid-2">
-                        <article class="info-card">
-                            <h3>Contact and Support</h3>
-                            <p><strong>Official Email:</strong> varsity.support@asiancollege.edu.ph</p>
-                            <p><strong>Office Contact:</strong> +63 000 000 0000</p>
-                            <p><strong>Office:</strong> Student Affairs and Sports Development</p>
-                            <p>For faster support, include your full name, role, and the issue you are reporting.</p>
-                        </article>
-
-                        <article class="info-card">
-                            <h3>Socials</h3>
-                            <p><strong>Facebook:</strong> @AsianCollegeVarsity</p>
-                            <p><strong>Instagram:</strong> @asiancollege.varsity</p>
-                            <p><strong>YouTube:</strong> Asian College Varsity</p>
-                        </article>
-                    </div>
-                </div>
-            </section>
-
             <section class="register-cta-wrap section-shell welcome-reveal">
                 <div class="register-cta mx-auto max-w-6xl">
                     <p class="cta-kicker"><span class="title-chip">Ready To Start?</span></p>
@@ -645,6 +619,79 @@ watch(mobileMenuOpen, (open) => {
                     <div class="cta-actions">
                         <button @click="toRegister" class="btn-fill">Register Now</button>
                         <button @click="toLogin" class="btn-outline">I Already Have An Account</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="contact" class="section-shell welcome-reveal public-anchor-section info-section">
+                <div class="info-panel mx-auto max-w-6xl">
+                    <div class="info-intro">
+                        <p class="section-kicker"><span class="title-chip">Contact</span></p>
+                        <h2><span class="title-chip title-chip-blue">Official support channels for account and system concerns.</span></h2>
+                    </div>
+
+                    <div class="support-hub-grid">
+                        <article class="support-card support-primary-card">
+                            <p class="support-card-kicker">Support Hub</p>
+                            <h3>Contact and Support</h3>
+                            <p class="support-card-copy">For faster support, include your full name, role, and the issue you are reporting.</p>
+
+                            <p class="support-best-chip">Best way to reach us: Email support first, then call during office hours.</p>
+
+                            <div class="support-contact-list">
+                                <p class="support-contact-item">
+                                    <span class="support-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="5" width="18" height="14" rx="2" />
+                                            <path d="M3 7l9 6 9-6" />
+                                        </svg>
+                                    </span>
+                                    <span>varsity.support@asiancollege.edu.ph</span>
+                                </p>
+                                <p class="support-contact-item">
+                                    <span class="support-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path
+                                                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.34 1.77.66 2.6a2 2 0 0 1-.45 2.11L8 9.9a16 16 0 0 0 6.1 6.1l1.47-1.32a2 2 0 0 1 2.11-.45c.83.32 1.7.54 2.6.66A2 2 0 0 1 22 16.92z"
+                                            />
+                                        </svg>
+                                    </span>
+                                    <span>+63 000 000 0000</span>
+                                </p>
+                                <p class="support-contact-item">
+                                    <span class="support-icon" aria-hidden="true">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 2l8 4v6c0 5-3.4 9.4-8 10-4.6-.6-8-5-8-10V6l8-4z" />
+                                            <path d="M9.5 12.5l1.8 1.8 3.2-3.2" />
+                                        </svg>
+                                    </span>
+                                    <span>Student Affairs and Sports Development Office</span>
+                                </p>
+                            </div>
+
+                            <div class="support-cta-row">
+                                <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Email Support</a>
+                                <a href="tel:+630000000000" class="support-btn support-btn-outline">Call Office</a>
+                            </div>
+                        </article>
+
+                        <div class="support-hub-side">
+                            <article class="support-card support-side-card support-form-card">
+                                <h3>Send a Message</h3>
+                                <form class="support-form" @submit.prevent>
+                                    <input type="text" class="support-input" placeholder="Full name" />
+                                    <input type="email" class="support-input" placeholder="Email address" />
+                                    <select class="support-input support-select">
+                                        <option>Account Access</option>
+                                        <option>Registration</option>
+                                        <option>Schedule Concern</option>
+                                        <option>Other Concern</option>
+                                    </select>
+                                    <textarea class="support-input support-textarea" rows="3" placeholder="Write your message..."></textarea>
+                                    <button type="submit" class="support-btn support-btn-fill support-submit">Send Message</button>
+                                </form>
+                            </article>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -2252,6 +2299,203 @@ watch(mobileMenuOpen, (open) => {
     max-width: 860px;
 }
 
+.support-hub-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 1rem;
+}
+
+.support-hub-side {
+    display: grid;
+    gap: 1rem;
+}
+
+.support-card {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1.15rem 1.1rem;
+    border-radius: 1rem;
+    border: 1px solid rgba(3, 68, 133, 0.16);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(244, 249, 255, 0.98));
+    box-shadow: 0 16px 34px -30px rgba(3, 68, 133, 0.28);
+    transition:
+        transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 220ms ease;
+}
+
+.support-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(3, 68, 133, 0.26);
+    box-shadow: 0 22px 42px -32px rgba(3, 68, 133, 0.36);
+}
+
+.support-card-kicker {
+    margin: 0;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--brand-blue);
+    font-weight: 800;
+}
+
+.support-card h3 {
+    margin: 0;
+    font-size: 1.04rem;
+    font-weight: 800;
+    color: var(--page-text);
+}
+
+.support-card-copy,
+.support-card p {
+    margin: 0;
+    color: var(--page-text-muted);
+    font-size: 0.92rem;
+    line-height: 1.62;
+}
+
+.support-best-chip {
+    width: fit-content;
+    max-width: 100%;
+    border-radius: 999px;
+    border: 1px solid rgba(3, 68, 133, 0.2);
+    background: rgba(219, 234, 254, 0.66);
+    color: #0f3f74 !important;
+    font-size: 0.79rem !important;
+    font-weight: 700;
+    padding: 0.34rem 0.62rem;
+}
+
+.support-contact-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.support-contact-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    color: var(--page-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.support-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 68, 133, 0.1);
+    color: var(--brand-blue);
+    flex-shrink: 0;
+}
+
+.support-icon svg {
+    width: 0.92rem;
+    height: 0.92rem;
+}
+
+.support-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.support-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.52rem 0.9rem;
+    transition:
+        background 200ms ease,
+        color 200ms ease,
+        border-color 200ms ease,
+        box-shadow 200ms ease;
+}
+
+.support-btn-fill {
+    background: var(--brand-blue);
+    border-color: var(--brand-blue);
+    color: #ffffff;
+}
+
+.support-btn-fill:hover {
+    background: #0d58a3;
+    border-color: #0d58a3;
+    box-shadow: 0 12px 24px -18px rgba(3, 68, 133, 0.6);
+}
+
+.support-btn-outline {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(3, 68, 133, 0.36);
+    color: var(--brand-blue);
+}
+
+.support-btn-outline:hover {
+    background: rgba(219, 234, 254, 0.6);
+    border-color: rgba(3, 68, 133, 0.55);
+}
+
+.support-form {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.support-input {
+    width: 100%;
+    border-radius: 0.85rem;
+    border: 1px solid rgba(3, 68, 133, 0.22);
+    background: #ffffff;
+    color: var(--page-text);
+    font-size: 0.9rem;
+    padding: 0.58rem 0.7rem;
+    transition:
+        border-color 200ms ease,
+        box-shadow 200ms ease;
+}
+
+.support-input::placeholder {
+    color: rgba(15, 23, 42, 0.52);
+}
+
+.support-input:focus {
+    outline: none;
+    border-color: rgba(3, 68, 133, 0.58);
+    box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.2);
+}
+
+.support-select {
+    appearance: none;
+    background-image:
+        linear-gradient(45deg, transparent 50%, rgba(3, 68, 133, 0.7) 50%),
+        linear-gradient(135deg, rgba(3, 68, 133, 0.7) 50%, transparent 50%);
+    background-position:
+        calc(100% - 16px) calc(50% + 1px),
+        calc(100% - 11px) calc(50% + 1px);
+    background-size:
+        5px 5px,
+        5px 5px;
+    background-repeat: no-repeat;
+}
+
+.support-textarea {
+    resize: vertical;
+    min-height: 4.4rem;
+}
+
+.support-submit {
+    justify-self: start;
+}
+
 .step-card {
     position: relative;
     padding-top: 1.45rem;
@@ -2826,6 +3070,10 @@ watch(mobileMenuOpen, (open) => {
     .policies-grid {
         grid-template-columns: 1fr;
     }
+
+    .support-hub-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -2911,6 +3159,21 @@ watch(mobileMenuOpen, (open) => {
     .about-card {
         padding: 1.05rem 1rem;
         border-radius: 18px;
+    }
+
+    .support-hub-side {
+        display: flex;
+        flex-direction: column-reverse;
+    }
+
+    .support-card {
+        padding: 1rem;
+        border-radius: 0.95rem;
+    }
+
+    .support-submit {
+        width: 100%;
+        justify-content: center;
     }
 
     .faq-trigger {

@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="rootRef" class="relative w-full">
+    <div ref="rootRef" class="relative w-full overflow-visible">
         <!-- Selected Badge -->
         <div v-if="selectedOption" class="flex items-center gap-2 mb-2">
             <span class="px-3 py-1 rounded-full text-sm" :class="badgeClass || 'bg-slate-100 text-slate-700'">
@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
         <!-- Dropdown -->
         <div
             v-if="isOpen && loading"
-            class="absolute z-10 bg-white border rounded w-full mt-1 p-2 shadow"
+            class="absolute z-[80] bg-white border rounded w-full mt-1 p-2 shadow-lg"
         >
             <Skeleton class="h-8 mb-2" />
             <Skeleton class="h-8" />
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
 
         <div
             v-else-if="isOpen && filteredOptions.length"
-            class="absolute z-10 bg-white border rounded w-full mt-1 max-h-40 overflow-y-auto shadow"
+            class="absolute z-[80] bg-white border rounded w-full mt-1 max-h-52 overflow-y-auto shadow-lg"
         >
             <div
                 v-for="option in filteredOptions"
@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
 
         <div
             v-else-if="isOpen && !loading"
-            class="absolute z-10 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500 shadow"
+            class="absolute z-[80] bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500 shadow-lg"
         >
             No results found.
         </div>

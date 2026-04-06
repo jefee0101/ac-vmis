@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div ref="rootRef" class="relative w-full">
+    <div ref="rootRef" class="relative w-full overflow-visible">
         <!-- Selected Tags -->
         <div class="flex flex-wrap gap-2 mb-2">
             <span
@@ -95,13 +95,13 @@ onBeforeUnmount(() => {
 
         <!-- Dropdown -->
         <div v-if="isOpen && loading"
-             class="absolute z-10 bg-white border rounded w-full mt-1 p-2 shadow">
+             class="absolute z-[80] bg-white border rounded w-full mt-1 p-2 shadow-lg">
             <Skeleton class="h-8 mb-2" />
             <Skeleton class="h-8" />
         </div>
 
         <div v-else-if="isOpen && filteredOptions.length"
-             class="absolute z-10 bg-white border rounded w-full mt-1 max-h-40 overflow-y-auto shadow">
+             class="absolute z-[80] bg-white border rounded w-full mt-1 max-h-52 overflow-y-auto shadow-lg">
             <div v-for="option in filteredOptions"
                  :key="option.id"
                  @click="addOption(option)"
@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
 
         <div
             v-else-if="isOpen && !loading"
-            class="absolute z-10 bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500 shadow"
+            class="absolute z-[80] bg-white border rounded w-full mt-1 p-2 text-sm text-gray-500 shadow-lg"
         >
             No results found.
         </div>
