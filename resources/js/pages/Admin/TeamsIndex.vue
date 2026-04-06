@@ -328,14 +328,7 @@ function formatTimestamp(value: string | null) {
     <div class="space-y-5">
         <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div class="flex flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        class="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
-                        @click="goToArchivedTeams"
-                    >
-                        Archived Teams
-                    </button>
+                <div>
                     <button
                         type="button"
                         class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155]"
@@ -344,6 +337,13 @@ function formatTimestamp(value: string | null) {
                         Create Team
                     </button>
                 </div>
+                <button
+                    type="button"
+                    class="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 md:ml-auto"
+                    @click="goToArchivedTeams"
+                >
+                    Archived Teams
+                </button>
             </div>
 
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
