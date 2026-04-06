@@ -52,6 +52,19 @@ const props = defineProps<{
         published_at: string | null
         requested_by?: string | null
     }>
+    archivedTeams?: {
+        total: number
+        data: Array<{
+            id: number
+            team_name: string
+            sport_name?: string | null
+            year?: string | number | null
+            players_count: number
+            coach_name: string
+            assistant_coach_name: string
+            archived_at?: string | null
+        }>
+    }
 }>()
 
 const showFilters = ref(false)
@@ -321,6 +334,11 @@ function formatTimestamp(value: string | null) {
         minute: '2-digit',
     })
 }
+
+function showArchivedTeamsOnly() {
+    filters.archive_state = 'archived'
+    reload()
+}
 </script>
 
 <template>
@@ -338,6 +356,39 @@ function formatTimestamp(value: string | null) {
             </div>
 
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div class="mb-1 w-full rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-amber-900">Archived Teams</h3>
+                            <p class="text-xs text-amber-800/90">
+                                Former or inactive teams are kept here for historical review.
+                                <span class="ml-1 font-semibold">Total: {{ props.archivedTeams?.total ?? 0 }}</span>
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                            @click="showArchivedTeamsOnly"
+                        >
+                            View Archived Teams
+                        </button>
+                    </div>
+                    <div v-if="(props.archivedTeams?.data?.length ?? 0) > 0" class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                        <article
+                            v-for="team in props.archivedTeams?.data ?? []"
+                            :key="`archived-${team.id}`"
+                            class="rounded-md border border-amber-200 bg-white p-2.5"
+                        >
+                            <p class="truncate text-sm font-semibold text-slate-900">{{ team.team_name }}</p>
+                            <p class="text-xs text-slate-600">{{ team.sport_name || 'No sport' }} • {{ team.year || 'Unassigned year' }}</p>
+                            <p class="text-xs text-slate-500">Head: {{ team.coach_name }}</p>
+                            <p class="text-xs text-slate-500">Assistant: {{ team.assistant_coach_name }}</p>
+                            <p class="text-xs text-slate-500">Players: {{ team.players_count }}</p>
+                        </article>
+                    </div>
+                    <p v-else class="mt-2 text-xs text-amber-800/80">No archived teams yet.</p>
+                </div>
+
                 <input
                     v-model="filters.search"
                     type="text"

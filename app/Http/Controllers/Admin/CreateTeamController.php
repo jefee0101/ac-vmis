@@ -317,6 +317,33 @@ class CreateTeamController extends Controller
             fn (Team $team) => $this->serializeTeamSummary($team, $sportMaxMap, $teamIssueCounts)
         );
 
+        $archivedTeamsTotal = Team::query()
+            ->whereNotNull('archived_at')
+            ->count();
+
+        $archivedTeams = Team::query()
+            ->with([
+                'sport:id,name',
+                'coach.user',
+                'assistantCoach.user',
+            ])
+            ->withCount('players')
+            ->whereNotNull('archived_at')
+            ->orderByDesc('archived_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (Team $team) => [
+                'id' => $team->id,
+                'team_name' => $team->team_name,
+                'sport_name' => $team->sport?->name,
+                'year' => $team->year,
+                'players_count' => (int) ($team->players_count ?? 0),
+                'coach_name' => trim(($team->coach?->first_name ?? '') . ' ' . ($team->coach?->last_name ?? '')) ?: 'Unassigned',
+                'assistant_coach_name' => trim(($team->assistantCoach?->first_name ?? '') . ' ' . ($team->assistantCoach?->last_name ?? '')) ?: 'Unassigned',
+                'archived_at' => $team->archived_at?->toDateTimeString(),
+            ])
+            ->values();
+
         $requestTitles = [
             'Team Change Request',
             'Assistant Coach Request',
@@ -375,6 +402,10 @@ class CreateTeamController extends Controller
             ],
             'readOnly' => auth()->user()?->role !== 'admin',
             'teamChangeRequests' => $teamChangeRequests,
+            'archivedTeams' => [
+                'total' => $archivedTeamsTotal,
+                'data' => $archivedTeams,
+            ],
         ]);
     }
 

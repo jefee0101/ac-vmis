@@ -591,7 +591,7 @@ watch(
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
             <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                <p class="text-xs tracking-wide text-slate-500 uppercase">Total Approved</p>
+                <p class="text-xs tracking-wide text-slate-500 uppercase">Users</p>
                 <p class="mt-1 text-2xl font-bold text-slate-900">{{ totalUsers }}</p>
             </article>
             <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
