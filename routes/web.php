@@ -172,6 +172,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/teams', [CreateTeamController::class, 'teamSetup'])
         ->name('admin.teams.index');
+    Route::get('/teams/archived', [CreateTeamController::class, 'archivedTeams'])
+        ->name('admin.teams.archived');
     Route::get('/teams/create', [CreateTeamController::class, 'create'])
         ->name('admin.teams.create');
     Route::post('/teams/create', [CreateTeamController::class, 'store'])

@@ -52,19 +52,6 @@ const props = defineProps<{
         published_at: string | null
         requested_by?: string | null
     }>
-    archivedTeams?: {
-        total: number
-        data: Array<{
-            id: number
-            team_name: string
-            sport_name?: string | null
-            year?: string | number | null
-            players_count: number
-            coach_name: string
-            assistant_coach_name: string
-            archived_at?: string | null
-        }>
-    }
 }>()
 
 const showFilters = ref(false)
@@ -76,7 +63,6 @@ const filters = reactive({
     roster_status: String(props.filters?.roster_status ?? 'all'),
     sort: String(props.filters?.sort ?? 'updated_at'),
     direction: String(props.filters?.direction ?? 'desc'),
-    archive_state: String(props.filters?.archive_state ?? 'active'),
 })
 
 const activeFilterCount = computed(() => {
@@ -85,7 +71,6 @@ const activeFilterCount = computed(() => {
     if (filters.year) count++
     if (filters.coach_status !== 'all') count++
     if (filters.roster_status !== 'all') count++
-    if (filters.archive_state !== 'active') count++
     if (filters.sort !== 'updated_at' || filters.direction !== 'desc') count++
     return count
 })
@@ -192,7 +177,6 @@ function buildQuery(extra: Record<string, any> = {}) {
         roster_status: filters.roster_status,
         sort: filters.sort,
         direction: filters.direction,
-        archive_state: filters.archive_state,
         tab: 'all-teams',
         ...extra,
     }
@@ -214,13 +198,16 @@ function clearFilters() {
     filters.roster_status = 'all'
     filters.sort = 'updated_at'
     filters.direction = 'desc'
-    filters.archive_state = 'active'
     showFilters.value = false
     reload()
 }
 
 function goToCreateTeam() {
     router.get('/teams/create')
+}
+
+function goToArchivedTeams() {
+    router.get('/teams/archived')
 }
 
 function goToEditTeam(teamId: number) {
@@ -335,60 +322,31 @@ function formatTimestamp(value: string | null) {
     })
 }
 
-function showArchivedTeamsOnly() {
-    filters.archive_state = 'archived'
-    reload()
-}
 </script>
 
 <template>
     <div class="space-y-5">
         <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-
-                <button
-                    type="button"
-                    class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155]"
-                    @click="goToCreateTeam"
-                >
-                    Create Team
-                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        class="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                        @click="goToArchivedTeams"
+                    >
+                        Archived Teams
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#334155]"
+                        @click="goToCreateTeam"
+                    >
+                        Create Team
+                    </button>
+                </div>
             </div>
 
             <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div class="mb-1 w-full rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-amber-900">Archived Teams</h3>
-                            <p class="text-xs text-amber-800/90">
-                                Former or inactive teams are kept here for historical review.
-                                <span class="ml-1 font-semibold">Total: {{ props.archivedTeams?.total ?? 0 }}</span>
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            class="rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                            @click="showArchivedTeamsOnly"
-                        >
-                            View Archived Teams
-                        </button>
-                    </div>
-                    <div v-if="(props.archivedTeams?.data?.length ?? 0) > 0" class="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                        <article
-                            v-for="team in props.archivedTeams?.data ?? []"
-                            :key="`archived-${team.id}`"
-                            class="rounded-md border border-amber-200 bg-white p-2.5"
-                        >
-                            <p class="truncate text-sm font-semibold text-slate-900">{{ team.team_name }}</p>
-                            <p class="text-xs text-slate-600">{{ team.sport_name || 'No sport' }} • {{ team.year || 'Unassigned year' }}</p>
-                            <p class="text-xs text-slate-500">Head: {{ team.coach_name }}</p>
-                            <p class="text-xs text-slate-500">Assistant: {{ team.assistant_coach_name }}</p>
-                            <p class="text-xs text-slate-500">Players: {{ team.players_count }}</p>
-                        </article>
-                    </div>
-                    <p v-else class="mt-2 text-xs text-amber-800/80">No archived teams yet.</p>
-                </div>
-
                 <input
                     v-model="filters.search"
                     type="text"
@@ -423,11 +381,6 @@ function showArchivedTeamsOnly() {
                     <option value="complete">Roster: Complete</option>
                     <option value="needs_players">Roster: Needs Players</option>
                     <option value="over_limit">Roster: Over Limit</option>
-                </select>
-                <select v-model="filters.archive_state" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
-                    <option value="active">Active Teams</option>
-                    <option value="archived">Archived Teams</option>
-                    <option value="all">All Teams</option>
                 </select>
                 <div class="grid grid-cols-2 gap-2">
                     <select v-model="filters.sort" class="rounded-md border border-slate-300 px-3 py-2 text-sm">

@@ -228,7 +228,6 @@ class CreateTeamController extends Controller
         $rosterStatus = (string) $request->input('roster_status', 'all');
         $sort = (string) $request->input('sort', 'updated_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $archiveState = (string) $request->input('archive_state', 'active');
 
         $baseQuery = Team::query()
             ->with([
@@ -236,13 +235,8 @@ class CreateTeamController extends Controller
                 'coach.user',
                 'assistantCoach.user',
             ])
-            ->withCount('players');
-
-        if ($archiveState === 'archived') {
-            $baseQuery->whereNotNull('archived_at');
-        } elseif ($archiveState !== 'all') {
-            $baseQuery->whereNull('archived_at');
-        }
+            ->withCount('players')
+            ->whereNull('archived_at');
 
         if ($search !== '') {
             $baseQuery->where(function ($q) use ($search) {
@@ -317,33 +311,6 @@ class CreateTeamController extends Controller
             fn (Team $team) => $this->serializeTeamSummary($team, $sportMaxMap, $teamIssueCounts)
         );
 
-        $archivedTeamsTotal = Team::query()
-            ->whereNotNull('archived_at')
-            ->count();
-
-        $archivedTeams = Team::query()
-            ->with([
-                'sport:id,name',
-                'coach.user',
-                'assistantCoach.user',
-            ])
-            ->withCount('players')
-            ->whereNotNull('archived_at')
-            ->orderByDesc('archived_at')
-            ->limit(10)
-            ->get()
-            ->map(fn (Team $team) => [
-                'id' => $team->id,
-                'team_name' => $team->team_name,
-                'sport_name' => $team->sport?->name,
-                'year' => $team->year,
-                'players_count' => (int) ($team->players_count ?? 0),
-                'coach_name' => trim(($team->coach?->first_name ?? '') . ' ' . ($team->coach?->last_name ?? '')) ?: 'Unassigned',
-                'assistant_coach_name' => trim(($team->assistantCoach?->first_name ?? '') . ' ' . ($team->assistantCoach?->last_name ?? '')) ?: 'Unassigned',
-                'archived_at' => $team->archived_at?->toDateTimeString(),
-            ])
-            ->values();
-
         $requestTitles = [
             'Team Change Request',
             'Assistant Coach Request',
@@ -388,7 +355,6 @@ class CreateTeamController extends Controller
                 'roster_status' => $rosterStatus,
                 'sort' => $sort,
                 'direction' => $direction,
-                'archive_state' => $archiveState,
                 'per_page' => $teams->count(),
                 'tab' => (string) $request->input('tab', 'all-teams'),
             ],
@@ -402,10 +368,95 @@ class CreateTeamController extends Controller
             ],
             'readOnly' => auth()->user()?->role !== 'admin',
             'teamChangeRequests' => $teamChangeRequests,
-            'archivedTeams' => [
-                'total' => $archivedTeamsTotal,
-                'data' => $archivedTeams,
+        ]);
+    }
+
+    public function archivedTeams(Request $request)
+    {
+        $sportMaxMap = Sport::query()
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn ($sport) => [$sport->id => $this->maxPlayersForSport((int) $sport->id)]);
+
+        $search = trim((string) $request->string('search', ''));
+        $sportId = $request->filled('sport_id') ? (int) $request->input('sport_id') : null;
+        $year = $request->filled('year') ? (string) $request->input('year') : null;
+        $sort = (string) $request->input('sort', 'updated_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $query = Team::query()
+            ->with([
+                'sport:id,name',
+                'coach.user',
+                'assistantCoach.user',
+            ])
+            ->withCount('players')
+            ->whereNotNull('archived_at');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('team_name', 'like', "%{$search}%")
+                    ->orWhere('year', 'like', "%{$search}%")
+                    ->orWhereHas('sport', fn ($sportQuery) => $sportQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('coach.user', fn ($coachQuery) => $coachQuery
+                        ->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%"))
+                    ->orWhereHas('assistantCoach.user', fn ($assistantQuery) => $assistantQuery
+                        ->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($sportId) {
+            $query->where('sport_id', $sportId);
+        }
+
+        if ($year) {
+            $query->where('year', $year);
+        }
+
+        $sortMap = [
+            'team_name' => 'team_name',
+            'sport' => 'sport_id',
+            'year' => 'year',
+            'players' => 'players_count',
+            'updated_at' => 'updated_at',
+        ];
+
+        $sortColumn = $sortMap[$sort] ?? 'updated_at';
+        $query->orderBy($sortColumn, $direction)->orderByDesc('archived_at');
+
+        $teams = $query->get()->map(
+            fn (Team $team) => $this->serializeTeamSummary($team, $sportMaxMap, [])
+        );
+
+        return Inertia::render('Admin/TeamsArchived', [
+            'teams' => [
+                'data' => $teams,
+                'meta' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $teams->count(),
+                    'total' => $teams->count(),
+                ],
             ],
+            'filters' => [
+                'search' => $search,
+                'sport_id' => $sportId,
+                'year' => $year,
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
+            'options' => [
+                'sports' => Sport::query()->orderBy('name')->get(['id', 'name']),
+                'years' => Team::query()
+                    ->whereNotNull('archived_at')
+                    ->select('year')
+                    ->whereNotNull('year')
+                    ->distinct()
+                    ->orderByDesc('year')
+                    ->pluck('year'),
+            ],
+            'readOnly' => auth()->user()?->role !== 'admin',
         ]);
     }
 
