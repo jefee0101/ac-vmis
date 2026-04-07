@@ -1,10 +1,16 @@
 import '../css/app.css';
+import 'primeicons/primeicons.css';
 
 import { createInertiaApp, router } from '@inertiajs/vue3';
+import Aura from '@primeuix/themes/aura';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
+import PrimeVue from 'primevue/config';
+import Toast from 'primevue/toast';
+import ToastService from 'primevue/toastservice';
 import type { DefineComponent } from 'vue';
 import { Transition, createApp, h } from 'vue';
 import { initTheme, setStoredTheme } from '@/composables/useTheme';
+import FlashToastBridge from '@/components/ui/FlashToastBridge.vue';
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { useSessionExpired } from '@/composables/useSessionExpired';
 
@@ -79,10 +85,19 @@ createInertiaApp({
                             default: () => h(App, { ...props, key: props.initialPage.url }),
                         },
                     ),
+                    h(Toast, { position: 'top-right' }),
+                    h(FlashToastBridge),
                     h(SessionExpiredToast),
                 ]),
         })
             .use(plugin)
+            .use(PrimeVue, {
+                theme: {
+                    preset: Aura,
+                },
+            })
+            .use(ToastService)
+            .component('Toast', Toast)
             .mount(el);
     },
     progress: {

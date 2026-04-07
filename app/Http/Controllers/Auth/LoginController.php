@@ -48,11 +48,11 @@ class LoginController extends Controller
 
         // Redirect by role
         if ($user->role === 'admin') {
-            return redirect('/AdminDashboard');
+            return redirect('/AdminDashboard')->with('login_success', 'Login successful');
         } elseif ($user->role === 'coach') {
-            return redirect('/coach/dashboard');
+            return redirect('/coach/dashboard')->with('login_success', 'Login successful');
         } elseif (in_array($user->role, ['student-athlete', 'student'], true)) {
-            return redirect('/StudentAthleteDashboard');
+            return redirect('/StudentAthleteDashboard')->with('login_success', 'Login successful');
         } else {
             Auth::logout();
             return redirect('/Login')->withErrors([
