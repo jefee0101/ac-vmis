@@ -6,11 +6,11 @@ import Aura from '@primeuix/themes/aura';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import PrimeVue from 'primevue/config';
 import Toast from 'primevue/toast';
+import ToastEventBus from 'primevue/toasteventbus';
 import ToastService from 'primevue/toastservice';
 import type { DefineComponent } from 'vue';
 import { Transition, createApp, h } from 'vue';
 import { initTheme, setStoredTheme } from '@/composables/useTheme';
-import FlashToastBridge from '@/components/ui/FlashToastBridge.vue';
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { useSessionExpired } from '@/composables/useSessionExpired';
 
@@ -47,6 +47,16 @@ createInertiaApp({
         }
         router.on('success', (event) => {
             applyThemeFromProps(event.detail.page.props);
+
+            const message = String((event.detail.page.props as any)?.flash?.login_success ?? '').trim();
+            if (message) {
+                ToastEventBus.emit('add', {
+                    severity: 'success',
+                    summary: 'Success',
+                    detail: message,
+                    life: 2200,
+                });
+            }
         });
         const { showSessionExpired } = useSessionExpired();
 
@@ -85,8 +95,7 @@ createInertiaApp({
                             default: () => h(App, { ...props, key: props.initialPage.url }),
                         },
                     ),
-                    h(Toast, { position: 'top-right' }),
-                    h(FlashToastBridge),
+                    h(Toast, { position: 'top-right', baseZIndex: 20000 }),
                     h(SessionExpiredToast),
                 ]),
         })
