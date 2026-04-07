@@ -324,6 +324,13 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold'])->group(function () {
+    Route::get('/AcademicSubmissions', [AcademicSubmissionController::class, 'index'])->name('AcademicSubmissions');
+    Route::get('/AcademicSubmissions/new', [AcademicSubmissionController::class, 'create'])->name('AcademicSubmissions.create');
+    Route::get('/AcademicSubmissions/print', [AcademicSubmissionController::class, 'print'])->name('AcademicSubmissions.print');
+    Route::post('/AcademicSubmissions', [AcademicSubmissionController::class, 'store'])->name('academic.submissions.store');
+});
+
+Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold', 'academic.eligibility'])->group(function () {
     Route::get('/StudentAthleteDashboard', [StudentAthleteController::class, 'dashboard'])
         ->name('StudentAthleteDashboard');
     Route::get('/MyTeam', [StudentAthleteController::class, 'index'])->name('MyTeam');
@@ -332,10 +339,6 @@ Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold'])->gr
     Route::get('/MySchedule', [ScheduleRecord::class, 'mySchedules'])->name('MySchedule');
     Route::get('/MySchedule/print', [ScheduleRecord::class, 'print'])->name('MySchedule.print');
     Route::get('/WellnessHistory', [WellnessHistoryController::class, 'index'])->name('WellnessHistory');
-    Route::get('/AcademicSubmissions', [AcademicSubmissionController::class, 'index'])->name('AcademicSubmissions');
-    Route::get('/AcademicSubmissions/new', [AcademicSubmissionController::class, 'create'])->name('AcademicSubmissions.create');
-    Route::get('/AcademicSubmissions/print', [AcademicSubmissionController::class, 'print'])->name('AcademicSubmissions.print');
-    Route::post('/AcademicSubmissions', [AcademicSubmissionController::class, 'store'])->name('academic.submissions.store');
     Route::put('/Student/Schedules/{id}/attendance', [ScheduleRecord::class, 'updateScheduleAttendance'])
         ->name('student.schedules.attendance');
     Route::get('/Student/Schedules/{id}/qr-token', [ScheduleRecord::class, 'qrToken'])

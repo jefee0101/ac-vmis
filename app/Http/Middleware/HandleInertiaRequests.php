@@ -13,6 +13,7 @@ use App\Models\TeamSchedule;
 use App\Models\User;
 use App\Models\UserSetting;
 use App\Models\WellnessLog;
+use App\Services\AcademicEligibilityAccessService;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -337,6 +338,9 @@ class HandleInertiaRequests extends Middleware
                             ];
                         }
                     )
+                    : null,
+                'academic_access' => fn () => $request->user() && in_array($request->user()->role, ['student', 'student-athlete'], true) && $request->user()->student
+                    ? app(AcademicEligibilityAccessService::class)->evaluate($request->user()->student)
                     : null,
             ],
             'flash' => [

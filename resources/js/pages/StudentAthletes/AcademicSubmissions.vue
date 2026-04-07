@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, Link, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 
 defineOptions({
@@ -51,6 +51,10 @@ const props = defineProps<{
     hasSubmittedAll?: boolean
 }>()
 
+const page = usePage()
+const academicAccess = computed(() => (page.props.auth as any)?.academic_access ?? null)
+const isAcademicallyRestricted = computed(() => Boolean(academicAccess.value?.is_restricted))
+const restrictionEvaluation = computed(() => academicAccess.value?.evaluation ?? null)
 
 function parseTime(value: string | null | undefined) {
     if (!value) return 0
@@ -129,7 +133,9 @@ function printAcademicSummary() {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Academic Submissions</h1>
-                <p class="text-sm text-slate-500">Submit your semester grade proof directly to admin.</p>
+                <p class="text-sm text-slate-500">
+                    {{ isAcademicallyRestricted ? 'Review your academic standing and submit the required records to work toward restored varsity access.' : 'Submit your semester grade proof directly to admin.' }}
+                </p>
             </div>
             <div class="flex flex-wrap gap-2">
                 <button
@@ -146,6 +152,61 @@ function printAcademicSummary() {
         </div>
 
         <template v-else>
+            <section
+                v-if="isAcademicallyRestricted"
+                class="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] shadow-sm"
+            >
+                <div class="grid gap-4 px-4 py-5 sm:px-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)] lg:items-center">
+                    <div class="flex items-start gap-3">
+                        <span class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M12 9v4" />
+                                <path d="M12 17h.01" />
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                            </svg>
+                        </span>
+                        <div class="space-y-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="text-base font-semibold text-slate-900">Varsity access is currently limited</p>
+                                <span class="rounded-full border border-amber-200 bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
+                                    Academic restriction
+                                </span>
+                            </div>
+                            <p class="max-w-3xl text-sm leading-6 text-slate-600">
+                                {{ academicAccess?.message }}
+                            </p>
+                            <p class="text-sm text-slate-600">
+                                You can still use this module to review your evaluation, submit the required documents, and check what needs attention for the current academic period.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl border border-amber-200/80 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Current evaluation</p>
+                        <div class="mt-3 space-y-2 text-sm text-slate-600">
+                            <div class="flex items-center justify-between gap-3">
+                                <span>Status</span>
+                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="evaluationPill(restrictionEvaluation?.status)">
+                                    {{ restrictionEvaluation?.status ?? 'Ineligible' }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span>Period</span>
+                                <span class="text-right font-medium text-slate-800">{{ restrictionEvaluation?.period_label ?? latestEvaluated?.period_label ?? '-' }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span>GPA</span>
+                                <span class="font-medium text-slate-800">{{ restrictionEvaluation?.gpa ?? latestEvaluated?.evaluation?.gpa ?? '-' }}</span>
+                            </div>
+                            <div class="flex items-start justify-between gap-3">
+                                <span>Remarks</span>
+                                <span class="max-w-[14rem] text-right text-slate-700">{{ restrictionEvaluation?.remarks ?? latestEvaluated?.evaluation?.remarks ?? 'Check the evaluated record below for details.' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="grid grid-cols-1 gap-3 lg:grid-cols-3">
                 <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Student</p>

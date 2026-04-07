@@ -43,19 +43,20 @@ class AdminController extends Controller
         }
 
         $cacheKey = "admin_dashboard:{$period}";
-        $payload = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($period) {
-            [$start, $end] = $this->dashboardRange($period);
+            $payload = Cache::remember($cacheKey, now()->addSeconds(60), function () use ($period) {
+                [$start, $end] = $this->dashboardRange($period);
 
-            $attendanceSummary = $this->attendanceSummary($start, $end);
-            $attendanceTrend = $this->attendanceTrend($start, $end);
-            $healthDistribution = $this->healthDistribution();
-            $academicByTeam = $this->academicByTeam();
-            $heatmap = $this->attendanceHeatmap($start, $end);
-            $todaySchedules = $this->todaySchedules();
-            $needsAttentionQueue = $this->needsAttentionQueue();
+                $attendanceSummary = $this->attendanceSummary($start, $end);
+                $attendanceTrend = $this->attendanceTrend($start, $end);
+                $healthDistribution = $this->healthDistribution();
+                $academicByTeam = $this->academicByTeam();
+                $heatmap = $this->attendanceHeatmap($start, $end);
+                $todaySchedules = $this->todaySchedules();
+                $needsAttentionQueue = $this->needsAttentionQueue();
+                $activityLog = $this->recentActivityLog();
 
-            return [
-                'dashboard' => [
+                return [
+                    'dashboard' => [
                     'filters' => [
                         'period' => $period,
                         'start_date' => $start->toDateString(),
@@ -78,14 +79,15 @@ class AdminController extends Controller
                         'academic_by_team' => $academicByTeam['rows'],
                         'heatmap' => $heatmap,
                     ],
-                    'queues' => [
-                        'today_schedules' => $todaySchedules,
-                        'needs_attention' => $needsAttentionQueue,
+                        'queues' => [
+                            'today_schedules' => $todaySchedules,
+                            'needs_attention' => $needsAttentionQueue,
+                        ],
+                        'activity_log' => $activityLog,
+                        'action_center' => $this->buildActionCenter($needsAttentionQueue, $activityLog, $todaySchedules),
                     ],
-                    'activity_log' => $this->recentActivityLog(),
-                ],
-            ];
-        });
+                ];
+            });
 
         return Inertia::render('Admin/AdminDashboard', $payload);
     }
@@ -1105,6 +1107,350 @@ class AdminController extends Controller
                 'students' => $byRole['students'],
                 'coaches' => $byRole['coaches'],
             ],
+        ];
+    }
+
+    private function buildActionCenter(array $needsAttentionQueue, array $activityLog, array $todaySchedules): array
+    {
+        $today = now()->toDateString();
+        $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
+        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
+        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
+
+        $pendingApprovals = User::query()
+            ->where('status', 'pending')
+            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+            ->latest('created_at')
+            ->limit(3)
+            ->get(['id', 'first_name', 'last_name', 'role', 'created_at'])
+            ->map(fn (User $user) => [
+                'id' => 'approval-' . $user->id,
+                'title' => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                'subtitle' => 'Pending ' . str_replace('-', ' ', (string) $user->role) . ' account approval',
+                'meta' => $user->created_at?->diffForHumans(),
+                'urgency' => 'high',
+                'action_label' => 'Open Queue',
+                'action_url' => '/people/queue',
+            ])
+            ->values();
+
+        $openPeriod = DB::table('academic_periods')
+            ->whereDate('starts_on', '<=', $today)
+            ->whereDate('ends_on', '>=', $today)
+            ->orderByDesc('starts_on')
+            ->first(['id', 'school_year', 'term', 'ends_on']);
+
+        $academicAlerts = collect();
+
+        if ($openPeriod) {
+            $missingSubmissions = DB::table('team_players as tp')
+                ->join('students as s', 's.id', '=', 'tp.student_id')
+                ->join('users as su', 'su.id', '=', 's.user_id')
+                ->leftJoin('academic_documents as ad', function ($join) use ($openPeriod) {
+                    $join->on('ad.student_id', '=', 's.id')
+                        ->where('ad.academic_period_id', '=', $openPeriod->id);
+                })
+                ->whereNull('ad.id')
+                ->select([
+                    's.id as student_id',
+                    'su.first_name',
+                    'su.last_name',
+                ])
+                ->distinct()
+                ->limit(2)
+                ->get()
+                ->map(fn ($row) => [
+                    'id' => 'academic-missing-' . $row->student_id,
+                    'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                    'subtitle' => 'Missing academic submission for the active period',
+                    'meta' => trim(($openPeriod->school_year ?? '') . ' ' . ($openPeriod->term ?? '')),
+                    'urgency' => 'high',
+                    'action_label' => 'Open Academics',
+                    'action_url' => '/academics/submissions',
+                ]);
+
+            $academicAlerts = $academicAlerts->concat($missingSubmissions);
+        }
+
+        $evaluatedAlerts = DB::table('academic_eligibility_evaluations as e')
+            ->join('students as s', 's.id', '=', 'e.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->when($openPeriod, fn ($query) => $query->where('e.academic_period_id', $openPeriod->id))
+            ->whereNotNull('e.gpa')
+            ->where('e.gpa', '>', $eligibleMax)
+            ->orderByRaw("CASE WHEN e.gpa > {$probationMax} THEN 0 ELSE 1 END")
+            ->orderByDesc('e.evaluated_at')
+            ->limit(3)
+            ->get([
+                's.id as student_id',
+                'su.first_name',
+                'su.last_name',
+                'e.gpa',
+                'e.evaluated_at',
+            ])
+            ->map(fn ($row) => [
+                'id' => 'academic-risk-' . $row->student_id,
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                'subtitle' => strtoupper(\App\Models\AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ) ?? 'PENDING') . ' academic status',
+                'meta' => $row->evaluated_at ? Carbon::parse($row->evaluated_at)->diffForHumans() : null,
+                'urgency' => ($row->gpa !== null && (float) $row->gpa > $probationMax) ? 'critical' : 'high',
+                'action_label' => 'Evaluate',
+                'action_url' => '/academics',
+            ]);
+
+        $academicAlerts = $academicAlerts
+            ->concat($evaluatedAlerts)
+            ->unique('id')
+            ->take(4)
+            ->values();
+
+        $healthAlerts = DB::table('athlete_health_clearances as ahc')
+            ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
+            ->join('students as s', 's.id', '=', 'ahc.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->whereRaw("{$statusCaseSql} = 'expired'", [$today])
+            ->select([
+                's.id as student_id',
+                'su.first_name',
+                'su.last_name',
+                'ahc.valid_until',
+            ])
+            ->limit(2)
+            ->get()
+            ->map(fn ($row) => [
+                'id' => 'health-expired-' . $row->student_id,
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                'subtitle' => 'Expired health clearance',
+                'meta' => $row->valid_until ? 'Valid until ' . Carbon::parse($row->valid_until)->toFormattedDateString() : null,
+                'urgency' => 'critical',
+                'action_label' => 'Open Health',
+                'action_url' => '/health?tab=clearance',
+            ]);
+
+        $wellnessAlerts = DB::table('wellness_logs as wl')
+            ->join('students as s', 's.id', '=', 'wl.student_id')
+            ->join('users as su', 'su.id', '=', 's.user_id')
+            ->where('wl.log_date', '>=', now()->subDays(7)->toDateString())
+            ->where(function ($query) {
+                $query->where('wl.injury_observed', true)
+                    ->orWhere('wl.fatigue_level', '>=', 4);
+            })
+            ->orderByDesc('wl.log_date')
+            ->limit(2)
+            ->get([
+                's.id as student_id',
+                'su.first_name',
+                'su.last_name',
+                'wl.log_date',
+                'wl.injury_observed',
+                'wl.fatigue_level',
+            ])
+            ->map(fn ($row) => [
+                'id' => 'health-wellness-' . $row->student_id . '-' . $row->log_date,
+                'title' => trim(($row->first_name ?? '') . ' ' . ($row->last_name ?? '')),
+                'subtitle' => $row->injury_observed ? 'Injury concern logged in wellness monitoring' : 'High fatigue level logged in wellness monitoring',
+                'meta' => Carbon::parse($row->log_date)->toFormattedDateString(),
+                'urgency' => 'high',
+                'action_label' => 'Review Record',
+                'action_url' => '/health?tab=wellness',
+            ]);
+
+        $healthAlerts = $healthAlerts
+            ->concat($wellnessAlerts)
+            ->take(4)
+            ->values();
+
+        $attendanceAlerts = collect($todaySchedules)
+            ->filter(fn ($item) => (int) ($item['late'] ?? 0) > 0 || (int) ($item['absent'] ?? 0) > 0 || (int) ($item['no_response'] ?? 0) > 0)
+            ->map(function ($item) {
+                $issueParts = [];
+                if ((int) ($item['no_response'] ?? 0) > 0) {
+                    $issueParts[] = $item['no_response'] . ' no response';
+                }
+                if ((int) ($item['absent'] ?? 0) > 0) {
+                    $issueParts[] = $item['absent'] . ' absent';
+                }
+                if ((int) ($item['late'] ?? 0) > 0) {
+                    $issueParts[] = $item['late'] . ' late';
+                }
+
+                return [
+                    'id' => 'attendance-' . $item['id'],
+                    'title' => $item['title'],
+                    'subtitle' => $item['team_name'] . ' has attendance exceptions',
+                    'meta' => implode(' • ', $issueParts),
+                    'urgency' => ((int) ($item['no_response'] ?? 0) >= 3 || (int) ($item['absent'] ?? 0) >= 3) ? 'high' : 'medium',
+                    'action_label' => 'Open Attendance',
+                    'action_url' => '/operations?tab=attendance',
+                ];
+            })
+            ->take(4)
+            ->values();
+
+        $teamAlerts = Team::query()
+            ->whereNull('archived_at')
+            ->where(function ($query) {
+                $query->whereNull('coach_id')
+                    ->orWhereDoesntHave('players');
+            })
+            ->withCount('players')
+            ->orderBy('team_name')
+            ->limit(3)
+            ->get(['id', 'team_name', 'year', 'coach_id'])
+            ->map(function (Team $team) {
+                $subtitle = $team->coach_id
+                    ? 'Team roster still needs athlete assignments'
+                    : 'Team has no assigned head coach';
+
+                return [
+                    'id' => 'team-' . $team->id,
+                    'title' => $team->team_name,
+                    'subtitle' => $subtitle,
+                    'meta' => $team->year ? 'Year ' . $team->year : null,
+                    'urgency' => $team->coach_id ? 'medium' : 'high',
+                    'action_label' => $team->coach_id ? 'Open Team' : 'Assign Coach',
+                    'action_url' => '/teams',
+                ];
+            });
+
+        $teamChangeRequests = Announcement::query()
+            ->where('title', 'Team Change Request')
+            ->whereNull('read_at')
+            ->latest('published_at')
+            ->limit(1)
+            ->get()
+            ->map(fn (Announcement $announcement) => [
+                'id' => 'team-request-' . $announcement->id,
+                'title' => 'Team change request pending',
+                'subtitle' => Str::limit((string) $announcement->message, 72),
+                'meta' => $announcement->published_at?->diffForHumans(),
+                'urgency' => 'medium',
+                'action_label' => 'Review Request',
+                'action_url' => '/teams',
+            ]);
+
+        $teamAlerts = $teamAlerts
+            ->concat($teamChangeRequests)
+            ->take(4)
+            ->values();
+
+        $systemNotices = collect();
+
+        if ($openPeriod && !empty($openPeriod->ends_on)) {
+            $daysLeft = now()->diffInDays(Carbon::parse($openPeriod->ends_on), false);
+            if ($daysLeft >= 0 && $daysLeft <= 14) {
+                $systemNotices->push([
+                    'id' => 'system-period-' . $openPeriod->id,
+                    'title' => 'Academic period deadline approaching',
+                    'subtitle' => 'Submission window closes soon for the active academic period',
+                    'meta' => Carbon::parse($openPeriod->ends_on)->toFormattedDateString(),
+                    'urgency' => 'medium',
+                    'action_label' => 'Open Academics',
+                    'action_url' => '/academics',
+                ]);
+            }
+        }
+
+        $systemNotices = $systemNotices
+            ->concat(collect($todaySchedules)->take(2)->map(fn ($item) => [
+                'id' => 'system-schedule-' . $item['id'],
+                'title' => $item['title'],
+                'subtitle' => 'Scheduled today for ' . $item['team_name'],
+                'meta' => $item['start_time'],
+                'urgency' => 'medium',
+                'action_label' => 'Open Calendar',
+                'action_url' => '/operations?tab=calendar',
+            ]))
+            ->take(3)
+            ->values();
+
+        $groups = collect([
+            [
+                'key' => 'pending_approvals',
+                'title' => 'Pending Approvals',
+                'description' => 'Newly registered accounts awaiting admin review.',
+                'count' => User::query()->where('status', 'pending')->whereIn('role', ['student-athlete', 'student', 'coach'])->count(),
+                'action_label' => 'Open Queue',
+                'action_url' => '/people/queue',
+                'tone' => 'slate',
+                'items' => $pendingApprovals->all(),
+            ],
+            [
+                'key' => 'academic_alerts',
+                'title' => 'Academic Alerts',
+                'description' => 'Missing submissions and at-risk athlete evaluations.',
+                'count' => $academicAlerts->count(),
+                'action_label' => 'Open Academics',
+                'action_url' => '/academics',
+                'tone' => 'amber',
+                'items' => $academicAlerts->all(),
+            ],
+            [
+                'key' => 'health_alerts',
+                'title' => 'Health Alerts',
+                'description' => 'Expired clearances and wellness concerns needing follow-up.',
+                'count' => $healthAlerts->count(),
+                'action_label' => 'Open Health',
+                'action_url' => '/health',
+                'tone' => 'rose',
+                'items' => $healthAlerts->all(),
+            ],
+            [
+                'key' => 'attendance_exceptions',
+                'title' => 'Attendance Exceptions',
+                'description' => 'Late, absent, and no-response issues from active schedules.',
+                'count' => $attendanceAlerts->count(),
+                'action_label' => 'Open Attendance',
+                'action_url' => '/operations?tab=attendance',
+                'tone' => 'blue',
+                'items' => $attendanceAlerts->all(),
+            ],
+            [
+                'key' => 'team_alerts',
+                'title' => 'Team Alerts',
+                'description' => 'Assignment gaps and team requests needing attention.',
+                'count' => $teamAlerts->count(),
+                'action_label' => 'Open Teams',
+                'action_url' => '/teams',
+                'tone' => 'emerald',
+                'items' => $teamAlerts->all(),
+            ],
+            [
+                'key' => 'system_notices',
+                'title' => 'System Notices',
+                'description' => 'Upcoming deadlines and today’s operational reminders.',
+                'count' => $systemNotices->count(),
+                'action_label' => 'Open Operations',
+                'action_url' => '/operations',
+                'tone' => 'slate',
+                'items' => $systemNotices->all(),
+            ],
+        ])->values();
+
+        $allIssues = $groups->flatMap(fn ($group) => $group['items']);
+        $criticalCount = $allIssues->where('urgency', 'critical')->count();
+        $highCount = $allIssues->where('urgency', 'high')->count();
+
+        return [
+            'summary' => [
+                'open_issues' => $allIssues->count(),
+                'critical' => $criticalCount,
+                'due_today' => count($todaySchedules),
+                'pending_review' => $groups->whereIn('key', ['pending_approvals', 'academic_alerts', 'health_alerts'])->sum('count'),
+            ],
+            'groups' => $groups->all(),
+            'recent_activity' => [
+                'items' => array_slice($activityLog['items'] ?? [], 0, 8),
+                'summary' => $activityLog['summary'] ?? [
+                    'total' => 0,
+                    'students' => 0,
+                    'coaches' => 0,
+                ],
+            ],
+            'high_priority_count' => $criticalCount + $highCount,
+            'source_count' => count($needsAttentionQueue),
         ];
     }
 

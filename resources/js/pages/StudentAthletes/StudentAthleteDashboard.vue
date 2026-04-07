@@ -12,6 +12,14 @@ const unreadCount = computed(() => Number(page.props.auth?.announcements?.unread
 const hasDefaultSlot = computed(() => Boolean(slots.default))
 const currentPath = computed(() => String(page.url || ''))
 const userName = computed(() => String(page.props.auth?.user?.name ?? 'Athlete'))
+const academicAccess = computed(() => (page.props.auth as any)?.academic_access ?? null)
+const isAcademicallyRestricted = computed(() => Boolean(academicAccess.value?.is_restricted))
+const academicRestrictionMessage = computed(() =>
+    String(
+        academicAccess.value?.message
+        ?? 'Your varsity access is temporarily limited. Please review your Academics module for your current status.'
+    )
+)
 const dashboard = computed(() => (page.props as any)?.dashboard ?? {})
 const kpis = computed(() => dashboard.value.kpis ?? {})
 const charts = computed(() => dashboard.value.charts ?? {})
@@ -311,6 +319,51 @@ watch(mobileMenuOpen, (open) => {
             </aside>
 
             <main class="mx-auto w-full max-w-[1600px] px-4 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] sm:px-6 lg:px-8">
+                <section
+                    v-if="isAcademicallyRestricted"
+                    class="mb-4 overflow-hidden rounded-3xl border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] shadow-sm"
+                >
+                    <div class="flex flex-col gap-4 px-4 py-4 sm:px-5 sm:py-5 md:flex-row md:items-center md:justify-between">
+                        <div class="flex items-start gap-3">
+                            <span class="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                    <path d="M12 9v4" />
+                                    <path d="M12 17h.01" />
+                                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                                </svg>
+                            </span>
+                            <div class="space-y-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="text-sm font-semibold text-slate-900">Academic access restriction active</p>
+                                    <span class="rounded-full border border-amber-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-700">
+                                        Academics only
+                                    </span>
+                                </div>
+                                <p class="max-w-3xl text-sm leading-6 text-slate-600">
+                                    {{ academicRestrictionMessage }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                class="rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#033a70]"
+                                @click="go('/AcademicSubmissions')"
+                            >
+                                Open Academics
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-full border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#034485]/5"
+                                @click="go('/account/help')"
+                            >
+                                Get Help
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
                 <template v-if="hasDefaultSlot">
                     <slot />
                 </template>
