@@ -635,7 +635,7 @@ watch(mobileNavOpen, (isOpen) => {
                     <div class="flex items-center gap-2">
                         <div
                             v-if="isLoading"
-                            class="admin-shell__loading-pill inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600"
+                            class="admin-shell__loading-pill inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-slate-600"
                         >
                             <Spinner class="h-3.5 w-3.5 text-[#1f2937]" />
                             Loading
