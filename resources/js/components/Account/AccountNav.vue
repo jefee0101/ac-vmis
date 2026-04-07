@@ -7,12 +7,11 @@ const props = defineProps<{
 }>()
 
 const items = computed(() => [
-  { key: 'profile', label: 'Profile', href: '/account/profile' },
-  { key: 'settings', label: 'Settings', href: '/account/settings' },
-  { key: 'account', label: 'Account Settings', href: '/account/account-settings' },
-  { key: 'notifications', label: 'Notification', href: '/account/notifications' },
-  { key: 'preferences', label: 'Preference', href: '/account/preferences' },
-  { key: 'help', label: 'Help & Support', href: '/account/help' },
+  { key: 'profile', label: 'Profile', href: '/account/profile', icon: 'user' },
+  { key: 'account', label: 'Account', href: '/account/account-settings', icon: 'lock' },
+  { key: 'notifications', label: 'Alerts', href: '/account/notifications', icon: 'bell' },
+  { key: 'preferences', label: 'Preferences', href: '/account/preferences', icon: 'sliders' },
+  { key: 'help', label: 'Help', href: '/account/help', icon: 'help' },
 ])
 
 function goTo(href: string) {
@@ -21,49 +20,150 @@ function goTo(href: string) {
 </script>
 
 <template>
-  <div class="account-nav rounded-2xl border border-[#034485]/40 bg-white p-6">
-    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-900">Settings</h1>
-        <p class="text-sm text-slate-600">Profile, notifications, preferences, and account security.</p>
-      </div>
+  <div class="account-nav rounded-3xl border border-[#034485]/18 bg-white p-4 shadow-[0_24px_50px_-38px_rgba(15,23,42,0.45)]">
+    <div class="account-nav__header">
+      <h1 class="account-nav__title">Settings</h1>
     </div>
-    <div class="mt-4 flex flex-col gap-2">
+    <div class="account-nav__items">
       <button
         v-for="item in items"
         :key="item.key"
         type="button"
-        class="pill-link"
-        :class="props.active === item.key ? 'pill-link--active' : ''"
+        class="nav-link"
+        :class="props.active === item.key ? 'nav-link--active' : ''"
         @click="goTo(item.href)"
       >
-        {{ item.label }}
+        <span class="nav-link__icon">
+          <svg v-if="item.icon === 'grid'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
+          </svg>
+          <svg v-else-if="item.icon === 'user'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <path d="M20 21a8 8 0 0 0-16 0" />
+            <circle cx="12" cy="8" r="4" />
+          </svg>
+          <svg v-else-if="item.icon === 'lock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <rect x="4" y="11" width="16" height="9" rx="2" />
+            <path d="M8 11V8a4 4 0 1 1 8 0v3" />
+          </svg>
+          <svg v-else-if="item.icon === 'bell'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          <svg v-else-if="item.icon === 'sliders'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <path d="M4 21v-7" />
+            <path d="M4 10V3" />
+            <path d="M12 21v-9" />
+            <path d="M12 8V3" />
+            <path d="M20 21v-4" />
+            <path d="M20 13V3" />
+            <path d="M2 14h4" />
+            <path d="M10 8h4" />
+            <path d="M18 17h4" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 1 1 5.82 1c-.6.84-1.83 1.31-2.38 2.1-.22.31-.32.66-.32 1.4" />
+            <path d="M12 17h.01" />
+          </svg>
+        </span>
+        <span class="nav-link__label">{{ item.label }}</span>
       </button>
     </div>
   </div>
 </template>
 
 <style scoped>
-.pill-link {
+.account-nav {
+  position: relative;
+  overflow: hidden;
+}
+
+.account-nav::before {
+  content: '';
+  position: absolute;
+  inset: -2rem auto auto -2rem;
+  width: 8rem;
+  height: 8rem;
   border-radius: 999px;
-  border: 1px solid rgba(3, 68, 133, 0.45);
-  padding: 0.5rem 0.95rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #034485;
-  background: #ffffff;
-  transition: all 0.2s ease;
-  text-align: left;
+  background: radial-gradient(circle, rgba(3, 68, 133, 0.12) 0%, rgba(3, 68, 133, 0) 72%);
+  pointer-events: none;
+}
+
+.account-nav__header {
+  position: relative;
+  z-index: 1;
+}
+
+.account-nav__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.account-nav__items {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.nav-link {
+  display: flex;
   width: 100%;
+  align-items: center;
+  gap: 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
+  padding: 0.78rem 0.9rem;
+  color: #334155;
+  text-align: left;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-.pill-link:hover {
+.nav-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(3, 68, 133, 0.18);
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.nav-link__icon {
+  display: inline-flex;
+  width: 2.15rem;
+  height: 2.15rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.8rem;
   background: rgba(3, 68, 133, 0.08);
+  color: #034485;
+  flex-shrink: 0;
 }
 
-.pill-link--active {
-  background: #034485;
+.nav-link__icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.nav-link__label {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.nav-link--active {
+  border-color: rgba(3, 68, 133, 0.18);
+  background: linear-gradient(135deg, #034485 0%, #0a5fb1 100%);
   color: #ffffff;
-  border-color: #034485;
+  box-shadow: 0 18px 30px -24px rgba(3, 68, 133, 0.55);
+}
+
+.nav-link--active .nav-link__icon {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }
 </style>

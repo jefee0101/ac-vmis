@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import AccountShell from '@/components/Account/AccountShell.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 defineOptions({
@@ -305,11 +306,7 @@ onBeforeUnmount(() => {
 <template>
   <Head title="My Profile" />
 
-  <div class="settings-page space-y-6">
-    <div>
-      <Link href="/account/settings" class="back-pill">Back</Link>
-    </div>
-
+  <AccountShell active="profile">
     <section class="rounded-2xl border border-[#034485]/45 bg-gradient-to-br from-white via-white to-slate-50/60 p-6">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -464,7 +461,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
-  </div>
+  </AccountShell>
 </template>
 
 <style scoped>
@@ -532,19 +529,4 @@ onBeforeUnmount(() => {
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.2);
 }
 
-.back-pill {
-  border-radius: 999px;
-  background: #034485;
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #ffffff;
-  transition: background 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-}
-
-.back-pill:hover {
-  background: #04519f;
-}
 </style>

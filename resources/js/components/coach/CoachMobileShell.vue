@@ -70,7 +70,7 @@ const footerLinks = [
 const activeLabel = computed(() => {
     const all = [...primaryItems, ...secondaryItems];
     const found = all.find((item) => isActive(item.route));
-    return found?.label ?? props.title ?? 'Coach Workspace';
+    return found?.label ?? props.title ?? 'Dashboard';
 });
 
 function isActive(route: string): boolean {
@@ -177,26 +177,31 @@ watch(isNavCollapsed, (collapsed) => {
 </script>
 
 <template>
-    <div class="coach-shell min-h-screen bg-slate-50 text-slate-900" :class="isNavCollapsed ? 'coach-shell--collapsed' : ''">
+    <div class="coach-shell min-h-screen bg-[#f5f7fb] text-slate-900" :class="isNavCollapsed ? 'coach-shell--collapsed' : ''">
         <div
-            class="coach-shell__glow bg-[radial-gradient(circle_at_top_right,_rgba(15, 23, 42,0.10),transparent_40%)] pointer-events-none fixed inset-0 -z-10"
+            class="coach-shell__glow bg-[radial-gradient(circle_at_top_right,_rgba(3,68,133,0.10),transparent_40%)] pointer-events-none fixed inset-0 -z-10"
         />
 
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 bg-slate-900/45 md:hidden" @click="mobileMenuOpen = false" />
 
-        <div class="transition-all duration-300 ease-out" :class="isNavCollapsed ? 'md:pl-20' : 'md:pl-64'">
-            <header class="coach-shell__topbar sticky top-0 z-50 border-b border-slate-200 backdrop-blur">
-                <div class="mx-auto flex w-full max-w-[1600px] items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-                    <button
-                        type="button"
-                        class="coach-shell__nav-toggle inline-flex h-10 w-10 items-center justify-center rounded-lg border md:hidden"
-                        @click="mobileMenuOpen = true"
-                        aria-label="Open menu"
-                    >
-                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                            <path d="M3 6h18M3 12h18M3 18h18" />
-                        </svg>
-                    </button>
+        <header class="coach-shell__topbar fixed inset-x-0 top-0 z-40 border-b border-slate-200/80 bg-white/88 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.35)] backdrop-blur">
+            <div class="flex w-full items-center gap-3 pl-0 pr-2 py-3 sm:pl-0 sm:pr-3 lg:pl-0 lg:pr-4">
+                <button
+                    type="button"
+                    class="coach-shell__nav-toggle inline-flex h-10 w-10 items-center justify-center rounded-lg border md:hidden"
+                    @click="mobileMenuOpen = true"
+                    aria-label="Open menu"
+                >
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M3 6h18M3 12h18M3 18h18" />
+                    </svg>
+                </button>
+
+                <div class="min-w-0 flex flex-1 items-center gap-2">
+                    <div class="coach-shell__brand min-w-0 rounded-2xl bg-[#034485] px-3 py-2 shadow-[0_14px_28px_-20px_rgba(3,68,133,0.55)]">
+                        <p class="coach-shell__brand-title truncate text-[11px] font-semibold tracking-[0.18em] text-white uppercase">AC VMIS Coach</p>
+                        <p class="coach-shell__brand-subtitle truncate text-sm font-semibold text-white sm:text-base">{{ activeLabel }}</p>
+                    </div>
 
                     <button
                         type="button"
@@ -210,122 +215,90 @@ watch(isNavCollapsed, (collapsed) => {
                             <path v-else d="M15 6l-6 6 6 6" />
                         </svg>
                     </button>
+                </div>
 
-                    <div class="min-w-0 flex-1">
-                        <div class="coach-shell__brand">
-                            <p class="coach-shell__brand-title truncate text-sm font-extrabold tracking-[0.08em] text-white uppercase">
-                                AC VMIS Coach
-                            </p>
-                            <p class="coach-shell__brand-subtitle truncate text-xs font-semibold text-blue-100">{{ activeLabel }}</p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                        <div
-                            class="relative"
-                            @mouseenter="openNotifications"
-                            @mouseleave="scheduleNotificationsClose"
-                            @focusin="openNotifications"
-                            @focusout="scheduleNotificationsClose"
+                <div class="flex items-center gap-2">
+                    <div
+                        class="relative"
+                        @mouseenter="openNotifications"
+                        @mouseleave="scheduleNotificationsClose"
+                        @focusin="openNotifications"
+                        @focusout="scheduleNotificationsClose"
+                    >
+                        <button
+                            type="button"
+                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                            aria-label="Open announcements"
                         >
-                            <button
-                                type="button"
-                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                                aria-label="Open announcements"
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                                <path d="M9 17a3 3 0 0 0 6 0" />
+                            </svg>
+                            <span
+                                v-if="notificationsCount > 0"
+                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
                             >
-                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
-                                    <path d="M9 17a3 3 0 0 0 6 0" />
-                                </svg>
-                                <span
-                                    v-if="notificationsCount > 0"
-                                    class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
-                                >
-                                    {{ notificationsCount }}
-                                </span>
-                            </button>
+                                {{ notificationsCount }}
+                            </span>
+                        </button>
 
+                        <div
+                            v-if="notificationsOpen"
+                            class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                        >
                             <div
-                                v-if="notificationsOpen"
-                                class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                                class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
                             >
-                                <div
-                                    class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
+                                Announcements
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ notificationsCount }}</span>
+                            </div>
+                            <div class="max-h-72 overflow-y-auto">
+                                <button
+                                    v-for="item in coachNotifications"
+                                    :key="item.id ?? item.title"
+                                    type="button"
+                                    class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
+                                    :class="
+                                        item.is_read
+                                            ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50'
+                                            : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'
+                                    "
+                                    @click="
+                                        markBellRead(item);
+                                        go('/announcements');
+                                    "
                                 >
-                                    Announcements
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{
-                                        notificationsCount
-                                    }}</span>
-                                </div>
-                                <div class="max-h-72 overflow-y-auto">
-                                    <button
-                                        v-for="item in coachNotifications"
-                                        :key="item.id ?? item.title"
-                                        type="button"
-                                        class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
-                                        :class="
-                                            item.is_read
-                                                ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50'
-                                                : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'
-                                        "
-                                        @click="
-                                            markBellRead(item);
-                                            go('/announcements');
-                                        "
-                                    >
-                                        <span
-                                            class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full"
-                                            :class="item.is_read ? 'bg-[#034485]' : 'bg-white'"
-                                        />
-                                        <span class="flex-1">
-                                            <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{
-                                                item.title
-                                            }}</span>
-                                            <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{
-                                                item.message
-                                            }}</span>
-                                        </span>
-                                        <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{
-                                            item.published_at ?? ''
-                                        }}</span>
-                                    </button>
-                                    <div v-if="coachNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">
-                                        No announcements right now.
-                                    </div>
-                                </div>
-                                <div class="border-t border-slate-200 px-3 py-2">
-                                    <button
-                                        type="button"
-                                        class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                                        @click="go('/announcements')"
-                                    >
-                                        View all
-                                    </button>
-                                </div>
+                                    <span class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full" :class="item.is_read ? 'bg-[#034485]' : 'bg-white'" />
+                                    <span class="flex-1">
+                                        <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{ item.title }}</span>
+                                        <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{ item.message }}</span>
+                                    </span>
+                                    <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
+                                </button>
+                                <div v-if="coachNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">No announcements right now.</div>
+                            </div>
+                            <div class="border-t border-slate-200 px-3 py-2">
+                                <button
+                                    type="button"
+                                    class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                    @click="go('/announcements')"
+                                >
+                                    View all
+                                </button>
                             </div>
                         </div>
-                        <UserAccountMenu :dark="false" menu-placement="bottom" compact />
                     </div>
+                    <UserAccountMenu :dark="false" menu-placement="bottom" compact />
                 </div>
-            </header>
+            </div>
+        </header>
 
+        <div class="transition-all duration-300 ease-out pt-[72px]" :class="isNavCollapsed ? 'md:pl-20' : 'md:pl-64'">
             <aside
-                class="hidden border-r border-slate-200 bg-white md:fixed md:inset-y-0 md:left-0 md:z-40 md:flex md:flex-col"
-                :class="isNavCollapsed ? 'md:w-20' : 'md:w-64'"
+                class="hidden border-r border-slate-200/80 bg-white/92 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:flex-col"
+                :class="[isNavCollapsed ? 'md:w-20' : 'md:w-64', 'md:top-[72px] md:h-[calc(100vh-72px)]']"
             >
-                <div class="coach-shell__sidebar-header flex items-start justify-between gap-2 border-b border-slate-200 px-4 py-4">
-                    <div class="coach-shell__brand" :class="isNavCollapsed ? 'coach-shell__brand--collapsed' : ''">
-                        <p
-                            class="coach-shell__brand-title text-xs font-extrabold tracking-[0.08em] text-white uppercase"
-                            :class="isNavCollapsed ? 'text-[10px]' : ''"
-                        >
-                            AC VMIS Coach
-                        </p>
-                        <p v-if="!isNavCollapsed" class="coach-shell__brand-subtitle mt-1 text-sm font-semibold text-blue-100">Coach Workspace</p>
-                    </div>
-                </div>
-
-                <nav class="flex-1 space-y-1 px-3 py-3" aria-label="Primary">
+                <nav class="flex-1 space-y-1 px-3 py-4" aria-label="Primary">
                     <button
                         v-for="item in primaryItems"
                         :key="item.key"
@@ -546,7 +519,7 @@ watch(isNavCollapsed, (collapsed) => {
             </main>
 
             <RoleFooter
-                title="Coach Workspace"
+                title="Coach"
                 description="Manage schedules, attendance checks, wellness tracking, and academic visibility in one place."
                 :links="footerLinks"
                 :bottom-nav="true"

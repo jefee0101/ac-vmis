@@ -434,37 +434,22 @@ watch(mobileNavOpen, (isOpen) => {
 </script>
 
 <template>
-    <div class="admin-shell min-h-screen bg-slate-50 text-slate-900">
-        <div class="bg-[radial-gradient(circle_at_top_right,_rgba(15, 23, 42,0.10),transparent_45%)] pointer-events-none fixed inset-0 -z-10" />
+    <div class="admin-shell min-h-screen bg-[#f5f7fb] text-slate-900">
+        <div class="bg-[radial-gradient(circle_at_top_right,_rgba(3,68,133,0.10),transparent_42%)] pointer-events-none fixed inset-0 -z-10" />
 
         <div v-if="mobileNavOpen" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" @click="closeMobileNav" />
 
         <aside
-            class="fixed top-0 left-0 z-40 h-screen border-r border-slate-200 bg-white/95 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
+            class="fixed left-0 z-30 border-r border-slate-200/80 bg-white/92 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
             :class="[
                 mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
+                'top-[72px] h-[calc(100vh-72px)]',
                 sidebarCollapsed ? 'w-[280px] max-w-[85vw] lg:w-[88px]' : 'w-[280px] max-w-[85vw] lg:w-[280px]',
                 'lg:translate-x-0',
             ]"
         >
             <div class="flex h-full flex-col">
-                <div class="admin-shell__sidebar-header flex items-start justify-between gap-2 border-b border-slate-200 px-4 py-4">
-                    <div class="min-w-0">
-                        <p
-                            class="admin-shell__kicker text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase"
-                            :class="sidebarCollapsed ? 'text-[10px]' : ''"
-                        >
-                            AC VMIS
-                        </p>
-                        <h1 class="admin-shell__title mt-1 text-lg font-bold text-[#1f2937]">
-                            {{ sidebarCollapsed ? '' : 'Admin Workspace' }}
-                        </h1>
-                    </div>
-                </div>
-
-                <nav class="flex-1 space-y-1 overflow-y-auto p-3">
-                    <p v-if="!sidebarCollapsed" class="px-2 pb-1 text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase">Menu</p>
-                    <button
+                <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">                    <button
                         v-for="entry in pages"
                         :key="entry.name"
                         type="button"
@@ -585,150 +570,134 @@ watch(mobileNavOpen, (isOpen) => {
             </div>
         </aside>
 
-        <div class="transition-[padding] duration-300 ease-out will-change-[padding]" :class="sidebarCollapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]'">
-            <header class="admin-shell__topbar sticky top-0 z-20 border-b border-slate-200 backdrop-blur">
-                <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-3 px-4 py-3 sm:px-6">
-                    <div class="flex min-w-0 items-center gap-2">
+        <header class="admin-shell__topbar fixed inset-x-0 top-0 z-40 border-b border-slate-200/80 bg-white/88 shadow-[0_10px_30px_-24px_rgba(15,23,42,0.35)] backdrop-blur">
+            <div class="flex w-full items-center justify-between gap-3 pl-0 pr-2 py-3 sm:pl-0 sm:pr-3 lg:pl-0 lg:pr-4">
+                <div class="flex min-w-0 items-center gap-3">
+                    <button
+                        type="button"
+                        class="admin-shell__nav-toggle inline-flex h-9 w-9 items-center justify-center rounded-md border lg:hidden"
+                        @click="mobileNavOpen = true"
+                        aria-label="Open admin navigation"
+                    >
+                        <span class="space-y-1">
+                            <span class="block h-0.5 w-4 bg-current" />
+                            <span class="block h-0.5 w-4 bg-current" />
+                            <span class="block h-0.5 w-4 bg-current" />
+                        </span>
+                    </button>
+
+                    <div class="min-w-0 flex items-center gap-2">
+                        <div class="min-w-0 rounded-2xl bg-[#034485] px-3 py-2 shadow-[0_14px_28px_-20px_rgba(3,68,133,0.55)]">
+                            <p class="admin-shell__kicker truncate text-[11px] font-semibold tracking-[0.18em] text-white uppercase">AC VMIS Admin</p>
+                            <div class="flex min-w-0 items-center gap-2">
+                                <h2 class="admin-shell__title truncate text-sm font-semibold text-white sm:text-base">{{ currentPageName }}</h2>
+                            </div>
+                        </div>
+
                         <button
                             type="button"
-                            class="admin-shell__nav-toggle inline-flex h-9 w-9 items-center justify-center rounded-md border lg:hidden"
-                            @click="mobileNavOpen = true"
-                            aria-label="Open admin navigation"
+                            class="admin-shell__nav-toggle hidden h-9 w-9 items-center justify-center rounded-md border lg:inline-flex"
+                            @click="toggleSidebar"
+                            :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+                            aria-label="Toggle sidebar"
                         >
-                            <span class="space-y-1">
-                                <span class="block h-0.5 w-4 bg-current" />
-                                <span class="block h-0.5 w-4 bg-current" />
-                                <span class="block h-0.5 w-4 bg-current" />
+                            <svg
+                                class="h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path v-if="sidebarCollapsed" d="M8 6l6 6-6 6" />
+                                <path v-else d="M16 6l-6 6 6 6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <div v-if="isLoading" class="admin-shell__loading-pill inline-flex items-center" aria-label="Loading" title="Loading">
+                        <Spinner class="h-3.5 w-3.5 text-[#1f2937]" />
+                    </div>
+                    <div
+                        class="relative"
+                        @mouseenter="openNotifications"
+                        @mouseleave="scheduleNotificationsClose"
+                        @focusin="openNotifications"
+                        @focusout="scheduleNotificationsClose"
+                    >
+                        <button
+                            type="button"
+                            class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                            aria-label="Open announcements"
+                        >
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
+                                <path d="M9 17a3 3 0 0 0 6 0" />
+                            </svg>
+                            <span
+                                v-if="bellUnreadCount > 0"
+                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
+                            >
+                                {{ bellUnreadCount }}
                             </span>
                         </button>
 
-                        <div class="flex min-w-0 items-center gap-3">
-                            <button
-                                type="button"
-                                class="admin-shell__nav-toggle hidden h-9 w-9 items-center justify-center rounded-md border lg:inline-flex"
-                                @click="toggleSidebar"
-                                :title="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-                                aria-label="Toggle sidebar"
-                            >
-                                <svg
-                                    class="h-4 w-4"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="2"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <path v-if="sidebarCollapsed" d="M8 6l6 6-6 6" />
-                                    <path v-else d="M16 6l-6 6 6 6" />
-                                </svg>
-                            </button>
-
-                            <div class="min-w-0">
-                                <p class="admin-shell__kicker truncate text-xs tracking-[0.16em] text-slate-500 uppercase">Administrator</p>
-                                <h2 class="admin-shell__title truncate text-base font-semibold text-[#1f2937] sm:text-lg">{{ currentPageName }}</h2>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2">
                         <div
-                            v-if="isLoading"
-                            class="admin-shell__loading-pill inline-flex items-center"
-                            aria-label="Loading"
-                            title="Loading"
+                            v-if="notificationsOpen"
+                            class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                         >
-                            <Spinner class="h-3.5 w-3.5 text-[#1f2937]" />
-                        </div>
-                        <div
-                            class="relative"
-                            @mouseenter="openNotifications"
-                            @mouseleave="scheduleNotificationsClose"
-                            @focusin="openNotifications"
-                            @focusout="scheduleNotificationsClose"
-                        >
-                            <button
-                                type="button"
-                                class="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                                aria-label="Open announcements"
-                            >
-                                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                    <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5" />
-                                    <path d="M9 17a3 3 0 0 0 6 0" />
-                                </svg>
-                                <span
-                                    v-if="bellUnreadCount > 0"
-                                    class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
-                                >
-                                    {{ bellUnreadCount }}
-                                </span>
-                            </button>
-
                             <div
-                                v-if="notificationsOpen"
-                                class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+                                class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
                             >
-                                <div
-                                    class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold tracking-wide text-slate-500 uppercase"
+                                Announcements
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ bellUnreadCount }}</span>
+                            </div>
+                            <div class="max-h-72 overflow-y-auto">
+                                <button
+                                    v-for="item in adminNotifications"
+                                    :key="item.id ?? item.title"
+                                    type="button"
+                                    class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
+                                    :class="
+                                        item.is_read
+                                            ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50'
+                                            : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'
+                                    "
+                                    @click="
+                                        markBellRead(item);
+                                        goTo('/announcements');
+                                    "
                                 >
-                                    Announcements
-                                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{
-                                        bellUnreadCount
-                                    }}</span>
-                                </div>
-                                <div class="max-h-72 overflow-y-auto">
-                                    <button
-                                        v-for="item in adminNotifications"
-                                        :key="item.id ?? item.title"
-                                        type="button"
-                                        class="flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition"
-                                        :class="
-                                            item.is_read
-                                                ? 'border-b border-slate-100 text-slate-700 hover:bg-slate-50'
-                                                : 'border-b border-white/10 bg-[#034485] text-white hover:bg-[#033a70]'
-                                        "
-                                        @click="
-                                            markBellRead(item);
-                                            goTo('/announcements');
-                                        "
-                                    >
-                                        <span
-                                            class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full"
-                                            :class="item.is_read ? 'bg-[#034485]' : 'bg-white'"
-                                        />
-                                        <span class="flex-1">
-                                            <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{
-                                                item.title
-                                            }}</span>
-                                            <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{
-                                                item.message
-                                            }}</span>
-                                        </span>
-                                        <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{
-                                            item.published_at ?? ''
-                                        }}</span>
-                                    </button>
-                                    <div v-if="adminNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">
-                                        No announcements right now.
-                                    </div>
-                                </div>
-                                <div class="border-t border-slate-200 px-3 py-2">
-                                    <button
-                                        type="button"
-                                        class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                                        @click="goTo('/announcements')"
-                                    >
-                                        View all
-                                    </button>
-                                </div>
+                                    <span class="mt-1 inline-flex h-2 w-2 shrink-0 rounded-full" :class="item.is_read ? 'bg-[#034485]' : 'bg-white'" />
+                                    <span class="flex-1">
+                                        <span class="block font-semibold" :class="item.is_read ? 'text-slate-800' : 'text-white'">{{ item.title }}</span>
+                                        <span class="block text-xs" :class="item.is_read ? 'text-slate-500' : 'text-white/80'">{{ item.message }}</span>
+                                    </span>
+                                    <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
+                                </button>
+                                <div v-if="adminNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">No announcements right now.</div>
+                            </div>
+                            <div class="border-t border-slate-200 px-3 py-2">
+                                <button
+                                    type="button"
+                                    class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                    @click="goTo('/announcements')"
+                                >
+                                    View all
+                                </button>
                             </div>
                         </div>
-                        <UserAccountMenu :dark="false" menu-placement="bottom" compact />
                     </div>
+                    <UserAccountMenu :dark="false" menu-placement="bottom" compact />
                 </div>
-            </header>
+            </div>
+        </header>
 
+        <div class="pt-[72px] transition-[padding] duration-300 ease-out will-change-[padding]" :class="sidebarCollapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]'">
             <main class="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
                 <slot v-if="hasDefaultSlot" />
 

@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import AccountShell from '@/components/Account/AccountShell.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, Link } from '@inertiajs/vue3'
+import { Head, usePage } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 
 defineOptions({
   layout: (h: any, page: any) => {
@@ -11,42 +13,319 @@ defineOptions({
     return h(layout, [page])
   },
 })
+
+type HelpTask = {
+  title: string
+  description: string
+  href: string
+  cta: string
+}
+
+type HelpFaq = {
+  question: string
+  answer: string
+}
+
+type HelpContent = {
+  roleLabel: string
+  roleSummary: string
+  focusLabel: string
+  topTaskLabel: string
+  taskSummary: string
+  tasks: HelpTask[]
+  faqs: HelpFaq[]
+  supportNotes: string[]
+}
+
+const page = usePage()
+const role = computed(() => String((page.props as any)?.auth?.user?.role ?? 'student-athlete'))
+const activeFaq = ref<number | null>(0)
+
+const helpContent = computed<HelpContent>(() => {
+  if (role.value === 'admin') {
+    return {
+      roleLabel: 'Administrator',
+      roleSummary: 'Manage approvals, coach accounts, team structures, and daily varsity operations from one workspace.',
+      focusLabel: 'Best place to start',
+      topTaskLabel: 'High-priority admin actions',
+      taskSummary: 'Shortcuts for the tasks administrators usually need to complete quickly during active operations.',
+      tasks: [
+        {
+          title: 'Review pending registrations',
+          description: 'Approve, reject, or follow up on newly submitted student-athlete accounts from the people queue.',
+          href: '/people/queue',
+          cta: 'Open Queue',
+        },
+        {
+          title: 'Create coach accounts',
+          description: 'Provision official coach access, assign teams, and manage onboarding credentials from the people workspace.',
+          href: '/people',
+          cta: 'Manage Coaches',
+        },
+        {
+          title: 'Maintain active teams',
+          description: 'Create teams, edit roster assignments, archive former teams, or restore archived records when needed.',
+          href: '/teams',
+          cta: 'Go to Teams',
+        },
+        {
+          title: 'Monitor operations',
+          description: 'Review schedules, attendance exceptions, and operational follow-ups in the shared operations workspace.',
+          href: '/operations',
+          cta: 'Open Operations',
+        },
+      ],
+      faqs: [
+        {
+          question: 'Why is a newly registered student-athlete unable to log in yet?',
+          answer: 'Student-athlete accounts remain pending until an administrator approves them. Check the People Queue, review submitted details and requirements, then approve the account so the student-athlete can access the dashboard.',
+        },
+        {
+          question: 'How should coach accounts be handled in AC-VMIS?',
+          answer: 'Coach accounts are admin-managed. Coaches should not self-register publicly. Create them from the admin side, assign the role server-side, and provide onboarding through the generated temporary credentials or activation flow.',
+        },
+        {
+          question: 'What should I do if a coach or player is missing during team assignment?',
+          answer: 'Only eligible and available users should appear. If someone is already assigned to another active team, the system should block reassignment. If they are inactive, unapproved, or archived, resolve that state first before assigning them.',
+        },
+      ],
+      supportNotes: [
+        'Include the affected user, role, and page name when reporting issues.',
+        'Attach screenshots for approval, attendance, roster, or academic workflow errors.',
+        'If an action affects official records, note the time and the team involved so audit checks are easier.',
+      ],
+    }
+  }
+
+  if (role.value === 'coach') {
+    return {
+      roleLabel: 'Coach',
+      roleSummary: 'Track team schedules, attendance, wellness, and roster activity with direct shortcuts for daily coaching tasks.',
+      focusLabel: 'Best place to start',
+      topTaskLabel: 'Daily coaching actions',
+      taskSummary: 'These are the most common tasks coaches perform before, during, and after team activities.',
+      tasks: [
+        {
+          title: 'Review your team roster',
+          description: 'Check players, roles, and status changes so your roster stays accurate before training or competition.',
+          href: '/coach/team',
+          cta: 'Open My Team',
+        },
+        {
+          title: 'Manage schedules',
+          description: 'Create, update, or review team practices and events so athletes always have the latest schedule.',
+          href: '/coach/schedule',
+          cta: 'View Schedule',
+        },
+        {
+          title: 'Verify attendance',
+          description: 'Use attendance tools and QR verification to confirm participation and handle manual adjustments when necessary.',
+          href: '/coach/operations?tab=attendance',
+          cta: 'Open Attendance',
+        },
+        {
+          title: 'Track wellness concerns',
+          description: 'Log wellness updates and monitor issues that may affect athlete readiness or participation.',
+          href: '/coach/operations?tab=wellness',
+          cta: 'Open Wellness',
+        },
+      ],
+      faqs: [
+        {
+          question: 'What if the QR attendance scan does not work?',
+          answer: 'Open the attendance screen for the active schedule, verify that the student-athlete has a valid QR token for the correct session, and use manual attendance override if the scan fails but the athlete is present.',
+        },
+        {
+          question: 'Can I change my roster directly?',
+          answer: 'You can update player positions and status for your team, but broader roster or staffing changes should follow the team request workflow so the admin side can review and preserve data integrity.',
+        },
+        {
+          question: 'Where do I check athlete academic visibility?',
+          answer: 'Use the Academics workspace to review what is visible to coaches. That helps you identify students who may need follow-up without editing admin-only academic records.',
+        },
+      ],
+      supportNotes: [
+        'When reporting attendance issues, include the schedule date and the student-athlete involved.',
+        'For roster concerns, mention whether the issue is a role update, availability issue, or assignment conflict.',
+        'If wellness data appears incomplete, note whether the report was expected before or after training.',
+      ],
+    }
+  }
+
+  return {
+    roleLabel: 'Student-Athlete',
+    roleSummary: 'Stay on top of approval status, schedules, attendance, wellness, and academic submissions from one place.',
+    focusLabel: 'Best place to start',
+    topTaskLabel: 'Most helpful student actions',
+    taskSummary: 'These shortcuts cover the main actions student-athletes usually need after registration and during the season.',
+    tasks: [
+      {
+        title: 'Check your dashboard status',
+        description: 'See your current account access, announcements, and active varsity reminders in one overview.',
+        href: '/StudentAthleteDashboard',
+        cta: 'Open Dashboard',
+      },
+      {
+        title: 'Review your team and schedule',
+        description: 'Confirm your assigned team, upcoming sessions, and schedule adjustments before reporting to activities.',
+        href: '/MySchedule',
+        cta: 'View Schedule',
+      },
+      {
+        title: 'Handle attendance correctly',
+        description: 'Respond to schedule attendance or generate your QR token when your coach uses QR verification.',
+        href: '/MySchedule',
+        cta: 'Go to My Schedule',
+      },
+      {
+        title: 'Submit academic requirements',
+        description: 'Upload and track academic documents for eligibility reviews and compliance windows.',
+        href: '/AcademicSubmissions',
+        cta: 'Open Academics',
+      },
+    ],
+    faqs: [
+      {
+        question: 'Why can’t I access the dashboard right after registering?',
+        answer: 'Your account must be reviewed and approved first. While your registration is still pending, you may only see the approval-status page until the admin side completes validation.',
+      },
+      {
+        question: 'What should I do if my attendance is incorrect?',
+        answer: 'Check the specific schedule entry first. If your response or QR scan was not recorded properly, contact your coach or admin and include the date, time, and session involved.',
+      },
+      {
+        question: 'When should I upload academic documents?',
+        answer: 'Submit them as soon as an academic period is opened or when your school requirements are updated. Delays can affect eligibility evaluation and may trigger academic hold restrictions.',
+      },
+    ],
+    supportNotes: [
+      'Include your full name, student number, and team when asking for help.',
+      'If the issue is about login or approval, mention whether you recently registered or were already approved.',
+      'For file upload issues, specify whether the problem happened during wellness, clearance, or academics.',
+    ],
+  }
+})
+
+function toggleFaq(index: number) {
+  activeFaq.value = activeFaq.value === index ? null : index
+}
 </script>
 
 <template>
   <Head title="Help & Support" />
 
-  <div class="settings-page space-y-6">
-      <div>
-        <Link href="/account/settings" class="back-pill">Back</Link>
-      </div>
+  <AccountShell active="help">
+    <div class="space-y-6">
+      <section class="support-hero overflow-hidden rounded-3xl border border-[#034485]/25 bg-white px-6 py-6 shadow-[0_24px_60px_-36px_rgba(3,68,133,0.45)]">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div class="max-w-2xl space-y-3">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="role-chip">{{ helpContent.roleLabel }}</span>
+              <span class="focus-chip">{{ helpContent.focusLabel }}</span>
+            </div>
+            <div>
+              <h2 class="section-title text-2xl sm:text-[1.95rem]">Help &amp; Support</h2>
+              <p class="settings-muted mt-2 max-w-xl text-sm leading-6 text-slate-600">
+                {{ helpContent.roleSummary }}
+              </p>
+            </div>
+          </div>
 
-      <section class="rounded-2xl border border-[#034485]/40 bg-white p-6">
-        <h2 class="section-title">Help &amp; Support</h2>
-        <p class="settings-muted mt-2 text-sm text-slate-600">
-          Static help content for common questions and support links.
-        </p>
-
-        <div class="mt-4 grid gap-3 md:grid-cols-2">
-          <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-            <p class="text-sm font-semibold text-slate-900">Getting Started</p>
-            <p class="text-xs text-slate-500">Quick steps for new accounts, approvals, and daily workflows.</p>
-          </div>
-          <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-            <p class="text-sm font-semibold text-slate-900">Account Access</p>
-            <p class="text-xs text-slate-500">Password help and account recovery guidance.</p>
-          </div>
-          <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-            <p class="text-sm font-semibold text-slate-900">Support Contact</p>
-            <p class="text-xs text-slate-500">Email support@asiancollege.edu or contact the admin office.</p>
-          </div>
-          <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-            <p class="text-sm font-semibold text-slate-900">Reporting Issues</p>
-            <p class="text-xs text-slate-500">Capture screenshots and describe the steps to reproduce.</p>
+          <div class="support-aside rounded-2xl border border-[#034485]/15 bg-[#f4f8fc] p-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Need assistance?</p>
+            <p class="mt-2 text-sm font-semibold text-slate-900">Varsity support desk</p>
+            <p class="mt-1 text-sm text-slate-600">Reach out with a screenshot and a short description of what happened.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Email Support</a>
+              <a href="tel:+63281234567" class="support-btn support-btn-ghost">Call Office</a>
+            </div>
           </div>
         </div>
       </section>
-  </div>
+
+      <section class="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
+        <div class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+          <div class="flex flex-col gap-1">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">{{ helpContent.topTaskLabel }}</p>
+            <h3 class="text-lg font-semibold text-slate-900">Quick task shortcuts</h3>
+            <p class="text-sm text-slate-600">{{ helpContent.taskSummary }}</p>
+          </div>
+
+          <div class="mt-5 grid gap-3 md:grid-cols-2">
+            <article v-for="task in helpContent.tasks" :key="task.title" class="task-card rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <div class="flex h-full flex-col">
+                <p class="text-sm font-semibold text-slate-900">{{ task.title }}</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ task.description }}</p>
+                <div class="mt-4 pt-1">
+                  <a :href="task.href" class="task-link">{{ task.cta }}</a>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="space-y-5">
+          <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Issue reporting</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-900">What to include</h3>
+            <div class="mt-4 space-y-3">
+              <div v-for="note in helpContent.supportNotes" :key="note" class="note-row">
+                <span class="note-dot" />
+                <p class="text-sm leading-6 text-slate-600">{{ note }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Response guide</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-900">Support expectations</h3>
+            <div class="mt-4 grid gap-3">
+              <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-sm font-semibold text-slate-900">Best channel</p>
+                <p class="mt-1 text-sm text-slate-600">Use email for account, workflow, and data-record concerns.</p>
+              </div>
+              <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-sm font-semibold text-slate-900">Urgent issues</p>
+                <p class="mt-1 text-sm text-slate-600">Call the office for live operation blockers affecting attendance or access.</p>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </section>
+
+      <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+        <div class="flex flex-col gap-1">
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Role-specific FAQ</p>
+          <h3 class="text-lg font-semibold text-slate-900">Common questions for {{ helpContent.roleLabel }}</h3>
+          <p class="text-sm text-slate-600">Quick answers for the situations that usually cause confusion during normal system use.</p>
+        </div>
+
+        <div class="mt-5 space-y-3">
+          <article
+            v-for="(faq, index) in helpContent.faqs"
+            :key="faq.question"
+            class="faq-card overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70"
+            :class="{ 'faq-card--active': activeFaq === index }"
+          >
+            <button type="button" class="faq-trigger" @click="toggleFaq(index)">
+              <span class="text-left text-sm font-semibold text-slate-900">{{ faq.question }}</span>
+              <span class="faq-chevron" :class="{ 'faq-chevron--open': activeFaq === index }">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+
+            <transition name="faq">
+              <div v-if="activeFaq === index" class="faq-panel">
+                <p class="text-sm leading-6 text-slate-600">{{ faq.answer }}</p>
+              </div>
+            </transition>
+          </article>
+        </div>
+      </section>
+    </div>
+  </AccountShell>
 </template>
 
 <style scoped>
@@ -55,26 +334,199 @@ defineOptions({
   align-items: center;
   gap: 8px;
   color: #0f172a;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .settings-muted {
   color: #64748b;
 }
 
-.back-pill {
-  border-radius: 999px;
-  background: #034485;
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #ffffff;
-  transition: background 0.2s ease;
-  display: inline-flex;
-  align-items: center;
+.support-hero {
+  position: relative;
+  isolation: isolate;
 }
 
-.back-pill:hover {
+.support-hero::before {
+  content: '';
+  position: absolute;
+  inset: auto -80px -90px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.18) 0%, rgba(59, 130, 246, 0) 72%);
+  pointer-events: none;
+}
+
+.role-chip,
+.focus-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.42rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.role-chip {
+  border: 1px solid rgba(3, 68, 133, 0.16);
+  background: rgba(3, 68, 133, 0.08);
+  color: #034485;
+}
+
+.focus-chip {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #f8fafc;
+  color: #334155;
+}
+
+.support-aside {
+  min-width: min(100%, 320px);
+}
+
+.support-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  font-size: 0.86rem;
+  font-weight: 700;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.support-btn:hover {
+  transform: translateY(-1px);
+}
+
+.support-btn-fill {
+  background: #034485;
+  color: #ffffff;
+}
+
+.support-btn-fill:hover {
   background: #04519f;
+}
+
+.support-btn-ghost {
+  border: 1px solid rgba(3, 68, 133, 0.18);
+  background: #ffffff;
+  color: #034485;
+}
+
+.support-btn-ghost:hover {
+  background: rgba(3, 68, 133, 0.06);
+}
+
+.task-card {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.task-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(3, 68, 133, 0.25);
+  box-shadow: 0 18px 30px -28px rgba(3, 68, 133, 0.35);
+}
+
+.task-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: rgba(3, 68, 133, 0.08);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #034485;
+  transition: background 0.2s ease;
+}
+
+.task-link:hover {
+  background: rgba(3, 68, 133, 0.14);
+}
+
+.note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.note-dot {
+  margin-top: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #034485;
+  flex-shrink: 0;
+}
+
+.faq-card {
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.faq-card:hover,
+.faq-card--active {
+  border-color: rgba(3, 68, 133, 0.22);
+  background: #ffffff;
+  box-shadow: 0 18px 28px -30px rgba(3, 68, 133, 0.3);
+}
+
+.faq-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+}
+
+.faq-panel {
+  padding: 0 1.1rem 1rem;
+}
+
+.faq-chevron {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(3, 68, 133, 0.08);
+  color: #034485;
+  transition:
+    transform 0.22s ease,
+    background 0.22s ease;
+  flex-shrink: 0;
+}
+
+.faq-chevron svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.faq-chevron--open {
+  transform: rotate(180deg);
+  background: rgba(3, 68, 133, 0.14);
+}
+
+.faq-enter-active,
+.faq-leave-active {
+  transition: all 0.2s ease;
+}
+
+.faq-enter-from,
+.faq-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 </style>

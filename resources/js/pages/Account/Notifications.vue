@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import AccountShell from '@/components/Account/AccountShell.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
+import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 defineOptions({
@@ -108,11 +109,7 @@ function submitSettings() {
 <template>
   <Head title="Notifications" />
 
-  <div class="settings-page space-y-6">
-      <div>
-        <Link href="/account/settings" class="back-pill">Back</Link>
-      </div>
-
+  <AccountShell active="notifications">
       <form @submit.prevent="submitSettings" class="space-y-4">
         <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
         <h2 class="section-title">
@@ -199,7 +196,7 @@ function submitSettings() {
           <p v-if="saved" class="text-sm text-green-700">Notification settings updated.</p>
         </div>
       </form>
-  </div>
+  </AccountShell>
 </template>
 
 <style scoped>
@@ -214,22 +211,6 @@ function submitSettings() {
 .settings-muted,
 .settings-kicker {
   color: #64748b;
-}
-
-.back-pill {
-  border-radius: 999px;
-  background: #034485;
-  padding: 0.4rem 1rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #ffffff;
-  transition: background 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-}
-
-.back-pill:hover {
-  background: #04519f;
 }
 
 .toggle-row {

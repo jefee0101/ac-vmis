@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import AccountShell from '@/components/Account/AccountShell.vue';
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue';
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 defineOptions({
@@ -67,12 +68,9 @@ function confirmDelete() {
 <template>
     <Head title="Account Settings" />
 
-    <div class="settings-page space-y-6">
+    <AccountShell active="account">
         <div v-if="mustChangePassword" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Password update required. Set a new password to continue using AC-VMIS.
-        </div>
-        <div>
-            <Link href="/account/settings" class="back-pill">Back</Link>
         </div>
 
         <form id="settings-account" @submit.prevent="submitPassword" class="space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5">
@@ -257,7 +255,7 @@ function confirmDelete() {
                 {{ deleteForm.processing ? 'Processing...' : 'Delete Account' }}
             </button>
         </section>
-    </div>
+    </AccountShell>
 </template>
 
 <style scoped>
@@ -275,19 +273,4 @@ function confirmDelete() {
     color: #64748b;
 }
 
-.back-pill {
-    border-radius: 999px;
-    background: #034485;
-    padding: 0.4rem 1rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #ffffff;
-    transition: background 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-}
-
-.back-pill:hover {
-    background: #04519f;
-}
 </style>
