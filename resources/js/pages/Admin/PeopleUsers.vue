@@ -688,7 +688,7 @@ watch(
         >
             <div :key="statusFilter" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div class="overflow-x-auto">
-                    <table class="w-full min-w-[900px] text-sm">
+                    <table class="w-full min-w-225 text-sm">
                         <thead class="bg-slate-50 text-slate-700">
                             <tr>
                                 <th class="px-4 py-3 text-left font-semibold">Avatar</th>

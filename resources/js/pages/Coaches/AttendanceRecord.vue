@@ -566,7 +566,7 @@ onBeforeUnmount(() => {
 
                 <div v-else-if="!isDetail" class="space-y-3">
                     <div class="flex flex-wrap items-end gap-3 rounded-2xl border border-[#034485]/40 bg-[#034485] p-3">
-                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[220px]">
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-55">
                             Search
                             <input
                                 v-model="scheduleSearch"
@@ -575,7 +575,7 @@ onBeforeUnmount(() => {
                                 class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700 placeholder:text-slate-400"
                             />
                         </label>
-                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[180px]">
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-45">
                             Type
                             <select
                                 v-model="scheduleType"
@@ -587,7 +587,7 @@ onBeforeUnmount(() => {
                                 </option>
                             </select>
                         </label>
-                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[160px]">
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-40">
                             From
                             <input
                                 v-model="scheduleStart"
@@ -595,7 +595,7 @@ onBeforeUnmount(() => {
                                 class="rounded-lg border border-white/40 bg-white px-3 py-2 text-sm font-medium text-slate-700"
                             />
                         </label>
-                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-[160px]">
+                        <label class="flex w-full flex-col gap-1 text-xs font-semibold uppercase tracking-wide text-white/80 sm:w-40">
                             To
                             <input
                                 v-model="scheduleEnd"
@@ -799,7 +799,7 @@ onBeforeUnmount(() => {
 
                     <div class="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white lg:block">
                         <div class="overflow-x-auto">
-                        <table class="w-full min-w-[900px] text-left text-sm">
+                        <table class="w-full min-w-225 text-left text-sm">
                         <thead class="bg-[#034485] text-white">
                             <tr>
                                 <th class="px-4 py-3">Student</th>

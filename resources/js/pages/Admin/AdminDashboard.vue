@@ -497,7 +497,7 @@ watch(mobileNavOpen, (isOpen) => {
 
 <template>
     <div class="admin-shell min-h-screen bg-[#f5f7fb] text-slate-900">
-        <div class="bg-[radial-gradient(circle_at_top_right,_rgba(3,68,133,0.10),transparent_42%)] pointer-events-none fixed inset-0 -z-10" />
+        <div class="bg-[radial-gradient(circle_at_top_right,rgba(3,68,133,0.10),transparent_42%)] pointer-events-none fixed inset-0 -z-10" />
 
         <div v-if="mobileNavOpen" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" @click="closeMobileNav" />
 
@@ -505,8 +505,8 @@ watch(mobileNavOpen, (isOpen) => {
             class="fixed left-0 z-30 border-r border-slate-200/80 bg-white/92 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
             :class="[
                 mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
-                'top-[72px] h-[calc(100vh-72px)]',
-                sidebarCollapsed ? 'w-[280px] max-w-[85vw] lg:w-[88px]' : 'w-[280px] max-w-[85vw] lg:w-[280px]',
+                'top-18 h-[calc(100vh-72px)]',
+                sidebarCollapsed ? 'w-70 max-w-[85vw] lg:w-22' : 'w-70 max-w-[85vw] lg:w-70',
                 'lg:translate-x-0',
             ]"
         >
@@ -541,8 +541,8 @@ watch(mobileNavOpen, (isOpen) => {
                             class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
                             :class="
                                 sidebarCollapsed
-                                    ? 'ml-0 max-w-[180px] scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0'
-                                    : 'ml-2 max-w-[180px] scale-100 opacity-100'
+                                    ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0'
+                                    : 'ml-2 max-w-45 scale-100 opacity-100'
                             "
                         >
                             {{ entry.name }}
@@ -702,7 +702,7 @@ watch(mobileNavOpen, (isOpen) => {
                             </svg>
                             <span
                                 v-if="bellUnreadCount > 0"
-                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
+                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
                             >
                                 {{ bellUnreadCount }}
                             </span>
@@ -759,8 +759,8 @@ watch(mobileNavOpen, (isOpen) => {
             </div>
         </header>
 
-        <div class="pt-[72px] transition-[padding] duration-300 ease-out will-change-[padding]" :class="sidebarCollapsed ? 'lg:pl-[88px]' : 'lg:pl-[280px]'">
-            <main class="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
+        <div class="pt-18 transition-[padding] duration-300 ease-out will-change-[padding]" :class="sidebarCollapsed ? 'lg:pl-22' : 'lg:pl-70'">
+            <main class="mx-auto max-w-400 px-4 py-5 sm:px-6">
                 <slot v-if="hasDefaultSlot" />
 
                 <div v-else-if="dashboard" class="space-y-5">
@@ -841,7 +841,7 @@ watch(mobileNavOpen, (isOpen) => {
                                 </div>
                             </div>
                             <div class="overflow-x-auto">
-                                <svg viewBox="0 0 620 210" class="h-[220px] w-full min-w-[620px] rounded-lg bg-slate-50">
+                                <svg viewBox="0 0 620 210" class="h-55 w-full min-w-155 rounded-lg bg-slate-50">
                                     <polyline
                                         :points="buildPolyline(dashboard.trends.attendance.present)"
                                         fill="none"
@@ -998,9 +998,9 @@ watch(mobileNavOpen, (isOpen) => {
                                 No attendance response data found for this period.
                             </div>
                             <div v-else class="overflow-x-auto">
-                                <div class="min-w-[560px]">
+                                <div class="min-w-140">
                                     <div class="flex h-44 items-end gap-3">
-                                        <div v-for="item in weeklySummary" :key="item.label" class="flex min-w-[36px] flex-1 flex-col items-stretch">
+                                        <div v-for="item in weeklySummary" :key="item.label" class="flex min-w-9 flex-1 flex-col items-stretch">
                                             <div
                                                 class="flex h-40 flex-col-reverse overflow-hidden rounded-md bg-slate-100"
                                                 :title="`On-time ${item.onTime} • Late ${item.late} • No Response ${item.noResponse}`"
@@ -1217,7 +1217,11 @@ watch(mobileNavOpen, (isOpen) => {
                 </div>
             </main>
 
-            <RoleFooter title="AC VMIS" :links="footerLinks" />
+            <RoleFooter
+                title="AC VMIS"
+                description="Manage varsity operations, health, and academic workflows from one dashboard."
+                :links="footerLinks"
+            />
         </div>
     </div>
 </template>

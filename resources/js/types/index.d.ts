@@ -1,5 +1,32 @@
 export interface Auth {
     user: User;
+    announcements?: {
+        unread_count?: number;
+    };
+    coach_notifications?: {
+        total?: number;
+        items?: Array<{ count?: number }>;
+        recent?: Array<{
+            id?: number;
+            title?: string;
+            message?: string;
+            type?: string;
+            is_read?: boolean;
+            published_at?: string | null;
+        }>;
+    };
+    admin_notifications?: {
+        total?: number;
+        items?: Array<{ count?: number }>;
+        recent?: Array<{
+            id?: number;
+            title?: string;
+            message?: string;
+            type?: string;
+            is_read?: boolean;
+            published_at?: string | null;
+        }>;
+    };
 }
 
 export type AppPageProps<T extends Record<string, unknown> = Record<string, unknown>> = T & {

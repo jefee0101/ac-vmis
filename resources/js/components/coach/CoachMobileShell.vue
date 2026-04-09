@@ -179,7 +179,7 @@ watch(isNavCollapsed, (collapsed) => {
 <template>
     <div class="coach-shell min-h-screen bg-[#f5f7fb] text-slate-900" :class="isNavCollapsed ? 'coach-shell--collapsed' : ''">
         <div
-            class="coach-shell__glow bg-[radial-gradient(circle_at_top_right,_rgba(3,68,133,0.10),transparent_40%)] pointer-events-none fixed inset-0 -z-10"
+            class="coach-shell__glow bg-[radial-gradient(circle_at_top_right,rgba(3,68,133,0.10),transparent_40%)] pointer-events-none fixed inset-0 -z-10"
         />
 
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 bg-slate-900/45 md:hidden" @click="mobileMenuOpen = false" />
@@ -236,7 +236,7 @@ watch(isNavCollapsed, (collapsed) => {
                             </svg>
                             <span
                                 v-if="notificationsCount > 0"
-                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
+                                class="absolute -top-1 -right-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold text-white"
                             >
                                 {{ notificationsCount }}
                             </span>
@@ -293,10 +293,10 @@ watch(isNavCollapsed, (collapsed) => {
             </div>
         </header>
 
-        <div class="transition-all duration-300 ease-out pt-[72px]" :class="isNavCollapsed ? 'md:pl-20' : 'md:pl-64'">
+        <div class="transition-all duration-300 ease-out pt-18" :class="isNavCollapsed ? 'md:pl-20' : 'md:pl-64'">
             <aside
                 class="hidden border-r border-slate-200/80 bg-white/92 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:flex-col"
-                :class="[isNavCollapsed ? 'md:w-20' : 'md:w-64', 'md:top-[72px] md:h-[calc(100vh-72px)]']"
+                :class="[isNavCollapsed ? 'md:w-20' : 'md:w-64', 'md:top-18 md:h-[calc(100vh-72px)]']"
             >
                 <nav class="flex-1 space-y-1 px-3 py-4" aria-label="Primary">
                     <button
@@ -514,7 +514,7 @@ watch(isNavCollapsed, (collapsed) => {
                 </div>
             </aside>
 
-            <main class="mx-auto w-full max-w-[1600px] px-4 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] sm:px-6 md:px-6 md:pb-6 lg:px-8">
+            <main class="mx-auto w-full max-w-400 px-4 py-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] sm:px-6 md:px-6 md:pb-6 lg:px-8">
                 <slot />
             </main>
 

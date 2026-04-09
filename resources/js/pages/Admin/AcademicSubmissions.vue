@@ -162,7 +162,7 @@ function isImageUrl(url: string | null) {
     return /\.(png|jpe?g|webp|gif)$/i.test(clean)
 }
 
-function statusTone(status: string | null) {
+function statusTone(status: string | null | undefined) {
     if (status === 'eligible') return 'bg-emerald-100 text-emerald-700'
     if (status === 'probation') return 'bg-amber-100 text-amber-700'
     if (status === 'ineligible') return 'bg-red-100 text-red-700'
@@ -182,7 +182,7 @@ async function fetchSubmissions(page = 1) {
 
     const params = new URLSearchParams()
     Object.entries(buildQuery(page)).forEach(([key, value]) => {
-        if (value === undefined || value === null || value === '') return
+        if (value === undefined || value === null) return
         params.set(key, String(value))
     })
 

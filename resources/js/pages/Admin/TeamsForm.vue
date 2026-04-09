@@ -226,7 +226,9 @@ function restoreDraftIfNeeded() {
         if (typeof parsed.description === 'string') description.value = parsed.description
         if (typeof parsed.coach_id === 'number') coach.value = parsed.coach_id
         if (typeof parsed.assistant_coach_id === 'number') assistantCoach.value = parsed.assistant_coach_id
-        if (Array.isArray(parsed.players)) players.value = parsed.players.filter((id) => typeof id === 'number')
+        if (Array.isArray(parsed.players)) {
+            players.value = (parsed.players as unknown[]).filter((id: unknown): id is number => typeof id === 'number')
+        }
         draftMessage.value = 'Restored autosaved draft.'
     } catch {
         draftMessage.value = ''
@@ -337,7 +339,7 @@ function validate() {
 
     const unavailableSelectedPlayers = players.value
         .map((id) => allPlayers.value.find((p) => p.id === id))
-        .filter((p): p is PlayerOption => Boolean(p) && p.is_available === false)
+        .filter((p): p is PlayerOption => p != null && p.is_available === false)
 
     if (unavailableSelectedPlayers.length > 0) {
         nextErrors.players = unavailableSelectedPlayers[0].unavailable_reason || 'One or more selected players are already assigned to another active team.'

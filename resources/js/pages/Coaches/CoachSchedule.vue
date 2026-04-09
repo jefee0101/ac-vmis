@@ -298,16 +298,17 @@ const groupedSchedules = computed(() => {
     const groups = {
         upcoming: [] as any[],
         in_progress: [] as any[],
+        completed: [] as any[],
     }
-    for (const item of visibleSchedules.value) {
+    for (const item of ownerSchedules.value) {
         const status = scheduleStatus(item)
-        if (status === 'completed') continue
         groups[status].push(item)
     }
     const asc = (a: any, b: any) => new Date(a.start).getTime() - new Date(b.start).getTime()
     const desc = (a: any, b: any) => new Date(b.start).getTime() - new Date(a.start).getTime()
     groups.upcoming.sort(asc)
     groups.in_progress.sort(asc)
+    groups.completed.sort(desc)
     return groups
 })
 
