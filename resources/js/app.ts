@@ -10,9 +10,10 @@ import ToastEventBus from 'primevue/toasteventbus';
 import ToastService from 'primevue/toastservice';
 import type { DefineComponent } from 'vue';
 import { Transition, createApp, h } from 'vue';
-import { initTheme, setStoredTheme } from '@/composables/useTheme';
+
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
 import { useSessionExpired } from '@/composables/useSessionExpired';
+import { initTheme, setStoredTheme } from '@/composables/useTheme';
 
 const appName = import.meta.env.VITE_APP_NAME || 'ACVMIS';
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { Head, usePage } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
+
 import AccountShell from '@/components/Account/AccountShell.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
-import { Head, usePage } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
 
 defineOptions({
   layout: (h: any, page: any) => {

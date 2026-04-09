@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import { computed, ref } from 'vue'
 import { VueCal } from 'vue-cal'
+
 import { useSportColors } from '@/composables/useSportColors'
+import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import 'vue-cal/style'
 
 defineOptions({

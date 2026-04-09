@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { router, usePage } from '@inertiajs/vue3';
+import { reactive, ref } from 'vue';
+
 import PublicLayout from '@/components/Public/PublicLayout.vue';
 import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
-import { router, usePage } from '@inertiajs/vue3';
-import { reactive, ref } from 'vue';
 
 const email = ref('');
 const password = ref('');
@@ -18,7 +18,6 @@ const fieldErrors = reactive({
 });
 const isSubmitting = ref(false);
 const showPassword = ref(false);
-const { isLoading } = useInertiaLoading();
 const flashSuccess = ref(String((page.props as any)?.flash?.success ?? ''));
 
 function pickFirstError(errors: Record<string, unknown>) {

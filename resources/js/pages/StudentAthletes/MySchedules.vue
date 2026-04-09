@@ -1,14 +1,15 @@
 <script setup lang="ts">
+import { Link, router } from '@inertiajs/vue3';
+import QRCode from 'qrcode';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { VueCal } from 'vue-cal';
+
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 import { useSportColors } from '@/composables/useSportColors';
 import { useUserTimezone } from '@/composables/useUserTimezone';
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue';
-import { Link, router } from '@inertiajs/vue3';
-import QRCode from 'qrcode';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { VueCal } from 'vue-cal';
 import 'vue-cal/style';
 
 defineOptions({

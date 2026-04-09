@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import { Head, router } from '@inertiajs/vue3';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
+import { useInertiaLoading } from '@/composables/useInertiaLoading';
 
 const currentYear = new Date().getFullYear();
 const fallbackLogo = '/images/aclogo.svg';

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
+
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { useSportColors } from '@/composables/useSportColors'
+import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
 defineOptions({
     layout: CoachDashboard,
@@ -216,7 +217,7 @@ async function copyToClipboard(value?: string | number | null, label?: string) {
         window.setTimeout(() => {
             if (copiedField.value === (label ?? text)) copiedField.value = null
         }, 1200)
-    } catch (error) {
+    } catch {
         // silent fail
     }
 }

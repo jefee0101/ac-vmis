@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
+import { router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 import MultiSelectSearch from '@/components/MultiSelectSearch.vue'
 import SingleSelectSearch from '@/components/SingleSelectSearch.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
-import { router } from '@inertiajs/vue3'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useSportColors } from '@/composables/useSportColors'
+import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
     layout: AdminDashboard,
@@ -61,7 +62,7 @@ const year = ref('')
 const description = ref('')
 const coach = ref<number | null>(null)
 const assistantCoach = ref<number | null>(null)
-const players = ref<number[]>([])
+const selectedPlayerIds = ref<number[]>([])
 const errors = ref<Record<string, string>>({})
 const isSaving = ref(false)
 const isOptionLoading = ref(false)
@@ -77,7 +78,7 @@ const allSports = ref(props.sports || [])
 
 const currentYear = new Date().getFullYear()
 const yearOptions = Array.from({ length: 10 }, (_, i) => String(currentYear + 3 - i))
-const selectedPlayerCount = computed(() => players.value.length)
+const selectedPlayerCount = computed(() => selectedPlayerIds.value.length)
 const isEditMode = computed(() => !!props.selectedTeam?.id)
 const selectedSport = computed(() => allSports.value.find((s) => String(s.id) === sport.value) || null)
 const maxPlayersForSelectedSport = computed(() => selectedSport.value?.max_players ?? 0)
@@ -111,7 +112,7 @@ const selectablePlayers = computed(() => {
         if (playerGradeFilter.value !== 'all' && String(player.current_grade_level ?? '') !== playerGradeFilter.value) return false
         return true
     })
-    const selectedSet = new Set(players.value)
+    const selectedSet = new Set(selectedPlayerIds.value)
     const selectedOptions = allPlayers.value.filter((player) => selectedSet.has(player.id))
     return [
         ...selectedOptions,
@@ -194,7 +195,7 @@ function captureCurrentState() {
         coach_id: coach.value,
         assistant_coach_id: assistantCoach.value,
         description: description.value,
-        players: players.value,
+        players: selectedPlayerIds.value,
     }
 }
 
@@ -227,7 +228,7 @@ function restoreDraftIfNeeded() {
         if (typeof parsed.coach_id === 'number') coach.value = parsed.coach_id
         if (typeof parsed.assistant_coach_id === 'number') assistantCoach.value = parsed.assistant_coach_id
         if (Array.isArray(parsed.players)) {
-            players.value = (parsed.players as unknown[]).filter((id: unknown): id is number => typeof id === 'number')
+            selectedPlayerIds.value = (parsed.players as unknown[]).filter((id: unknown): id is number => typeof id === 'number')
         }
         draftMessage.value = 'Restored autosaved draft.'
     } catch {
@@ -249,7 +250,7 @@ if (props.selectedTeam) {
     coach.value = props.selectedTeam.coach_id ?? null
     assistantCoach.value = props.selectedTeam.assistant_coach_id ?? null
     description.value = props.selectedTeam.description ?? ''
-    players.value = props.selectedTeam.player_ids ?? []
+    selectedPlayerIds.value = props.selectedTeam.player_ids ?? []
     if (props.selectedTeam.team_avatar) {
         avatarPreview.value = props.selectedTeam.team_avatar.startsWith('/storage/')
             ? props.selectedTeam.team_avatar
@@ -259,7 +260,7 @@ if (props.selectedTeam) {
     restoreDraftIfNeeded()
 }
 
-watch([teamName, sport, year, coach, assistantCoach, description, players], saveDraftSoon, { deep: true })
+watch([teamName, sport, year, coach, assistantCoach, description, selectedPlayerIds], saveDraftSoon, { deep: true })
 
 watch([coach, assistantCoach], () => {
     if (coach.value && assistantCoach.value && coach.value === assistantCoach.value) {
@@ -271,7 +272,7 @@ watch(sport, (newSport, oldSport) => {
     if (!newSport) {
         coach.value = null
         assistantCoach.value = null
-        players.value = []
+        selectedPlayerIds.value = []
         return
     }
 
@@ -283,11 +284,11 @@ watch(sport, (newSport, oldSport) => {
         }, 300)
         coach.value = null
         assistantCoach.value = null
-        players.value = []
+        selectedPlayerIds.value = []
     }
 })
 
-watch(players, () => {
+watch(selectedPlayerIds, () => {
     errors.value = { ...errors.value, players: '' }
 })
 
@@ -315,7 +316,7 @@ function validate() {
     if (!year.value) nextErrors.year = 'Select a year.'
     if (!coach.value) nextErrors.coach_id = 'Select a head coach.'
 
-    if (players.value.length > maxPlayersForSelectedSport.value) {
+    if (selectedPlayerIds.value.length > maxPlayersForSelectedSport.value) {
         nextErrors.players = `Maximum players for ${selectedSport.value?.name ?? 'this sport'} is ${maxPlayersForSelectedSport.value}.`
     }
 
@@ -337,7 +338,7 @@ function validate() {
         nextErrors.assistant_coach_id = assistantOption.unavailable_reason || 'Selected assistant coach is already assigned to another active team.'
     }
 
-    const unavailableSelectedPlayers = players.value
+    const unavailableSelectedPlayers = selectedPlayerIds.value
         .map((id) => allPlayers.value.find((p) => p.id === id))
         .filter((p): p is PlayerOption => p != null && p.is_available === false)
 
@@ -360,7 +361,7 @@ function submitTeam() {
     formData.append('year', year.value)
     formData.append('coach_id', String(coach.value))
     formData.append('assistant_coach_id', String(assistantCoach.value ?? ''))
-    formData.append('players', JSON.stringify(players.value.map((id) => ({ student_id: id }))))
+    formData.append('players', JSON.stringify(selectedPlayerIds.value.map((id) => ({ student_id: id }))))
     formData.append('description', description.value)
 
     const endpoint = isEditMode.value ? `/teams/${props.selectedTeam?.id}` : '/teams/create'
@@ -559,17 +560,17 @@ onBeforeUnmount(() => {
                         </div>
 
                         <MultiSelectSearch
-                            v-model="players"
+                            v-model="selectedPlayerIds"
                             :options="selectablePlayers"
                             :loading="isOptionLoading"
                             :placeholder="sportSelected ? `Search players (max ${maxPlayersForSelectedSport})...` : 'Select sport first'"
                             :tag-style="playerTagStyle"
                         />
                         <button
-                            v-if="players.length"
+                            v-if="selectedPlayerIds.length"
                             type="button"
                             class="mt-1 text-xs font-medium text-[#034485] underline hover:text-[#023666]"
-                            @click="players = []"
+                            @click="selectedPlayerIds = []"
                         >
                             Clear selected players
                         </button>

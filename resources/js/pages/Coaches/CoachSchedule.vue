@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { VueCal } from 'vue-cal'
+
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { useSportColors } from '@/composables/useSportColors'
 import { useUserTimezone } from '@/composables/useUserTimezone'
+import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import 'vue-cal/style'
 
 defineOptions({

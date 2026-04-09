@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import AttendanceRecord from '@/pages/Coaches/AttendanceRecord.vue'
 import { Head } from '@inertiajs/vue3'
+
+import AttendanceRecord from '@/pages/Coaches/AttendanceRecord.vue'
+import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
 defineOptions({
   layout: CoachDashboard,

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { ref } from 'vue'
+
+import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
 defineOptions({
     layout: CoachDashboard,

@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import UserAccountMenu from '@/components/UserAccountMenu.vue'
-import StudentBottomNav from '@/components/student/StudentBottomNav.vue'
-import RoleFooter from '@/components/ui/RoleFooter.vue'
-import { studentPrimaryNav, studentSecondaryNav } from '@/config/studentNav'
 import { router, usePage } from '@inertiajs/vue3'
 import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue'
+
+import StudentBottomNav from '@/components/student/StudentBottomNav.vue'
+import RoleFooter from '@/components/ui/RoleFooter.vue'
+import UserAccountMenu from '@/components/UserAccountMenu.vue'
+import { studentPrimaryNav, studentSecondaryNav } from '@/config/studentNav'
+
 
 const slots = useSlots()
 const page = usePage()

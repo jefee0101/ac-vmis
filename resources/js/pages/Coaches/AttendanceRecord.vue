@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
+import { router } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import FormAlert from '@/components/ui/form/FormAlert.vue'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
-import { useSportColors } from '@/composables/useSportColors'
-import { useUserTimezone } from '@/composables/useUserTimezone'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
+import { useSportColors } from '@/composables/useSportColors'
+import { useUserTimezone } from '@/composables/useUserTimezone'
+import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
 defineOptions({
     layout: CoachDashboard,

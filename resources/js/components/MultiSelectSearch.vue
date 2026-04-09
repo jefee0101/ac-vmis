@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 
 interface Option {

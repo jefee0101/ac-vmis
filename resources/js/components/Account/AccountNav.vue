@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { computed } from 'vue'
 
 const props = defineProps<{
   active: 'profile' | 'settings' | 'account' | 'notifications' | 'preferences' | 'help'

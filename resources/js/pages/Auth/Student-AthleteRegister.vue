@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+
+import PublicLayout from '@/components/Public/PublicLayout.vue';
 import FieldError from '@/components/ui/form/FieldError.vue';
+import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
-import PublicLayout from '@/components/Public/PublicLayout.vue';
-import FormAlert from '@/components/ui/form/FormAlert.vue';
 
 type Step = 1 | 2 | 3;
 type AcademicDocumentType = 'tor' | 'grade_report' | 'other';
@@ -21,7 +21,6 @@ const studentIdAvailable = ref<boolean | null>(null);
 const uploadProgress = ref(0);
 let studentIdDebounce: ReturnType<typeof setTimeout> | null = null;
 let stepTransitionTimer: ReturnType<typeof setTimeout> | null = null;
-const { isLoading } = useInertiaLoading();
 
 const modal = reactive({
     open: false,
@@ -130,10 +129,6 @@ const maxCropScale = computed(() => Math.max(cropMinScale.value * 4, cropMinScal
 const cropImageStyle = computed(() => ({
     transform: `translate(calc(-50% + ${cropX.value}px), calc(-50% + ${cropY.value}px)) scale(${cropScale.value})`,
 }));
-
-function toLogin() {
-    router.visit('/Login');
-}
 
 function handleEnter(event: KeyboardEvent) {
     if (isSubmitting.value) return;

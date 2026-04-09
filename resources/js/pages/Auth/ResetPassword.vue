@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { router, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+
 import PublicLayout from '@/components/Public/PublicLayout.vue';
 import FieldError from '@/components/ui/form/FieldError.vue';
 import FormAlert from '@/components/ui/form/FormAlert.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
-import { router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
 
 const props = defineProps<{
     email: string;

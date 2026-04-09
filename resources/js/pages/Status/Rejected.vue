@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import PublicLayout from '@/components/Public/PublicLayout.vue'
 import { Head, router } from '@inertiajs/vue3'
+
+import PublicLayout from '@/components/Public/PublicLayout.vue'
 
 function goHome() {
     router.visit('/')

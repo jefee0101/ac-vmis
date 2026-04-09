@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
+
 import Spinner from '@/components/ui/spinner/Spinner.vue'
+import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 
 defineOptions({
   layout: StudentAthleteDashboard,

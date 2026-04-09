@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import { computed, reactive, ref, watch } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { computed, reactive, ref, watch } from 'vue'
+
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
+import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
     layout: AdminDashboard,

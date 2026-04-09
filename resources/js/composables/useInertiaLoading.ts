@@ -1,5 +1,5 @@
-import { onBeforeUnmount, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { onBeforeUnmount, ref } from 'vue'
 
 export function useInertiaLoading() {
     const isLoading = ref(false)

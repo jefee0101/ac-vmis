@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { router, usePage } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue';
+
 import RoleFooter from '@/components/ui/RoleFooter.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 import UserAccountMenu from '@/components/UserAccountMenu.vue';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
-import { router, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref, useSlots, watch } from 'vue';
 
 const SIDEBAR_PREF_KEY = 'ac-vmis-admin-sidebar-collapsed';
 

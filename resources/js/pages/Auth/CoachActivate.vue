@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import PublicLayout from '@/components/Public/PublicLayout.vue';
-import Spinner from '@/components/ui/spinner/Spinner.vue';
 import { router, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
+
+import PublicLayout from '@/components/Public/PublicLayout.vue';
+import Spinner from '@/components/ui/spinner/Spinner.vue';
 
 const props = defineProps<{
     email: string;

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useInertiaLoading } from '@/composables/useInertiaLoading';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
+
+import { useInertiaLoading } from '@/composables/useInertiaLoading';
 
 const props = withDefaults(
     defineProps<{

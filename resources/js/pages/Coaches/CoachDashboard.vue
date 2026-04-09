@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import CoachMobileShell from '@/components/coach/CoachMobileShell.vue'
 import { Head, router } from '@inertiajs/vue3'
 import { computed, useSlots } from 'vue'
+
+import CoachMobileShell from '@/components/coach/CoachMobileShell.vue'
 
 type TeamInfo = {
   id: number

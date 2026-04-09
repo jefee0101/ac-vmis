@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
-import { computed, reactive, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { computed, reactive, ref } from 'vue'
+
+import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { useSportColors } from '@/composables/useSportColors'
+import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
     layout: AdminDashboard,

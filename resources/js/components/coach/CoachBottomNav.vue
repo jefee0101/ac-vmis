@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { CoachNavItem } from '@/config/coachNav'
 import { router } from '@inertiajs/vue3'
 
-const props = defineProps<{
+import type { CoachNavItem } from '@/config/coachNav'
+
+defineProps<{
   items: CoachNavItem[]
   isActive: (route: string) => boolean
 }>()

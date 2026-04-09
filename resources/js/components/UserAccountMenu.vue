@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
 
 const props = withDefaults(defineProps<{
   dark?: boolean

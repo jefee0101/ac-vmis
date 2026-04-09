@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import UserAccountMenu from '@/components/UserAccountMenu.vue';
-import CoachBottomNav from '@/components/coach/CoachBottomNav.vue';
-import RoleFooter from '@/components/ui/RoleFooter.vue';
-import { coachPrimaryNav, coachSecondaryNav } from '@/config/coachNav';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+
+import CoachBottomNav from '@/components/coach/CoachBottomNav.vue';
+import RoleFooter from '@/components/ui/RoleFooter.vue';
+import UserAccountMenu from '@/components/UserAccountMenu.vue';
+import { coachPrimaryNav, coachSecondaryNav } from '@/config/coachNav';
+
 
 const props = defineProps<{
     title?: string;
@@ -12,7 +14,6 @@ const props = defineProps<{
 
 const page = usePage();
 const currentPath = computed(() => String(page.url || ''));
-const unreadCount = computed(() => Number(page.props.auth?.announcements?.unread_count ?? 0));
 const mobileMenuOpen = ref(false);
 const isNavCollapsed = ref(false);
 const notificationsOpen = ref(false);
