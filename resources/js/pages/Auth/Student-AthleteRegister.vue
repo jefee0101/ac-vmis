@@ -75,6 +75,7 @@ const submitAttempted = ref(false);
 const touchedFields = reactive<Record<string, boolean>>({});
 
 const yearLevelOptions = computed(() => ['11', '12', '1', '2', '3', '4']);
+const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandparent', 'Relative', 'Spouse', 'Other'];
 
 const derivedEducationLevel = computed(() => {
     const raw = String(form.current_grade_level || '').trim();
@@ -169,6 +170,10 @@ function validateEmail(email: string) {
 
 function validateStudentIdFormat(value: string) {
     return /^[A-Za-z0-9-]{6,20}$/.test(value);
+}
+
+function normalizePhoneNumber(value: string) {
+    return value.replace(/\D/g, '').slice(0, 10);
 }
 
 function resolveHeightCm(): number | null {
@@ -276,6 +281,24 @@ function validateField(field: string): boolean {
     }
 
     if (['first_name', 'last_name', 'date_of_birth', 'gender', 'phone_number', 'current_grade_level', 'course_or_strand'].includes(field)) {
+        if (field === 'phone_number') {
+            const phone = normalizePhoneNumber(String(value || ''));
+            form.phone_number = phone;
+
+            if (!phone) {
+                setFieldError(field, 'Mobile number is required.');
+                return false;
+            }
+
+            if (!/^\d{10}$/.test(phone)) {
+                setFieldError(field, 'Mobile number must be exactly 10 digits.');
+                return false;
+            }
+
+            clearFieldError(field);
+            return true;
+        }
+
         if (!String(value || '').trim()) {
             setFieldError(field, 'This field is required.');
             return false;
@@ -431,6 +454,21 @@ watch(
         }
         if ((submitAttempted.value || touchedFields.last_name) && form.last_name) {
             validateField('last_name');
+        }
+    },
+);
+
+watch(
+    () => form.phone_number,
+    (value) => {
+        const normalized = normalizePhoneNumber(String(value || ''));
+        if (normalized !== value) {
+            form.phone_number = normalized;
+            return;
+        }
+
+        if (submitAttempted.value || touchedFields.phone_number) {
+            validateField('phone_number');
         }
     },
 );
@@ -981,9 +1019,12 @@ onBeforeUnmount(() => {
                             <label class="label">Phone Number</label>
                             <input
                                 v-model="form.phone_number"
-                                type="text"
+                                type="tel"
+                                inputmode="numeric"
+                                maxlength="10"
+                                pattern="[0-9]{10}"
                                 :class="['field', { 'is-error': shouldShowError('phone_number') }]"
-                                placeholder="09XXXXXXXXX"
+                                placeholder="9XXXXXXXXX"
                                 @blur="touchAndValidate('phone_number')"
                             />
                             <FieldError :message="shouldShowError('phone_number') ? fieldErrors.phone_number : ''" />
@@ -1057,12 +1098,21 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <div class="rounded-lg border border-[#ef444433] bg-[#fff5f5] p-3">
-                        <p class="mb-2 text-sm font-semibold text-rose-200">Emergency Contact (Compact Block)</p>
-                        <div class="grid gap-3 sm:grid-cols-3">
-                            <input v-model="form.emergency_contact_name" type="text" class="field" placeholder="Contact Name" />
-                            <input v-model="form.emergency_contact_relationship" type="text" class="field" placeholder="Relationship" />
-                            <input v-model="form.emergency_contact_phone" type="text" class="field" placeholder="Phone" />
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <div>
+                            <label class="label">Emergency Contact Name</label>
+                            <input v-model="form.emergency_contact_name" type="text" class="field" placeholder="Enter contact name" />
+                        </div>
+                        <div>
+                            <label class="label">Relationship</label>
+                            <select v-model="form.emergency_contact_relationship" class="field">
+                                <option value="">Select relationship</option>
+                                <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label">Emergency Contact Phone</label>
+                            <input v-model="form.emergency_contact_phone" type="text" class="field" placeholder="Enter contact phone" />
                         </div>
                     </div>
                     </section>

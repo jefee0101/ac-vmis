@@ -54,49 +54,53 @@ function toLogin() {
                         <div class="form-stack">
                             <input v-model="form.email" type="email" class="field-input" readonly />
 
-                            <div class="relative">
-                                <input
-                                    v-model="form.password"
-                                    :type="showPassword ? 'text' : 'password'"
-                                    placeholder="New password"
-                                    :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password }]"
-                                    :aria-invalid="form.errors.password ? 'true' : 'false'"
-                                    aria-describedby="reset-password-error"
-                                />
-                                <button
-                                    type="button"
-                                    class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
-                                    :aria-label="showPassword ? 'Hide password' : 'Show password'"
-                                    @click="showPassword = !showPassword"
-                                >
-                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
+                            <div class="password-field">
+                                <div class="password-field__control">
+                                    <input
+                                        v-model="form.password"
+                                        :type="showPassword ? 'text' : 'password'"
+                                        placeholder="New password"
+                                        :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password }]"
+                                        :aria-invalid="form.errors.password ? 'true' : 'false'"
+                                        aria-describedby="reset-password-error"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
+                                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                                        @click="showPassword = !showPassword"
+                                    >
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 <FieldError id="reset-password-error" :message="form.errors.password" />
                             </div>
 
-                            <div class="relative">
-                                <input
-                                    v-model="form.password_confirmation"
-                                    :type="showConfirmPassword ? 'text' : 'password'"
-                                    placeholder="Confirm new password"
-                                    :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password_confirmation }]"
-                                    :aria-invalid="form.errors.password_confirmation ? 'true' : 'false'"
-                                    aria-describedby="reset-password-confirmation-error"
-                                />
-                                <button
-                                    type="button"
-                                    class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
-                                    :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
-                                    @click="showConfirmPassword = !showConfirmPassword"
-                                >
-                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
+                            <div class="password-field">
+                                <div class="password-field__control">
+                                    <input
+                                        v-model="form.password_confirmation"
+                                        :type="showConfirmPassword ? 'text' : 'password'"
+                                        placeholder="Confirm new password"
+                                        :class="['field-input', 'pr-10', { 'is-error': !!form.errors.password_confirmation }]"
+                                        :aria-invalid="form.errors.password_confirmation ? 'true' : 'false'"
+                                        aria-describedby="reset-password-confirmation-error"
+                                    />
+                                    <button
+                                        type="button"
+                                        class="toggle-eye absolute top-1/2 right-3 -translate-y-1/2"
+                                        :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+                                        @click="showConfirmPassword = !showConfirmPassword"
+                                    >
+                                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </svg>
+                                    </button>
+                                </div>
                                 <FieldError id="reset-password-confirmation-error" :message="form.errors.password_confirmation" />
                             </div>
                         </div>
@@ -178,6 +182,15 @@ function toLogin() {
     margin-top: 0.4rem;
     display: grid;
     gap: 0.65rem;
+}
+
+.password-field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.password-field__control {
+    position: relative;
 }
 
 .field-input {

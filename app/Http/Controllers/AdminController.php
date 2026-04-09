@@ -195,20 +195,47 @@ class AdminController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($user) {
-            $user->update([
-                'status' => 'deactivated',
-            ]);
-        });
+        try {
+            DB::transaction(function () use ($user) {
+                $user->update([
+                    'status' => 'deactivated',
+                ]);
 
-        $this->announcements->announce(
-            $user->id,
-            'Account Deactivated',
-            'Your account has been temporarily deactivated. Contact administration for reactivation.',
-            Announcement::TYPE_SYSTEM,
-            Auth::id(),
-            'notify_approvals'
-        );
+                if ($user->role === 'coach' && $user->coach) {
+                    $user->coach->update([
+                        'coach_status' => 'Inactive',
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to deactivate user account.', [
+                'target_user_id' => $user->id,
+                'target_role' => $user->role,
+                'admin_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'user_action' => 'Unable to deactivate this account right now. Please try again.',
+            ]);
+        }
+
+        try {
+            $this->announcements->announce(
+                $user->id,
+                'Account Deactivated',
+                'Your account has been temporarily deactivated. Contact administration for reactivation.',
+                Announcement::TYPE_SYSTEM,
+                Auth::id(),
+                'notify_approvals'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('User deactivated but announcement dispatch failed.', [
+                'target_user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', 'User deactivated.');
     }
@@ -227,20 +254,47 @@ class AdminController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($user) {
-            $user->update([
-                'status' => 'approved',
-            ]);
-        });
+        try {
+            DB::transaction(function () use ($user) {
+                $user->update([
+                    'status' => 'approved',
+                ]);
 
-        $this->announcements->announce(
-            $user->id,
-            'Account Reactivated',
-            'Your account has been reactivated. You may log in again.',
-            Announcement::TYPE_SYSTEM,
-            Auth::id(),
-            'notify_approvals'
-        );
+                if ($user->role === 'coach' && $user->coach) {
+                    $user->coach->update([
+                        'coach_status' => 'Active',
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to reactivate user account.', [
+                'target_user_id' => $user->id,
+                'target_role' => $user->role,
+                'admin_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'user_action' => 'Unable to reactivate this account right now. Please try again.',
+            ]);
+        }
+
+        try {
+            $this->announcements->announce(
+                $user->id,
+                'Account Reactivated',
+                'Your account has been reactivated. You may log in again.',
+                Announcement::TYPE_SYSTEM,
+                Auth::id(),
+                'notify_approvals'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('User reactivated but announcement dispatch failed.', [
+                'target_user_id' => $user->id,
+                'admin_id' => Auth::id(),
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return back()->with('success', 'User reactivated.');
     }

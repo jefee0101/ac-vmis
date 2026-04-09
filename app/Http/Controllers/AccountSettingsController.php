@@ -19,6 +19,16 @@ use Inertia\Inertia;
 
 class AccountSettingsController extends Controller
 {
+    private const EMERGENCY_RELATIONSHIPS = [
+        'Parent',
+        'Guardian',
+        'Sibling',
+        'Grandparent',
+        'Relative',
+        'Spouse',
+        'Other',
+    ];
+
     private function normalizeThemePreference(?string $value): string
     {
         return in_array($value, ['light', 'dark', 'blue'], true) ? $value : 'light';
@@ -84,7 +94,7 @@ class AccountSettingsController extends Controller
             'phone_number' => ['nullable', 'string', 'max:30'],
             'home_address' => ['nullable', 'string', 'max:255'],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_relationship' => ['nullable', 'string', 'max:100'],
+            'emergency_contact_relationship' => ['nullable', Rule::in(self::EMERGENCY_RELATIONSHIPS)],
             'emergency_contact_phone' => ['nullable', 'string', 'max:30'],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'max:30'],

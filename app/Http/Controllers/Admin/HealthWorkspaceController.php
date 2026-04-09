@@ -7,6 +7,7 @@ use App\Models\AthleteHealthClearance;
 use App\Models\Team;
 use App\Models\WellnessLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class HealthWorkspaceController extends Controller
@@ -18,11 +19,23 @@ class HealthWorkspaceController extends Controller
             $tab = 'clearance';
         }
 
-        return Inertia::render('Admin/HealthWorkspace', [
-            'tab' => $tab,
-            'clearance' => $tab === 'clearance' ? $this->clearancePayload($request) : null,
-            'wellness' => $tab === 'wellness' ? $this->wellnessPayload($request) : null,
-        ]);
+        try {
+            return Inertia::render('Admin/HealthWorkspace', [
+                'tab' => $tab,
+                'clearance' => $tab === 'clearance' ? $this->clearancePayload($request) : null,
+                'wellness' => $tab === 'wellness' ? $this->wellnessPayload($request) : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to load health workspace.', [
+                'tab' => $tab,
+                'admin_id' => $request->user()?->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'health_workspace' => 'Unable to load the Health workspace right now. Please try again.',
+            ]);
+        }
     }
 
     private function clearancePayload(Request $request): array
@@ -104,7 +117,10 @@ class HealthWorkspaceController extends Controller
             ->first();
 
         $paginator = (clone $base)
-            ->with(['student', 'reviewer'])
+            ->with([
+                'student.user:id,first_name,last_name',
+                'reviewer:id,first_name,last_name',
+            ])
             ->latest('clearance_date')
             ->paginate($perPage)
             ->withQueryString();
@@ -112,10 +128,11 @@ class HealthWorkspaceController extends Controller
         $rows = collect($paginator->items())
             ->map(function ($record) {
                 $student = $record->student;
+                $studentUser = $student?->user;
 
                 return [
                     'id' => $record->id,
-                    'student_name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                    'student_name' => trim(($studentUser?->first_name ?? $student?->first_name ?? '') . ' ' . ($studentUser?->last_name ?? $student?->last_name ?? '')),
                     'student_id_number' => $student->student_id_number ?? null,
                     'clearance_date' => optional($record->clearance_date)->toDateString(),
                     'valid_until' => optional($record->valid_until)->toDateString(),

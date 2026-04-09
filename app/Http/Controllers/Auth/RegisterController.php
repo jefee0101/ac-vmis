@@ -20,6 +20,16 @@ use Illuminate\Support\Facades\Mail;
 
 class RegisterController extends Controller
 {
+    private const EMERGENCY_RELATIONSHIPS = [
+        'Parent',
+        'Guardian',
+        'Sibling',
+        'Grandparent',
+        'Relative',
+        'Spouse',
+        'Other',
+    ];
+
     public function __construct(
         private SecureUploadService $secureUpload,
         private AnnouncementService $announcements,
@@ -37,11 +47,14 @@ class RegisterController extends Controller
             'last_name' => 'required|string',
             'date_of_birth' => 'required|date',
             'gender' => 'required|in:Male,Female,Other',
-            'phone_number' => 'required|string|max:30',
+            'phone_number' => ['required', 'regex:/^\d{10}$/'],
             'current_grade_level' => 'required|in:11,12,1,2,3,4',
             'course_or_strand' => 'required|string|max:255',
             'height' => 'required|numeric|min:50|max:260',
             'weight' => 'required|numeric|min:20|max:300',
+            'emergency_contact_name' => 'nullable|string|max:255',
+            'emergency_contact_relationship' => 'nullable|in:' . implode(',', self::EMERGENCY_RELATIONSHIPS),
+            'emergency_contact_phone' => 'nullable|string|max:30',
             'avatar' => 'nullable|image|max:2048',
             'clearance_date' => 'required|date',
             'valid_until' => 'nullable|date|after_or_equal:clearance_date',
@@ -53,6 +66,9 @@ class RegisterController extends Controller
             'academic_document_type' => 'required|in:tor,grade_report,other',
             'academic_document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'academic_document_notes' => 'nullable|string',
+        ], [
+            'phone_number.regex' => 'Mobile number must be exactly 10 digits.',
+            'emergency_contact_relationship.in' => 'Select a valid emergency contact relationship.',
         ]);
 
         try {

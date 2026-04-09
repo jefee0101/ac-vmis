@@ -67,6 +67,8 @@ const form = useForm({
   gender: props.profile.coach?.gender ?? '',
 })
 
+const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandparent', 'Relative', 'Spouse', 'Other']
+
 const saved = ref(false)
 const requestUpdateOpen = ref(false)
 const avatarPreview = ref<string | null>(null)
@@ -365,7 +367,10 @@ onBeforeUnmount(() => {
               </div>
               <div>
                 <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Relationship</label>
-                <input v-model="form.emergency_contact_relationship" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
+                <select v-model="form.emergency_contact_relationship" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm">
+                  <option value="">Select relationship</option>
+                  <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
+                </select>
                 <p v-if="form.errors.emergency_contact_relationship" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_relationship }}</p>
               </div>
               <div>
