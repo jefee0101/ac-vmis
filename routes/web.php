@@ -344,20 +344,3 @@ Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold', 'aca
     Route::get('/Student/Schedules/{id}/qr-token', [ScheduleRecord::class, 'qrToken'])
         ->name('student.schedules.qr_token');
 });
-
-use Illuminate\Support\Facades\Mail;
-
-Route::get('/mail-test', function () {
-    $to = env('MAIL_TEST_TO', env('MAIL_FROM_ADDRESS'));
-
-    Mail::raw('SMTP test email from AC-VMIS via Brevo', function ($message) use ($to) {
-        $message->to($to)
-                ->subject('SMTP Test (Brevo)');
-    });
-
-    return response()->json([
-        'status' => 'ok',
-        'message' => 'Test email sent (if no exception).',
-        'to' => $to,
-    ]);
-});
