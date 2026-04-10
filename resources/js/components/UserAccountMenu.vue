@@ -17,6 +17,9 @@ const menuOpen = ref(false)
 const closeTimer = ref<number | null>(null)
 
 const user = computed(() => page.props.auth?.user ?? null)
+const identity = computed(() => page.props.auth?.identity ?? null)
+const userRole = computed(() => String(user.value?.role ?? ''))
+const isStudentUser = computed(() => ['student', 'student-athlete'].includes(userRole.value))
 
 const avatarUrl = computed(() => {
   const path = String(user.value?.avatar ?? '')
@@ -27,6 +30,12 @@ const avatarUrl = computed(() => {
 })
 
 const fullName = computed(() => String(user.value?.name ?? 'User'))
+const studentStatusLabel = computed(() => {
+  const subtitle = String(identity.value?.subtitle ?? '').trim()
+  if (subtitle) return subtitle
+  return 'Status unavailable'
+})
+const buttonTitle = computed(() => (isStudentUser.value ? `${fullName.value} · ${studentStatusLabel.value}` : fullName.value))
 const menuPanelClass = computed(() => {
   if (props.menuPlacement === 'top') {
     return 'absolute right-0 bottom-full mb-2 w-56 rounded-lg border border-slate-200 bg-white shadow-xl z-40 overflow-hidden'
@@ -87,12 +96,12 @@ function scheduleClose() {
         compact ? 'account-card-compact' : '',
       ]"
       @click="menuOpen = !menuOpen"
-      :title="compact ? fullName : ''"
+      :title="compact ? buttonTitle : ''"
     >
       <img :src="avatarUrl" alt="Profile" class="account-avatar h-9 w-9 rounded-full object-cover" />
-      <div v-if="!compact" class="min-w-0 text-left">
-        <p class="text-xs opacity-70 leading-none">Account</p>
-        <p class="text-sm font-semibold truncate leading-tight">{{ fullName }}</p>
+      <div class="account-copy min-w-0 text-left">
+        <p class="account-name text-sm font-semibold truncate leading-tight">{{ fullName }}</p>
+        <p v-if="isStudentUser" class="account-meta text-xs leading-tight">{{ studentStatusLabel }}</p>
       </div>
     </button>
 
@@ -111,6 +120,7 @@ function scheduleClose() {
 .account-card {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
   gap: 10px;
   border-radius: 10px;
   padding: 6px 10px;
@@ -126,8 +136,7 @@ function scheduleClose() {
 
 .account-card-compact {
   min-width: 0;
-  max-width: 44px;
-  justify-content: center;
+  max-width: 240px;
   padding: 0;
   border: none !important;
   background: transparent !important;
@@ -138,6 +147,29 @@ function scheduleClose() {
   border: 1px solid #475569;
   background: #1e293b;
   color: #e2e8f0;
+}
+
+.account-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.account-name,
+.account-meta {
+  margin: 0;
+}
+
+.account-meta {
+  color: rgb(100 116 139);
+}
+
+.account-card-dark .account-meta {
+  color: rgb(148 163 184);
 }
 
 .menu-item {

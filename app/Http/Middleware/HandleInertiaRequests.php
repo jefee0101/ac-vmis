@@ -54,6 +54,14 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                'identity' => fn () => $request->user()
+                    ? [
+                        'name' => $request->user()->name,
+                        'subtitle' => in_array($request->user()->role, ['student', 'student-athlete'], true)
+                            ? $request->user()->student()?->value('student_status')
+                            : null,
+                    ]
+                    : null,
                 'settings' => [
                     'theme_preference' => fn () => $request->user()
                         ? (UserSetting::query()
