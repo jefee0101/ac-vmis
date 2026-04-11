@@ -130,6 +130,8 @@ const sortOption = ref<SortOption>(`${props.filters?.sort ?? 'created_at'}:${pro
 const topTab = ref<'approved' | 'queue'>('approved');
 const createCoachOpen = ref(false);
 const createCoachFeedback = ref<string | null>(null);
+const adminInviteOpen = ref(false);
+const adminInviteFeedback = ref<string | null>(null);
 const selectedSportIds = ref<number[]>([]);
 const copiedOnboardingPassword = ref(false);
 const copiedActivationLink = ref(false);
@@ -148,6 +150,9 @@ const createCoachForm = useForm({
     assignment_role: 'assistant',
     team_ids: [] as number[],
 });
+const adminInviteForm = useForm({
+    email: '',
+});
 
 if (!['name:asc', 'name:desc', 'email:asc', 'email:desc', 'created_at:asc', 'created_at:desc'].includes(sortOption.value)) {
     sortOption.value = defaultSort;
@@ -165,7 +170,7 @@ const hasActiveFilters = computed(
     () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'approved' || sortOption.value !== defaultSort,
 );
 const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
-const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value));
+const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || adminInviteOpen.value));
 const sportOptions = computed(() => props.sports ?? []);
 const assignableTeams = computed(() => props.assignableTeams ?? []);
 const filteredAssignableTeams = computed(() => {
@@ -235,6 +240,10 @@ function openCreateCoach() {
     createCoachOpen.value = true;
 }
 
+function openAdminInvite() {
+    adminInviteOpen.value = true;
+}
+
 function closeCreateCoach() {
     createCoachOpen.value = false;
     createCoachForm.reset();
@@ -245,6 +254,26 @@ function closeCreateCoach() {
     onboardingFlash.value = null;
     copiedOnboardingPassword.value = false;
     copiedActivationLink.value = false;
+}
+
+function closeAdminInvite() {
+    adminInviteOpen.value = false;
+    adminInviteForm.reset();
+    adminInviteForm.clearErrors();
+}
+
+function submitAdminInvite() {
+    adminInviteFeedback.value = null;
+    adminInviteForm.post('/admin/invites', {
+        preserveScroll: true,
+        onSuccess: (visit) => {
+            adminInviteFeedback.value = String((visit.props as any)?.flash?.success ?? 'Admin invitation sent.');
+            closeAdminInvite();
+        },
+        onError: () => {
+            adminInviteOpen.value = true;
+        },
+    });
 }
 
 function teamSlotTaken(team: AssignableTeam) {
@@ -506,6 +535,7 @@ function onModalEscape(event: KeyboardEvent) {
         closeDeactivateDialog();
         closeReactivateDialog();
         closeCreateCoach();
+        closeAdminInvite();
     }
 }
 
@@ -578,14 +608,26 @@ watch(
                     </span>
                 </button>
             </div>
-            <button
-                type="button"
-                @click="openCreateCoach"
-                class="inline-flex items-center justify-center rounded-full bg-[#1f2937] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#334155]"
-            >
-                Create Coach Account
-            </button>
+            <div class="flex flex-wrap items-center gap-2">
+                <button
+                    type="button"
+                    @click="openAdminInvite"
+                    class="inline-flex items-center justify-center rounded-full border border-[#1f2937]/25 bg-white px-4 py-2 text-xs font-semibold text-[#1f2937] transition hover:border-[#1f2937]/45 hover:bg-slate-50"
+                >
+                    Invite Admin
+                </button>
+                <button
+                    type="button"
+                    @click="openCreateCoach"
+                    class="inline-flex items-center justify-center rounded-full bg-[#1f2937] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#334155]"
+                >
+                    Create Coach Account
+                </button>
+            </div>
         </div>
+        <p v-if="adminInviteFeedback" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700">
+            {{ adminInviteFeedback }}
+        </p>
         <p v-if="createCoachFeedback" class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
             {{ createCoachFeedback }}
         </p>
@@ -810,6 +852,68 @@ watch(
             </div>
         </Transition>
     </div>
+
+    <Transition name="modal-fade">
+        <div
+            v-if="adminInviteOpen"
+            class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center"
+            @click.self="closeAdminInvite"
+        >
+            <div class="modal-panel my-6 w-full max-w-xl rounded-2xl border border-[#034485]/45 bg-white p-6 sm:my-0 sm:p-7">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Invite Administrator</h2>
+                        <p class="mt-1 text-sm text-slate-600">Send a one-time setup link to a future AC-VMIS admin. Domain restriction is not enforced yet.</p>
+                    </div>
+                    <button
+                        type="button"
+                        @click="closeAdminInvite"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        aria-label="Close admin invite form"
+                    >
+                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form class="mt-5 space-y-4" @submit.prevent="submitAdminInvite">
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold tracking-wide text-slate-500 uppercase">Email</label>
+                        <input
+                            v-model="adminInviteForm.email"
+                            type="email"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20"
+                            placeholder="futureadmin@example.com"
+                        />
+                        <p v-if="adminInviteForm.errors.email" class="mt-1 text-xs text-rose-600">{{ adminInviteForm.errors.email }}</p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                        The invite link is one-time use and expires after three days. The admin account will only be created after the recipient completes setup.
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            @click="closeAdminInvite"
+                            class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="adminInviteForm.processing"
+                            class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {{ adminInviteForm.processing ? 'Sending...' : 'Send Invite' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </Transition>
 
     <Transition name="modal-fade">
         <div

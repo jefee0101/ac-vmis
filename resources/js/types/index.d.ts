@@ -1,5 +1,9 @@
 export interface Auth {
     user: User;
+    identity?: {
+        name?: string;
+        subtitle?: string | null;
+    } | null;
     announcements?: {
         unread_count?: number;
     };

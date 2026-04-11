@@ -116,6 +116,8 @@ Route::middleware('guest')->group(function () {
     Route::get('/RegisterStudent-AthleteData/check-student-id', [RegisterController::class, 'checkStudentIdAvailability'])
         ->name('student.register.check_id');
     Route::post('/RegisterStudent-AthleteData', [RegisterController::class, 'registerStudentAthlete']);
+    Route::get('/admin/invite/accept', [AdminController::class, 'showAdminInviteAcceptance'])->name('admin.invite.accept');
+    Route::post('/admin/invite/accept', [AdminController::class, 'acceptAdminInvite'])->name('admin.invite.accept.submit');
 
     // Coach accounts are now provisioned by admins only.
     Route::redirect('/CoachRegister', '/Register');
@@ -165,6 +167,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/people', [AdminController::class, 'userManagement'])
         ->name('admin.people.index');
+    Route::post('/admin/invites', [AdminController::class, 'storeAdminInvite'])
+        ->name('admin.invites.store');
     Route::post('/admin/coaches', [AdminController::class, 'storeCoach'])
         ->name('admin.coaches.store');
     Route::post('/admin/coaches/{user}/regenerate-onboarding', [AdminController::class, 'regenerateCoachOnboarding'])

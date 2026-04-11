@@ -282,11 +282,15 @@ class RegisterController extends Controller
             Mail::to($user->email)->send(new AccountPendingApprovalMail($user));
         } catch (\Throwable $e) {
             // Keep registration successful even when mail transport is unavailable.
-            // Log only concise diagnostics to avoid noisy SMTP traces.
-            Log::notice('Pending approval email not sent. Check mail credentials/settings.', [
+            Log::error('Pending approval email failed.', [
                 'user_id' => $user->id,
                 'email' => $user->email,
-                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
             ]);
         }
     }

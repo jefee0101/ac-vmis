@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Mail\AccountApprovedMail;
+use App\Mail\AdminInviteMail;
 use App\Mail\AccountRejectedMail;
 use App\Mail\CoachOnboardingMail;
 use App\Models\AccountApproval;
+use App\Models\AdminInvite;
 use App\Models\Announcement;
 use App\Models\Coach;
 use App\Models\Sport;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -551,6 +554,120 @@ class AdminController extends Controller
         ]);
     }
 
+    public function storeAdminInvite(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255|unique:users,email',
+        ]);
+
+        AdminInvite::query()
+            ->where('email', $validated['email'])
+            ->whereNull('used_at')
+            ->delete();
+
+        $plainToken = Str::random(64);
+        $invite = AdminInvite::create([
+            'email' => $validated['email'],
+            'token_hash' => hash('sha256', $plainToken),
+            'created_by' => Auth::id(),
+            'expires_at' => now()->addDays(3),
+        ]);
+
+        $acceptUrl = route('admin.invite.accept', [
+            'email' => $invite->email,
+            'token' => $plainToken,
+        ]);
+
+        try {
+            Mail::to($invite->email)->send(new AdminInviteMail($invite, $request->user(), $acceptUrl));
+        } catch (\Throwable $e) {
+            $invite->delete();
+
+            Log::error('Admin invite email failed.', [
+                'email' => $validated['email'],
+                'admin_id' => Auth::id(),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => 'The invitation could not be sent right now. Please try again.',
+            ]);
+        }
+
+        return back()->with('success', "Admin invitation sent to {$invite->email}.");
+    }
+
+    public function showAdminInviteAcceptance(Request $request)
+    {
+        $invite = $this->resolveAdminInvite(
+            (string) $request->query('email', ''),
+            (string) $request->query('token', '')
+        );
+
+        if (!$invite) {
+            return redirect('/Login')->withErrors([
+                'message' => 'This admin invitation is invalid, expired, or already used.',
+            ]);
+        }
+
+        return Inertia::render('Auth/AdminInviteAccept', [
+            'email' => $invite->email,
+            'token' => (string) $request->query('token', ''),
+            'expiresAt' => $invite->expires_at?->timezone(config('app.timezone'))->format('M d, Y h:i A'),
+        ]);
+    }
+
+    public function acceptAdminInvite(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+            'token' => 'required|string',
+            'first_name' => 'required|string|max:255',
+            'middle_name' => 'nullable|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+        ]);
+
+        $invite = $this->resolveAdminInvite($validated['email'], $validated['token']);
+
+        if (!$invite) {
+            throw ValidationException::withMessages([
+                'email' => 'This admin invitation is invalid, expired, or already used.',
+            ]);
+        }
+
+        if (User::query()->where('email', $validated['email'])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'An account with this email already exists.',
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $invite) {
+            User::create([
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'must_change_password' => false,
+                'role' => 'admin',
+                'status' => 'approved',
+                'email_verified_at' => now(),
+            ]);
+
+            $invite->update([
+                'used_at' => now(),
+            ]);
+        });
+
+        return redirect('/Login')->with('success', 'Administrator account created successfully. You can now sign in.');
+    }
+
     public function storeCoach(Request $request)
     {
         $validated = $request->validate([
@@ -675,10 +792,15 @@ class AdminController extends Controller
             Mail::to($newUser->email)->send(new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl));
         } catch (\Throwable $e) {
             $emailSent = false;
-            Log::notice('Coach onboarding email not sent. Check mail credentials/settings.', [
+            Log::error('Coach onboarding email failed.', [
                 'user_id' => $newUser->id,
                 'email' => $newUser->email,
-                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
             ]);
         }
 
@@ -737,10 +859,15 @@ class AdminController extends Controller
             Mail::to($user->email)->send(new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl));
         } catch (\Throwable $e) {
             $emailSent = false;
-            Log::notice('Coach onboarding regeneration email not sent. Check mail credentials/settings.', [
+            Log::error('Coach onboarding regeneration email failed.', [
                 'user_id' => $user->id,
                 'email' => $user->email,
-                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
             ]);
         }
 
@@ -1517,7 +1644,36 @@ class AdminController extends Controller
         try {
             Mail::to($user->email)->send($mailable);
         } catch (\Throwable $e) {
-            report($e);
+            Log::error('Account status email failed.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'mailable' => $mailable::class,
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
+            ]);
         }
+    }
+
+    private function resolveAdminInvite(string $email, string $token): ?AdminInvite
+    {
+        if ($email === '' || $token === '') {
+            return null;
+        }
+
+        $invite = AdminInvite::query()
+            ->where('email', $email)
+            ->where('token_hash', hash('sha256', $token))
+            ->latest('id')
+            ->first();
+
+        if (!$invite || !$invite->isUsable()) {
+            return null;
+        }
+
+        return $invite;
     }
 }

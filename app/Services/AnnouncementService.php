@@ -142,11 +142,16 @@ class AnnouncementService
                 url('/announcements'),
             ));
         } catch (\Throwable $e) {
-            Log::notice('Announcement email not sent. Check mail credentials/settings.', [
+            Log::error('Announcement email failed.', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'title' => $title,
-                'reason' => $e->getCode() ?: 'smtp_auth_or_transport',
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'mail_host' => config('mail.mailers.smtp.host'),
+                'mail_port' => config('mail.mailers.smtp.port'),
+                'mail_scheme' => config('mail.mailers.smtp.scheme'),
             ]);
         }
     }
