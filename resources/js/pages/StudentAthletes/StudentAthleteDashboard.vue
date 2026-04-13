@@ -35,6 +35,41 @@ const attendanceTotal = computed(() => {
     return Number(values.present || 0) + Number(values.absent || 0) + Number(values.excused || 0) + Number(values.no_response || 0)
 })
 const academicSubmissions = computed(() => charts.value.academic_submissions ?? { submitted: 0, pending: 0 })
+const upcomingSessionsCount = computed(() =>
+    upcomingSeries.value.reduce((sum: number, item: any) => sum + Number(item.count || 0), 0)
+)
+const submissionTotal = computed(() => Number(academicSubmissions.value.submitted || 0) + Number(academicSubmissions.value.pending || 0))
+const submissionProgress = computed(() => {
+    if (!submissionTotal.value) return 0
+    return Math.round((Number(academicSubmissions.value.submitted || 0) / submissionTotal.value) * 100)
+})
+const hasActionItems = computed(() =>
+    Number(kpis.value.pending_responses || 0) > 0
+    || Number(academicSubmissions.value.pending || 0) > 0
+    || Number(kpis.value.wellness_logs_30d || 0) === 0
+    || isAcademicallyRestricted.value
+)
+const heroSummary = computed(() => {
+    const parts: string[] = []
+
+    if (upcomingSessionsCount.value > 0) {
+        parts.push(`${upcomingSessionsCount.value} upcoming ${upcomingSessionsCount.value === 1 ? 'session' : 'sessions'} this week`)
+    }
+
+    if (Number(kpis.value.pending_responses || 0) > 0) {
+        parts.push(`${kpis.value.pending_responses} pending attendance ${Number(kpis.value.pending_responses) === 1 ? 'response' : 'responses'}`)
+    }
+
+    if (Number(academicSubmissions.value.pending || 0) > 0) {
+        parts.push(`${academicSubmissions.value.pending} academic ${Number(academicSubmissions.value.pending) === 1 ? 'submission is' : 'submissions are'} still pending`)
+    }
+
+    if (parts.length === 0) {
+        return 'You are caught up for now. Keep an eye on your schedule, academics, and wellness updates.'
+    }
+
+    return `${parts.join(' • ')}.`
+})
 
 const mobileMenuOpen = ref(false)
 const primaryItems = studentPrimaryNav
@@ -371,86 +406,185 @@ watch(mobileMenuOpen, (open) => {
                 </template>
                 <template v-else>
                     <div class="space-y-6">
-                        <section class="rounded-3xl border border-[#034485]/35 bg-white p-5 sm:p-6">
-                            <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                <div>
-                                    <p class="text-xs uppercase tracking-wide text-slate-500">Athlete Home</p>
-                                    <h1 class="text-2xl font-bold text-slate-900">Welcome back, {{ userName }}</h1>
-                                    <p class="text-sm text-slate-500 mt-1">Stay on top of schedules, attendance, and wellness updates.</p>
+                        <section class="overflow-hidden rounded-[2rem] border border-[#034485]/35 bg-[linear-gradient(135deg,rgba(255,255,255,1),rgba(239,246,255,0.96))] p-5 shadow-sm sm:p-6">
+                            <div class="flex flex-col gap-5">
+                                <div class="max-w-3xl">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Student-Athlete Home</p>
+                                    <h1 class="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">Welcome back, {{ userName }}</h1>
+                                    <p class="mt-2 text-sm leading-6 text-slate-600">
+                                        {{ heroSummary }}
+                                    </p>
                                 </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <button @click="go('/MySchedule0')" class="rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#033a70]">
-                                        View Schedule
-                                    </button>
-                                    <button @click="go('/AcademicSubmissions0')" class="rounded-full border border-[#034485]/35 bg-white px-4 py-2 text-sm font-semibold text-[#034485] hover:bg-[#034485]/5">
-                                        Submit Academics
-                                    </button>
+                            </div>
+
+                            <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div class="rounded-2xl border border-[#034485]/20 bg-white/90 p-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">This Week</p>
+                                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ upcomingSessionsCount }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">Upcoming training or event sessions.</p>
+                                </div>
+                                <div class="rounded-2xl border border-amber-200 bg-amber-50/90 p-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">Pending Responses</p>
+                                    <p class="mt-2 text-2xl font-semibold text-amber-900">{{ kpis.pending_responses ?? 0 }}</p>
+                                    <p class="mt-1 text-xs text-amber-800/80">Attendance confirmations waiting for you.</p>
+                                </div>
+                                <div class="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Wellness Activity</p>
+                                    <p class="mt-2 text-2xl font-semibold text-emerald-900">{{ kpis.wellness_logs_30d ?? 0 }}</p>
+                                    <p class="mt-1 text-xs text-emerald-800/80">Wellness logs recorded in the last 30 days.</p>
+                                </div>
+                                <div class="rounded-2xl border border-slate-200 bg-slate-50/90 p-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Academic Standing</p>
+                                    <p class="mt-2 text-2xl font-semibold text-slate-900">{{ kpis.academic_status ? String(kpis.academic_status).replace('_', ' ') : 'No record yet' }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">Latest eligibility evaluation on file.</p>
                                 </div>
                             </div>
                         </section>
 
-                        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <section class="rounded-3xl border border-[#034485]/30 bg-white p-5 shadow-sm">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h2 class="text-base font-semibold text-slate-900">Action Needed</h2>
+                                    <p class="mt-1 text-sm text-slate-500">Your highest-priority items are listed here first.</p>
+                                </div>
+                                <span v-if="hasActionItems" class="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+                                    Needs attention
+                                </span>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 lg:grid-cols-3">
+                                <article class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-amber-900">Attendance Response</p>
+                                            <p class="mt-1 text-xs leading-5 text-amber-800/80">
+                                                {{ Number(kpis.pending_responses || 0) > 0
+                                                    ? 'You still have attendance responses waiting in your schedule.'
+                                                    : 'You are caught up on attendance confirmations.' }}
+                                            </p>
+                                        </div>
+                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-amber-800">{{ kpis.pending_responses ?? 0 }}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="mt-4 rounded-full bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-950"
+                                        @click="go('/MySchedule')"
+                                    >
+                                        Open Schedule
+                                    </button>
+                                </article>
+
+                                <article class="rounded-2xl border border-[#034485]/20 bg-slate-50 p-4">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-slate-900">Academic Submission Status</p>
+                                            <p class="mt-1 text-xs leading-5 text-slate-600">
+                                                {{ Number(academicSubmissions.pending || 0) > 0
+                                                    ? `${academicSubmissions.pending} submission${Number(academicSubmissions.pending) === 1 ? '' : 's'} still pending this active period.`
+                                                    : 'All currently open academic submission requirements are complete.' }}
+                                            </p>
+                                        </div>
+                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-[#034485]">
+                                            {{ academicSubmissions.submitted }}/{{ submissionTotal || 0 }}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="mt-4 rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#033a70]"
+                                        @click="go('/AcademicSubmissions')"
+                                    >
+                                        Go to Academics
+                                    </button>
+                                </article>
+
+                                <article class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p class="text-sm font-semibold text-emerald-900">Wellness Check-In</p>
+                                            <p class="mt-1 text-xs leading-5 text-emerald-800/80">
+                                                {{ Number(kpis.wellness_logs_30d || 0) === 0
+                                                    ? 'No recent wellness logs found. Add one to keep your status updated.'
+                                                    : 'Keep your recovery and readiness records current.' }}
+                                            </p>
+                                        </div>
+                                        <span class="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-800">{{ kpis.wellness_logs_30d ?? 0 }}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="mt-4 rounded-full bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+                                        @click="go('/WellnessHistory')"
+                                    >
+                                        Open Wellness
+                                    </button>
+                                </article>
+                            </div>
+                        </section>
+
+                        <section class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                             <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
                                 <p class="text-xs text-slate-500">Attendance Rate (30d)</p>
-                                <p class="text-2xl font-semibold text-[#1f2937] mt-1">
+                                <p class="mt-1 text-2xl font-semibold text-[#1f2937]">
                                     {{ kpis.attendance_rate != null ? `${kpis.attendance_rate}%` : '—' }}
                                 </p>
-                                <p class="text-xs text-slate-500 mt-1">Present + excused sessions</p>
+                                <p class="mt-1 text-xs text-slate-500">Present and excused sessions combined.</p>
                             </div>
                             <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                                <p class="text-xs text-slate-500">Pending Responses</p>
-                                <p class="text-2xl font-semibold text-[#1f2937] mt-1">{{ kpis.pending_responses ?? '—' }}</p>
-                                <p class="text-xs text-slate-500 mt-1">Awaiting attendance reply</p>
+                                <p class="text-xs text-slate-500">Academic Standing</p>
+                                <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ kpis.academic_status ? String(kpis.academic_status).replace('_', ' ') : '—' }}</p>
+                                <p class="mt-1 text-xs text-slate-500">Most recent evaluation result.</p>
                             </div>
                             <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                                <p class="text-xs text-slate-500">Wellness Logs (30d)</p>
-                                <p class="text-2xl font-semibold text-[#1f2937] mt-1">{{ kpis.wellness_logs_30d ?? '—' }}</p>
-                                <p class="text-xs text-slate-500 mt-1">Recent entries</p>
+                                <p class="text-xs text-slate-500">Submission Progress</p>
+                                <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ submissionProgress }}%</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ academicSubmissions.submitted }} of {{ submissionTotal || 0 }} requirements completed.</p>
                             </div>
                             <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                                <p class="text-xs text-slate-500">Academic Status</p>
-                                <p class="text-2xl font-semibold text-[#1f2937] mt-1">{{ kpis.academic_status ? String(kpis.academic_status).toUpperCase() : '—' }}</p>
-                                <p class="text-xs text-slate-500 mt-1">Latest evaluation</p>
+                                <p class="text-xs text-slate-500">Announcements</p>
+                                <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ notificationsCount }}</p>
+                                <p class="mt-1 text-xs text-slate-500">Unread notices from admin and system updates.</p>
                             </div>
                         </section>
 
-                        <section class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
+                        <section class="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-5 shadow-sm">
                                 <div class="flex items-center justify-between">
-                                    <h2 class="text-sm font-semibold text-slate-900">Upcoming Sessions (7 days)</h2>
-                                    <span class="text-xs text-slate-500">{{ upcomingSeries.length }} days</span>
+                                    <div>
+                                        <h2 class="text-base font-semibold text-slate-900">Upcoming Sessions</h2>
+                                        <p class="mt-1 text-sm text-slate-500">Your scheduled team activities for the next seven days.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="rounded-full border border-[#034485]/25 px-3 py-1.5 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/5"
+                                        @click="go('/MySchedule')"
+                                    >
+                                        View Full Schedule
+                                    </button>
                                 </div>
-                                <div class="mt-3 flex items-end gap-2">
-                                    <div v-for="point in upcomingSeries" :key="point.label" class="flex flex-col items-center gap-1">
-                                        <div
-                                            class="w-6 rounded-full bg-[#034485]/70"
-                                            :style="{ height: `${6 + (Number(point.count || 0) / upcomingMax) * 64}px` }"
-                                        ></div>
-                                        <span class="text-[10px] text-slate-500">{{ point.label }}</span>
+                                <div class="mt-4 flex items-end gap-2 overflow-x-auto pb-1">
+                                    <div v-for="point in upcomingSeries" :key="point.label" class="flex min-w-10 flex-col items-center gap-2">
+                                        <div class="flex h-20 w-8 items-end rounded-full bg-[#034485]/10 p-1">
+                                            <div
+                                                class="w-full rounded-full bg-[#034485]/75"
+                                                :style="{ height: `${6 + (Number(point.count || 0) / upcomingMax) * 64}px` }"
+                                            ></div>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="text-[10px] font-semibold text-slate-900">{{ point.count }}</p>
+                                            <span class="text-[10px] text-slate-500">{{ point.label }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
+
+                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-5 shadow-sm">
                                 <div class="flex items-center justify-between">
-                                    <h2 class="text-sm font-semibold text-slate-900">Wellness Trend</h2>
-                                    <span class="text-xs text-slate-500">Last {{ wellnessSeries.length }}</span>
-                                </div>
-                                <div class="mt-3 flex items-end gap-2">
-                                    <div v-for="point in wellnessSeries" :key="point.label" class="flex flex-col items-center gap-1">
-                                        <div
-                                            class="w-6 rounded-full bg-emerald-500/70"
-                                            :style="{ height: `${6 + (Number(point.value || 0) / wellnessMax) * 64}px` }"
-                                        ></div>
-                                        <span class="text-[10px] text-slate-500">{{ point.label }}</span>
+                                    <div>
+                                        <h2 class="text-base font-semibold text-slate-900">Attendance Breakdown</h2>
+                                        <p class="mt-1 text-sm text-slate-500">A 30-day summary of your attendance history.</p>
                                     </div>
+                                    <span class="text-xs font-medium text-slate-500">{{ attendanceTotal }} total</span>
                                 </div>
-                            </div>
-                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                                <div class="flex items-center justify-between">
-                                    <h2 class="text-sm font-semibold text-slate-900">Attendance Breakdown</h2>
-                                    <span class="text-xs text-slate-500">{{ attendanceTotal }} total</span>
-                                </div>
-                                <div class="mt-3 space-y-2">
+                                <div class="mt-4 space-y-3">
                                     <div class="flex h-3 overflow-hidden rounded-full border border-[#034485]/20">
                                         <span class="bg-emerald-500" :style="{ width: `${attendanceTotal ? (attendanceBreakdown.present / attendanceTotal) * 100 : 0}%` }"></span>
                                         <span class="bg-rose-500" :style="{ width: `${attendanceTotal ? (attendanceBreakdown.absent / attendanceTotal) * 100 : 0}%` }"></span>
@@ -458,32 +592,71 @@ watch(mobileMenuOpen, (open) => {
                                         <span class="bg-slate-300" :style="{ width: `${attendanceTotal ? (attendanceBreakdown.no_response / attendanceTotal) * 100 : 0}%` }"></span>
                                     </div>
                                     <div class="grid grid-cols-2 gap-2 text-xs text-slate-600">
-                                        <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Present: {{ attendanceBreakdown.present }}</div>
-                                        <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-rose-500"></span> Absent: {{ attendanceBreakdown.absent }}</div>
-                                        <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-amber-400"></span> Excused: {{ attendanceBreakdown.excused }}</div>
-                                        <div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-slate-300"></span> No response: {{ attendanceBreakdown.no_response }}</div>
+                                        <div class="rounded-xl bg-emerald-50 px-3 py-2"><span class="font-semibold text-emerald-700">Present:</span> {{ attendanceBreakdown.present }}</div>
+                                        <div class="rounded-xl bg-rose-50 px-3 py-2"><span class="font-semibold text-rose-700">Absent:</span> {{ attendanceBreakdown.absent }}</div>
+                                        <div class="rounded-xl bg-amber-50 px-3 py-2"><span class="font-semibold text-amber-700">Excused:</span> {{ attendanceBreakdown.excused }}</div>
+                                        <div class="rounded-xl bg-slate-100 px-3 py-2"><span class="font-semibold text-slate-700">No response:</span> {{ attendanceBreakdown.no_response }}</div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
+                        </section>
+
+                        <section class="grid grid-cols-1 gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-5 shadow-sm">
                                 <div class="flex items-center justify-between">
-                                    <h2 class="text-sm font-semibold text-slate-900">Academic Submissions</h2>
-                                    <span class="text-xs text-slate-500">Active period</span>
+                                    <div>
+                                        <h2 class="text-base font-semibold text-slate-900">Academic Submission Progress</h2>
+                                        <p class="mt-1 text-sm text-slate-500">Track how many active academic requirements you have already completed.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        class="rounded-full border border-[#034485]/25 px-3 py-1.5 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/5"
+                                        @click="go('/AcademicSubmissions')"
+                                    >
+                                        Open Academics
+                                    </button>
                                 </div>
-                                <div class="mt-3 space-y-2">
-                                    <div class="flex items-center justify-between text-xs text-slate-600">
-                                        <span>Submitted</span>
-                                        <span>{{ academicSubmissions.submitted }}</span>
+
+                                <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <div class="flex items-end justify-between gap-3">
+                                        <div>
+                                            <p class="text-3xl font-semibold text-slate-900">{{ submissionProgress }}%</p>
+                                            <p class="mt-1 text-sm text-slate-500">
+                                                You have completed {{ academicSubmissions.submitted }} of {{ submissionTotal || 0 }} required submissions.
+                                            </p>
+                                        </div>
+                                        <div class="text-right text-xs text-slate-500">
+                                            <p>Submitted: {{ academicSubmissions.submitted }}</p>
+                                            <p>Pending: {{ academicSubmissions.pending }}</p>
+                                        </div>
                                     </div>
-                                    <div class="h-2 rounded-full bg-[#034485]/10 overflow-hidden">
-                                        <div class="h-full bg-[#034485]" :style="{ width: `${academicSubmissions.submitted ? 100 : 0}%` }"></div>
+
+                                    <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-200">
+                                        <div class="h-full rounded-full bg-[#034485]" :style="{ width: `${submissionProgress}%` }"></div>
                                     </div>
-                                    <div class="flex items-center justify-between text-xs text-slate-600">
-                                        <span>Pending</span>
-                                        <span>{{ academicSubmissions.pending }}</span>
+                                </div>
+                            </div>
+
+                            <div class="rounded-3xl border border-[#034485]/35 bg-white p-5 shadow-sm">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h2 class="text-base font-semibold text-slate-900">Wellness Trend</h2>
+                                        <p class="mt-1 text-sm text-slate-500">Recent wellness entries over the last seven days.</p>
                                     </div>
-                                    <div class="h-2 rounded-full bg-[#034485]/10 overflow-hidden">
-                                        <div class="h-full bg-amber-400" :style="{ width: `${academicSubmissions.pending ? 100 : 0}%` }"></div>
+                                    <span class="text-xs font-medium text-slate-500">Last {{ wellnessSeries.length }}</span>
+                                </div>
+                                <div class="mt-4 flex items-end gap-2 overflow-x-auto pb-1">
+                                    <div v-for="point in wellnessSeries" :key="point.label" class="flex min-w-10 flex-col items-center gap-2">
+                                        <div class="flex h-20 w-8 items-end rounded-full bg-emerald-100 p-1">
+                                            <div
+                                                class="w-full rounded-full bg-emerald-500/80"
+                                                :style="{ height: `${6 + (Number(point.value || 0) / wellnessMax) * 64}px` }"
+                                            ></div>
+                                        </div>
+                                        <div class="text-center">
+                                            <p class="text-[10px] font-semibold text-slate-900">{{ point.value }}</p>
+                                            <span class="text-[10px] text-slate-500">{{ point.label }}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

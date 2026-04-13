@@ -278,21 +278,22 @@ class RegisterController extends Controller
             return;
         }
 
-        try {
-            Mail::to($user->email)->send(new AccountPendingApprovalMail($user));
-        } catch (\Throwable $e) {
-            // Keep registration successful even when mail transport is unavailable.
-            Log::error('Pending approval email failed.', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_host' => config('mail.mailers.smtp.host'),
-                'mail_port' => config('mail.mailers.smtp.port'),
-                'mail_scheme' => config('mail.mailers.smtp.scheme'),
-            ]);
-        }
+        app()->terminating(function () use ($user) {
+            try {
+                Mail::to($user->email)->send(new AccountPendingApprovalMail($user));
+            } catch (\Throwable $e) {
+                Log::error('Pending approval email failed.', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'mail_host' => config('mail.mailers.smtp.host'),
+                    'mail_port' => config('mail.mailers.smtp.port'),
+                    'mail_scheme' => config('mail.mailers.smtp.scheme'),
+                ]);
+            }
+        });
     }
 
     private function notifyAdminsOfPendingAccount(User $user): void

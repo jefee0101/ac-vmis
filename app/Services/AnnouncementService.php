@@ -133,26 +133,28 @@ class AnnouncementService
             return;
         }
 
-        try {
-            Mail::to($user->email)->send(new AnnouncementNotificationMail(
-                $user,
-                $title,
-                $message,
-                Announcement::labelForType($type),
-                url('/announcements'),
-            ));
-        } catch (\Throwable $e) {
-            Log::error('Announcement email failed.', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'title' => $title,
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_host' => config('mail.mailers.smtp.host'),
-                'mail_port' => config('mail.mailers.smtp.port'),
-                'mail_scheme' => config('mail.mailers.smtp.scheme'),
-            ]);
-        }
+        app()->terminating(function () use ($user, $title, $message, $type) {
+            try {
+                Mail::to($user->email)->send(new AnnouncementNotificationMail(
+                    $user,
+                    $title,
+                    $message,
+                    Announcement::labelForType($type),
+                    url('/announcements'),
+                ));
+            } catch (\Throwable $e) {
+                Log::error('Announcement email failed.', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'title' => $title,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'mail_host' => config('mail.mailers.smtp.host'),
+                    'mail_port' => config('mail.mailers.smtp.port'),
+                    'mail_scheme' => config('mail.mailers.smtp.scheme'),
+                ]);
+            }
+        });
     }
 }

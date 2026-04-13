@@ -578,28 +578,25 @@ class AdminController extends Controller
             'token' => $plainToken,
         ]);
 
-        try {
-            Mail::to($invite->email)->send(new AdminInviteMail($invite, $request->user(), $acceptUrl));
-        } catch (\Throwable $e) {
-            $invite->delete();
+        app()->terminating(function () use ($invite, $request, $acceptUrl) {
+            try {
+                Mail::to($invite->email)->send(new AdminInviteMail($invite, $request->user(), $acceptUrl));
+            } catch (\Throwable $e) {
+                Log::error('Admin invite email failed.', [
+                    'invite_id' => $invite->id,
+                    'email' => $invite->email,
+                    'admin_id' => Auth::id(),
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'mail_host' => config('mail.mailers.smtp.host'),
+                    'mail_port' => config('mail.mailers.smtp.port'),
+                    'mail_scheme' => config('mail.mailers.smtp.scheme'),
+                ]);
+            }
+        });
 
-            Log::error('Admin invite email failed.', [
-                'email' => $validated['email'],
-                'admin_id' => Auth::id(),
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_host' => config('mail.mailers.smtp.host'),
-                'mail_port' => config('mail.mailers.smtp.port'),
-                'mail_scheme' => config('mail.mailers.smtp.scheme'),
-            ]);
-
-            throw ValidationException::withMessages([
-                'email' => 'The invitation could not be sent right now. Please try again.',
-            ]);
-        }
-
-        return back()->with('success', "Admin invitation sent to {$invite->email}.");
+        return back()->with('success', "Admin invitation created for {$invite->email}. Email delivery will continue in the background.");
     }
 
     public function showAdminInviteAcceptance(Request $request)
@@ -1641,21 +1638,23 @@ class AdminController extends Controller
             return;
         }
 
-        try {
-            Mail::to($user->email)->send($mailable);
-        } catch (\Throwable $e) {
-            Log::error('Account status email failed.', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'mailable' => $mailable::class,
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_host' => config('mail.mailers.smtp.host'),
-                'mail_port' => config('mail.mailers.smtp.port'),
-                'mail_scheme' => config('mail.mailers.smtp.scheme'),
-            ]);
-        }
+        app()->terminating(function () use ($user, $mailable) {
+            try {
+                Mail::to($user->email)->send($mailable);
+            } catch (\Throwable $e) {
+                Log::error('Account status email failed.', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'mailable' => $mailable::class,
+                    'exception' => $e::class,
+                    'error' => $e->getMessage(),
+                    'code' => $e->getCode(),
+                    'mail_host' => config('mail.mailers.smtp.host'),
+                    'mail_port' => config('mail.mailers.smtp.port'),
+                    'mail_scheme' => config('mail.mailers.smtp.scheme'),
+                ]);
+            }
+        });
     }
 
     private function resolveAdminInvite(string $email, string $token): ?AdminInvite
