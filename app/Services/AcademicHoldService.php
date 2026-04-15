@@ -21,6 +21,7 @@ class AcademicHoldService
 
         if ($hasActiveWindow) {
             $submittedCount = AcademicDocument::query()
+                ->periodSubmission()
                 ->where('student_id', $student->id)
                 ->whereIn('academic_period_id', $openPeriodIds)
                 ->distinct('academic_period_id')
@@ -33,7 +34,7 @@ class AcademicHoldService
         $sourcePeriodId = $hasActiveWindow ? (int) ($openPeriodIds->sortDesc()->first() ?? 0) : null;
         if ($hasActiveWindow && !$hasSubmittedAll) {
             $status = $hasTeam ? 'Suspended' : 'Unenrolled';
-            $reason = 'missing_submissions';
+            $reason = AcademicHold::REASON_MISSING_SUBMISSIONS;
         }
 
         return [
@@ -67,7 +68,7 @@ class AcademicHoldService
                         'resolved_at' => null,
                     ],
                     [
-                        'reason' => $state['reason'] ?? 'missing_submissions',
+                        'reason' => $state['reason'] ?? AcademicHold::REASON_MISSING_SUBMISSIONS,
                         'started_at' => $openHold?->started_at ?? now(),
                     ]
                 );

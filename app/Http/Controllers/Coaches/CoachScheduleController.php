@@ -350,7 +350,7 @@ class CoachScheduleController extends Controller
         $studentIds = TeamPlayer::where('team_id', $team->id)->pluck('student_id');
         $studentUserIds = Student::whereIn('id', $studentIds)->pluck('user_id')->filter()->all();
 
-        $coachUserIds = Coach::whereIn('id', array_filter([(int) $team->coach_id, (int) $team->assistant_coach_id]))
+        $coachUserIds = Coach::whereIn('id', $team->activeCoachIds())
             ->pluck('user_id')
             ->filter()
             ->reject(fn ($id) => (int) $id === $actorUserId)

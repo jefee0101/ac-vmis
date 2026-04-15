@@ -50,6 +50,7 @@ class AcademicVisibilityController extends Controller
         $studentIds = $team->players->pluck('student_id')->filter()->unique()->values();
 
         $docsByStudent = AcademicDocument::query()
+            ->periodSubmission()
             ->whereIn('student_id', $studentIds)
             ->when($selectedPeriodId, fn ($q) => $q->where('academic_period_id', $selectedPeriodId))
             ->get()

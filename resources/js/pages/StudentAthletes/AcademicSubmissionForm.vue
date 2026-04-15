@@ -48,7 +48,7 @@ const initialPeriodId = props.selectedPeriodId && props.openPeriods.some((p) => 
   ? props.selectedPeriodId
   : props.openPeriods?.[0]?.id
 const academicPeriodId = ref<number | null>(initialPeriodId ?? null)
-const documentType = ref<'grade_report' | 'other'>('grade_report')
+const documentType = ref<'grade_report' | 'supporting_document'>('grade_report')
 const semesterGpa = ref('')
 const notes = ref('')
 const file = ref<File | null>(null)
@@ -168,7 +168,7 @@ function submit() {
                 class="bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
               >
                 <option value="grade_report">Grade Report</option>
-                <option value="other">Other</option>
+                <option value="supporting_document">Supporting Document</option>
               </select>
             </div>
             <input

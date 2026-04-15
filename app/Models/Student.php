@@ -93,11 +93,6 @@ class Student extends Model
             return $value;
         }
 
-        $legacyStatus = (string) ($this->user?->getRawOriginal('status') ?? '');
-        if (in_array($legacyStatus, ['pending', 'approved', 'rejected'], true)) {
-            return $legacyStatus;
-        }
-
         return 'pending';
     }
 
@@ -165,7 +160,9 @@ class Student extends Model
     public function latestAcademicDocument()
     {
         return $this->hasOne(AcademicDocument::class, 'student_id')
-            ->where('document_context', AcademicDocument::CONTEXT_REGISTRATION)
+            ->whereIn('document_type_id', AcademicDocumentType::query()
+                ->where('context', AcademicDocumentType::CONTEXT_REGISTRATION)
+                ->select('id'))
             ->latestOfMany();
     }
 

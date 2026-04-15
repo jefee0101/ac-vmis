@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AcademicEligibilityEvaluation extends Model
 {
@@ -16,6 +15,7 @@ class AcademicEligibilityEvaluation extends Model
     protected $fillable = [
         'student_id',
         'academic_period_id',
+        'document_id',
         'gpa',
         'evaluated_by',
         'evaluated_at',
@@ -80,25 +80,8 @@ class AcademicEligibilityEvaluation extends Model
         return $this->belongsTo(User::class, 'evaluated_by');
     }
 
-    public function evaluationDocumentLinks()
+    public function document()
     {
-        return $this->hasMany(AcademicEvaluationDocument::class, 'evaluation_id');
-    }
-
-    public function primaryDocumentLink(): HasOne
-    {
-        return $this->hasOne(AcademicEvaluationDocument::class, 'evaluation_id')->latestOfMany();
-    }
-
-    public function primaryDocument()
-    {
-        return $this->hasOneThrough(
-            AcademicDocument::class,
-            AcademicEvaluationDocument::class,
-            'evaluation_id',
-            'id',
-            'id',
-            'document_id'
-        );
+        return $this->belongsTo(AcademicDocument::class, 'document_id');
     }
 }

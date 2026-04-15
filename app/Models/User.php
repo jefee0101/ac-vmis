@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\UserSetting;
+use App\Models\Announcement;
 
 class User extends Authenticatable
 {
@@ -26,7 +27,6 @@ class User extends Authenticatable
         'must_change_password',
         'role',
         'account_state',
-        'status',
         'avatar', // added avatar
     ];
 
@@ -69,13 +69,7 @@ class User extends Authenticatable
     public function getAccountStateAttribute(): string
     {
         $raw = $this->attributes['account_state'] ?? null;
-        if (is_string($raw) && $raw !== '') {
-            return $raw;
-        }
-
-        return ($this->attributes['status'] ?? null) === 'deactivated'
-            ? 'deactivated'
-            : 'active';
+        return is_string($raw) && $raw !== '' ? $raw : 'active';
     }
 
     public function getApprovalStatusAttribute(): ?string
@@ -87,11 +81,6 @@ class User extends Authenticatable
         $studentApproval = $this->student?->getAttribute('approval_status');
         if (is_string($studentApproval) && $studentApproval !== '') {
             return $studentApproval;
-        }
-
-        $legacyStatus = (string) ($this->attributes['status'] ?? '');
-        if (in_array($legacyStatus, ['pending', 'approved', 'rejected'], true)) {
-            return $legacyStatus;
         }
 
         return 'pending';

@@ -747,8 +747,14 @@ class CreateTeamController extends Controller
                 'team_avatar' => $team->team_avatar,
                 'sport_id' => $team->sport_id,
                 'year' => (string) $team->year,
-                'coach_id' => $team->coach_id,
-                'assistant_coach_id' => $team->assistant_coach_id,
+                'head_coach' => $team->coach ? [
+                    'id' => $team->coach->id,
+                    'name' => $this->resolveCoachDisplayName($team->coach),
+                ] : null,
+                'assistant_coach' => $team->assistantCoach ? [
+                    'id' => $team->assistantCoach->id,
+                    'name' => $this->resolveCoachDisplayName($team->assistantCoach),
+                ] : null,
                 'description' => $team->description,
                 'player_ids' => $team->players->pluck('student_id')->values(),
             ];
@@ -1041,6 +1047,14 @@ class CreateTeamController extends Controller
             'team_avatar' => $team->team_avatar,
             'sport' => $team->sport,
             'year' => $team->year,
+            'head_coach' => $team->coach ? [
+                'id' => $team->coach->id,
+                'name' => $this->resolveCoachDisplayName($team->coach),
+            ] : null,
+            'assistant_coach_member' => $team->assistantCoach ? [
+                'id' => $team->assistantCoach->id,
+                'name' => $this->resolveCoachDisplayName($team->assistantCoach),
+            ] : null,
             'coach' => $team->coach,
             'assistantCoach' => $team->assistantCoach,
             'players_count' => $playersCount,

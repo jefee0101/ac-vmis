@@ -9,13 +9,9 @@ class AcademicDocument extends Model
 {
     use HasFactory;
 
-    public const CONTEXT_REGISTRATION = 'registration';
-    public const CONTEXT_PERIOD_SUBMISSION = 'period_submission';
-
     protected $fillable = [
         'student_id',
-        'document_type',
-        'document_context',
+        'document_type_id',
         'academic_period_id',
         'file_path',
         'uploaded_by',
@@ -29,12 +25,16 @@ class AcademicDocument extends Model
 
     public function scopeRegistration($query)
     {
-        return $query->where('document_context', self::CONTEXT_REGISTRATION);
+        return $query->whereHas('documentTypeDefinition', function ($typeQuery) {
+            $typeQuery->where('context', AcademicDocumentType::CONTEXT_REGISTRATION);
+        });
     }
 
     public function scopePeriodSubmission($query)
     {
-        return $query->where('document_context', self::CONTEXT_PERIOD_SUBMISSION);
+        return $query->whereHas('documentTypeDefinition', function ($typeQuery) {
+            $typeQuery->where('context', AcademicDocumentType::CONTEXT_PERIOD_SUBMISSION);
+        });
     }
 
     public function student()
@@ -50,5 +50,28 @@ class AcademicDocument extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function documentTypeDefinition()
+    {
+        return $this->belongsTo(AcademicDocumentType::class, 'document_type_id');
+    }
+
+    public function getDocumentTypeAttribute(): ?string
+    {
+        $type = $this->relationLoaded('documentTypeDefinition')
+            ? $this->getRelation('documentTypeDefinition')
+            : $this->documentTypeDefinition()->first();
+
+        return $type?->code;
+    }
+
+    public function getDocumentContextAttribute(): ?string
+    {
+        $type = $this->relationLoaded('documentTypeDefinition')
+            ? $this->getRelation('documentTypeDefinition')
+            : $this->documentTypeDefinition()->first();
+
+        return $type?->context;
     }
 }

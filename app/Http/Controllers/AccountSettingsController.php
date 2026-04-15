@@ -343,6 +343,7 @@ class AccountSettingsController extends Controller
             $latestPeriod = AcademicPeriod::query()->orderByDesc('starts_on')->first();
             $missingLatestSubmission = $latestPeriod
                 ? !AcademicDocument::query()
+                    ->periodSubmission()
                     ->where('student_id', $studentId)
                     ->where('academic_period_id', $latestPeriod->id)
                     ->exists()
@@ -385,6 +386,7 @@ class AccountSettingsController extends Controller
 
             $submittedInLatest = $latestPeriod
                 ? AcademicDocument::query()
+                    ->periodSubmission()
                     ->whereIn('student_id', $studentIds)
                     ->where('academic_period_id', $latestPeriod->id)
                     ->pluck('student_id')

@@ -18,8 +18,8 @@ type TeamPayload = {
     team_avatar: string | null
     sport_id: number | null
     year: string | null
-    coach_id: number | null
-    assistant_coach_id: number | null
+    head_coach?: { id: number; name: string | null } | null
+    assistant_coach?: { id: number; name: string | null } | null
     description: string | null
     player_ids: number[]
 }
@@ -214,8 +214,8 @@ function restoreDraftIfNeeded() {
         if (typeof parsed.sport_id === 'string') sport.value = parsed.sport_id
         if (typeof parsed.year === 'string') year.value = parsed.year
         if (typeof parsed.description === 'string') description.value = parsed.description
-        if (typeof parsed.coach_id === 'number') coach.value = parsed.coach_id
-        if (typeof parsed.assistant_coach_id === 'number') assistantCoach.value = parsed.assistant_coach_id
+        if (parsed.head_coach && typeof parsed.head_coach.id === 'number') coach.value = parsed.head_coach.id
+        if (parsed.assistant_coach && typeof parsed.assistant_coach.id === 'number') assistantCoach.value = parsed.assistant_coach.id
         if (Array.isArray(parsed.players)) {
             selectedPlayerIds.value = (parsed.players as unknown[]).filter((id: unknown): id is number => typeof id === 'number')
         }
@@ -236,8 +236,8 @@ if (props.selectedTeam) {
     teamName.value = props.selectedTeam.team_name ?? ''
     sport.value = props.selectedTeam.sport_id ? String(props.selectedTeam.sport_id) : ''
     year.value = props.selectedTeam.year ?? ''
-    coach.value = props.selectedTeam.coach_id ?? null
-    assistantCoach.value = props.selectedTeam.assistant_coach_id ?? null
+    coach.value = props.selectedTeam.head_coach?.id ?? null
+    assistantCoach.value = props.selectedTeam.assistant_coach?.id ?? null
     description.value = props.selectedTeam.description ?? ''
     selectedPlayerIds.value = props.selectedTeam.player_ids ?? []
     if (props.selectedTeam.team_avatar) {

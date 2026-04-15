@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicDocument;
-use App\Models\AcademicEvaluationDocument;
 use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
 use App\Models\Student;
@@ -222,6 +221,7 @@ class AcademicEligibilityController extends Controller
                 'academic_period_id' => (int) $validated['period_id'],
             ],
             [
+                'document_id' => $doc->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
                 'remarks' => $validated['remarks'] ?? null,
                 'evaluated_by' => Auth::id(),
@@ -233,11 +233,6 @@ class AcademicEligibilityController extends Controller
             ->where('student_id', (int) $validated['student_id'])
             ->where('academic_period_id', (int) $validated['period_id'])
             ->firstOrFail();
-
-        AcademicEvaluationDocument::query()->updateOrCreate(
-            ['evaluation_id' => $evaluation->id],
-            ['document_id' => $doc->id]
-        );
 
         $student = Student::find((int) $validated['student_id']);
         $studentUserId = (int) ($student?->user_id ?? 0);
@@ -299,6 +294,7 @@ class AcademicEligibilityController extends Controller
         $filters = $this->validatedRecordsFilters($request);
 
         $query = DB::table('academic_documents as d')
+            ->join('academic_document_types as dt', 'dt.id', '=', 'd.document_type_id')
             ->join('students as s', 's.id', '=', 'd.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
@@ -316,7 +312,7 @@ class AcademicEligibilityController extends Controller
                 's.student_id_number',
                 'su.first_name',
                 'su.last_name',
-                'd.document_type',
+                'dt.code as document_type',
                 'd.uploaded_at',
                 'd.notes',
                 'd.academic_period_id as period_id',
@@ -388,8 +384,8 @@ class AcademicEligibilityController extends Controller
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoin('academic_evaluation_documents as aed', 'aed.evaluation_id', '=', 'e.id')
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'aed.document_id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->leftJoin('academic_document_types as dt', 'dt.id', '=', 'd.document_type_id')
             ->leftJoin('users as evaluator', 'evaluator.id', '=', 'e.evaluated_by')
             ->leftJoin('teams as t', function ($join) {
                 $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = e.student_id ORDER BY tp.id ASC LIMIT 1)'));
@@ -406,7 +402,7 @@ class AcademicEligibilityController extends Controller
                 't.id as team_id',
                 't.team_name',
                 'd.id as document_id',
-                'd.document_type',
+                'dt.code as document_type',
                 'e.gpa',
                 'e.remarks',
                 'e.evaluated_at',
@@ -611,16 +607,12 @@ class AcademicEligibilityController extends Controller
                 'academic_period_id' => $periodId,
             ],
             [
+                'document_id' => $document->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
                 'remarks' => !empty($remarkParts) ? implode("\n\n", $remarkParts) : null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
             ]
-        );
-
-        AcademicEvaluationDocument::query()->updateOrCreate(
-            ['evaluation_id' => $evaluation->id],
-            ['document_id' => $document->id]
         );
 
         return response()->json([
@@ -801,7 +793,12 @@ class AcademicEligibilityController extends Controller
                 $q->where("{$studentUserAlias}.first_name", 'like', "%{$search}%")
                     ->orWhere("{$studentUserAlias}.last_name", 'like', "%{$search}%")
                     ->orWhere("{$studentAlias}.student_id_number", 'like', "%{$search}%")
-                    ->orWhere("{$documentAlias}.document_type", 'like', "%{$search}%");
+                    ->orWhereExists(function ($typeQuery) use ($search, $documentAlias) {
+                        $typeQuery->selectRaw('1')
+                            ->from('academic_document_types as adt')
+                            ->whereColumn('adt.id', "{$documentAlias}.document_type_id")
+                            ->where('adt.code', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -839,6 +836,7 @@ class AcademicEligibilityController extends Controller
     private function submissionsExportRows(array $filters): array
     {
         $query = DB::table('academic_documents as d')
+            ->join('academic_document_types as dt', 'dt.id', '=', 'd.document_type_id')
             ->join('students as s', 's.id', '=', 'd.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'd.academic_period_id')
@@ -853,7 +851,7 @@ class AcademicEligibilityController extends Controller
                 'su.last_name',
                 'p.school_year',
                 'p.term',
-                'd.document_type',
+                'dt.code as document_type',
                 'd.uploaded_at',
                 'e.gpa',
             ]);
@@ -882,8 +880,8 @@ class AcademicEligibilityController extends Controller
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoin('academic_evaluation_documents as aed', 'aed.evaluation_id', '=', 'e.id')
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'aed.document_id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'e.document_id')
+            ->leftJoin('academic_document_types as dt', 'dt.id', '=', 'd.document_type_id')
             ->select([
                 'e.id as evaluation_id',
                 's.student_id_number',
@@ -891,7 +889,7 @@ class AcademicEligibilityController extends Controller
                 'su.last_name',
                 'p.school_year',
                 'p.term',
-                'd.document_type',
+                'dt.code as document_type',
                 'e.gpa',
                 'e.remarks',
                 'e.evaluated_at',

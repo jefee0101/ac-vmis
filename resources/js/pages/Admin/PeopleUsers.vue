@@ -96,8 +96,8 @@ type AssignableTeam = {
     year: string | null;
     sport_id: number;
     sport_name: string | null;
-    coach_id: number | null;
-    assistant_coach_id: number | null;
+    head_coach?: { id: number; name: string | null } | null;
+    assistant_coach?: { id: number; name: string | null } | null;
     coach_name: string | null;
     assistant_coach_name: string | null;
 };
@@ -278,7 +278,9 @@ function submitAdminInvite() {
 }
 
 function teamSlotTaken(team: AssignableTeam) {
-    return createCoachForm.assignment_role === 'head' ? Boolean(team.coach_id) : Boolean(team.assistant_coach_id);
+    return createCoachForm.assignment_role === 'head'
+        ? Boolean(team.head_coach?.id)
+        : Boolean(team.assistant_coach?.id);
 }
 
 function teamSlotLabel(team: AssignableTeam) {

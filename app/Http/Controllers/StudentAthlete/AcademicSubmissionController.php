@@ -4,6 +4,7 @@ namespace App\Http\Controllers\StudentAthlete;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicDocument;
+use App\Models\AcademicDocumentType;
 use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
 use App\Models\Student;
@@ -134,7 +135,7 @@ class AcademicSubmissionController extends Controller
 
         $validated = $request->validate([
             'academic_period_id' => 'required|exists:academic_periods,id',
-            'document_type' => 'required|in:grade_report,other',
+            'document_type' => 'required|in:grade_report,supporting_document',
             'semester_gpa' => 'nullable|numeric|min:0|max:5',
             'notes' => 'nullable|string|max:1000',
             'document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -167,8 +168,10 @@ class AcademicSubmissionController extends Controller
 
         AcademicDocument::create([
             'student_id' => $student->id,
-            'document_type' => $validated['document_type'],
-            'document_context' => AcademicDocument::CONTEXT_PERIOD_SUBMISSION,
+            'document_type_id' => AcademicDocumentType::resolveId(
+                AcademicDocumentType::CONTEXT_PERIOD_SUBMISSION,
+                (string) $validated['document_type']
+            ),
             'academic_period_id' => (int) $validated['academic_period_id'],
             'file_path' => $filePath,
             'uploaded_by' => Auth::id(),

@@ -276,6 +276,7 @@ class StudentAthleteController extends Controller
 
         if ($student && $openPeriodCount > 0) {
             $submittedCount = AcademicDocument::query()
+                ->periodSubmission()
                 ->where('student_id', $student->id)
                 ->whereIn('academic_period_id', $openPeriodIds)
                 ->distinct('academic_period_id')

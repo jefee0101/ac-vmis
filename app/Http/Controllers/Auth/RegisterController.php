@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\AccountPendingApprovalMail;
 use App\Models\Announcement;
 use App\Models\AcademicDocument;
+use App\Models\AcademicDocumentType;
 use App\Models\AthleteHealthClearance;
 use App\Models\Coach;
 use App\Models\Student;
@@ -63,7 +64,7 @@ class RegisterController extends Controller
             'allergies' => 'nullable|string',
             'restrictions' => 'nullable|string',
             'medical_certificate' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            'academic_document_type' => 'required|in:tor,grade_report,other',
+            'academic_document_type' => 'required|in:tor,supporting_document',
             'academic_document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'academic_document_notes' => 'nullable|string',
         ], [
@@ -138,8 +139,10 @@ class RegisterController extends Controller
 
         return AcademicDocument::create([
             'student_id' => $student->id,
-            'document_type' => $request->academic_document_type,
-            'document_context' => AcademicDocument::CONTEXT_REGISTRATION,
+            'document_type_id' => AcademicDocumentType::resolveId(
+                AcademicDocumentType::CONTEXT_REGISTRATION,
+                (string) $request->academic_document_type
+            ),
             'academic_period_id' => null,
             'file_path' => $filePath,
             'uploaded_by' => $user->id,
@@ -167,7 +170,6 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
             'role' => 'student-athlete',
             'account_state' => 'active',
-            'status' => 'pending',
             'avatar' => $avatarPath,
         ]);
     }
@@ -246,7 +248,6 @@ class RegisterController extends Controller
                     'password' => Hash::make($request->password),
                     'role' => 'coach',
                     'account_state' => 'active',
-                    'status' => 'approved',
                     'avatar' => $avatarPath,
                 ]);
 

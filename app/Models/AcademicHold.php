@@ -9,6 +9,10 @@ class AcademicHold extends Model
 {
     use HasFactory;
 
+    public const REASON_MISSING_SUBMISSIONS = 'missing_submissions';
+    public const REASON_LEGACY_STUDENT_STATUS = 'legacy_student_status';
+    public const REASON_MANUAL_HOLD = 'manual_hold';
+
     protected $fillable = [
         'student_id',
         'source_period_id',

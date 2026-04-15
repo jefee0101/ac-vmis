@@ -95,6 +95,7 @@ class CoachDashboardController extends Controller
 
             if ($studentIds->isNotEmpty()) {
                 $submittedIds = AcademicDocument::query()
+                    ->periodSubmission()
                     ->whereIn('student_id', $studentIds)
                     ->where('academic_period_id', $latestPeriod->id)
                     ->pluck('student_id')

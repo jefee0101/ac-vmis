@@ -9,7 +9,7 @@ import Skeleton from '@/components/ui/skeleton/Skeleton.vue';
 import Spinner from '@/components/ui/spinner/Spinner.vue';
 
 type Step = 1 | 2 | 3;
-type AcademicDocumentType = 'tor' | 'grade_report' | 'other';
+type AcademicDocumentType = 'tor' | 'supporting_document';
 const draftKey = 'ac-vmis-student-registration-draft-v2';
 const acceptedDocsText = 'Accepted file types: PDF, JPG, JPEG, PNG (max 5MB each)';
 
@@ -1161,8 +1161,7 @@ onBeforeUnmount(() => {
                             <label class="label">Document Type</label>
                             <select v-model="form.academic_document_type" class="field">
                                 <option value="tor">Transcript of Records (TOR)</option>
-                                <option value="grade_report">Grade Report</option>
-                                <option value="other">Other</option>
+                                <option value="supporting_document">Supporting Document</option>
                             </select>
                         </div>
                         <div>
