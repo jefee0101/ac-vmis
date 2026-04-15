@@ -46,7 +46,7 @@ class AccountSettingsController extends Controller
             'profile' => [
                 'admin' => $user->role === 'admin' ? [
                     'role' => 'Administrator',
-                    'status' => $user->status,
+                    'status' => $user->account_state,
                     'capabilities' => [
                         'People approvals and account lifecycle',
                         'Team creation and roster management',
@@ -65,9 +65,9 @@ class AccountSettingsController extends Controller
                     'phone_number' => $user->student->phone_number,
                     'home_address' => $user->student->home_address,
                     'course_or_strand' => $user->student->course_or_strand,
-                    'education_level' => $user->student->education_level,
-                    'current_grade_level' => $user->student->current_grade_level,
+                    'academic_level_label' => $user->student->academic_level_label,
                     'student_status' => $user->student->student_status,
+                    'approval_status' => $user->student->approval_status,
                     'emergency_contact_name' => $user->student->emergency_contact_name,
                     'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
                     'emergency_contact_phone' => $user->student->emergency_contact_phone,
@@ -287,7 +287,7 @@ class AccountSettingsController extends Controller
         $user = $request->user();
 
         $user->update([
-            'status' => 'deactivated',
+            'account_state' => 'deactivated',
         ]);
 
         auth()->logout();
@@ -301,8 +301,8 @@ class AccountSettingsController extends Controller
     {
         if ($user->role === 'admin') {
             $pendingApprovals = \App\Models\User::query()
-                ->where('status', 'pending')
-                ->whereIn('role', ['student-athlete', 'student', 'coach'])
+                ->whereIn('role', ['student-athlete', 'student'])
+                ->whereHas('student', fn ($query) => $query->where('approval_status', 'pending'))
                 ->count();
 
             $today = now()->toDateString();
@@ -365,8 +365,7 @@ class AccountSettingsController extends Controller
 
         if ($user->role === 'coach' && $user->coach) {
             $teamIds = Team::query()
-                ->where('coach_id', $user->coach->id)
-                ->orWhere('assistant_coach_id', $user->coach->id)
+                ->forCoach($user->coach->id)
                 ->pluck('id');
 
             $studentIds = TeamPlayer::query()

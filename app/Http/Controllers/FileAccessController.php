@@ -55,10 +55,7 @@ class FileAccessController extends Controller
             }
 
             return Team::query()
-                ->where(function ($q) use ($coachId) {
-                    $q->where('coach_id', $coachId)
-                        ->orWhere('assistant_coach_id', $coachId);
-                })
+                ->forCoach($coachId)
                 ->whereHas('players', fn ($q) => $q->where('student_id', $studentId))
                 ->exists();
         }

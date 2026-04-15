@@ -9,9 +9,13 @@ class AcademicDocument extends Model
 {
     use HasFactory;
 
+    public const CONTEXT_REGISTRATION = 'registration';
+    public const CONTEXT_PERIOD_SUBMISSION = 'period_submission';
+
     protected $fillable = [
         'student_id',
         'document_type',
+        'document_context',
         'academic_period_id',
         'file_path',
         'uploaded_by',
@@ -22,6 +26,16 @@ class AcademicDocument extends Model
     protected $casts = [
         'uploaded_at' => 'datetime',
     ];
+
+    public function scopeRegistration($query)
+    {
+        return $query->where('document_context', self::CONTEXT_REGISTRATION);
+    }
+
+    public function scopePeriodSubmission($query)
+    {
+        return $query->where('document_context', self::CONTEXT_PERIOD_SUBMISSION);
+    }
 
     public function student()
     {

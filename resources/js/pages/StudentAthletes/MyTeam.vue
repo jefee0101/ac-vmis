@@ -439,7 +439,7 @@ function statusTone(status?: string | null) {
                                 <p><span class="font-semibold text-slate-900">Position:</span> {{ selectedPlayer?.athlete_position || 'Unassigned' }}</p>
                                 <p><span class="font-semibold text-slate-900">Jersey:</span> {{ selectedPlayer?.jersey_number || '-' }}</p>
                                 <p><span class="font-semibold text-slate-900">Course/Strand:</span> {{ selectedStudent?.course_or_strand || '-' }}</p>
-                                <p><span class="font-semibold text-slate-900">Current Grade:</span> {{ selectedStudent?.current_grade_level || '-' }}</p>
+                                <p><span class="font-semibold text-slate-900">Academic Level:</span> {{ selectedStudent?.academic_level_label || selectedStudent?.current_grade_level || '-' }}</p>
                                 <p v-if="selectedStudent?.user?.email" class="sm:col-span-2">
                                     <span class="font-semibold text-slate-900">Email:</span>
                                     <span class="ml-1 inline-flex items-center gap-2">

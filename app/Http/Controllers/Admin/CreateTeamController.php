@@ -79,12 +79,16 @@ class CreateTeamController extends Controller
                 'team_avatar' => $avatarPath,
                 'sport_id' => $validated['sport_id'],
                 'year' => $validated['year'],
-                'coach_id' => $validated['coach_id'],
-                'assistant_coach_id' => $validated['assistant_coach_id'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'archived_at' => null,
                 'archived_by' => null,
             ]);
+
+            $team->syncStaffAssignments(
+                (int) $validated['coach_id'],
+                isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
+                auth()->id()
+            );
 
             foreach ($playerIds as $studentId) {
                 TeamPlayer::create([
@@ -168,10 +172,14 @@ class CreateTeamController extends Controller
                 'team_avatar' => $avatarPath,
                 'sport_id' => $validated['sport_id'],
                 'year' => $validated['year'],
-                'coach_id' => $validated['coach_id'],
-                'assistant_coach_id' => $validated['assistant_coach_id'] ?? null,
                 'description' => $validated['description'] ?? null,
             ]);
+
+            $team->syncStaffAssignments(
+                (int) $validated['coach_id'],
+                isset($validated['assistant_coach_id']) ? (int) $validated['assistant_coach_id'] : null,
+                auth()->id()
+            );
 
             TeamPlayer::where('team_id', $team->id)
                 ->whereNotIn('student_id', $playerIds->all())
@@ -234,6 +242,8 @@ class CreateTeamController extends Controller
                 'sport:id,name',
                 'coach.user',
                 'assistantCoach.user',
+                'headCoachAssignment',
+                'assistantCoachAssignment',
             ])
             ->withCount('players')
             ->whereNull('archived_at');
@@ -261,11 +271,11 @@ class CreateTeamController extends Controller
         }
 
         if ($coachStatus === 'missing_assistant') {
-            $baseQuery->whereNull('assistant_coach_id');
+            $baseQuery->missingAssistant();
         }
 
         if ($coachStatus === 'complete_staff') {
-            $baseQuery->whereNotNull('assistant_coach_id');
+            $baseQuery->withAssistant();
         }
 
         if ($rosterStatus !== 'all') {
@@ -319,10 +329,12 @@ class CreateTeamController extends Controller
             'Athlete Removal Request',
         ];
         $teamChangeRequests = Announcement::query()
-            ->with('creator:id,first_name,middle_name,last_name')
+            ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+            ->select('announcement_recipients.*')
+            ->with('event.creator:id,first_name,middle_name,last_name')
             ->where('user_id', auth()->id())
-            ->whereIn('title', $requestTitles)
-            ->orderByDesc('published_at')
+            ->whereIn('ae.title', $requestTitles)
+            ->orderByDesc('ae.published_at')
             ->limit(12)
             ->get()
             ->map(function (Announcement $announcement) {
@@ -332,7 +344,7 @@ class CreateTeamController extends Controller
                     'message' => $announcement->message,
                     'is_read' => !empty($announcement->read_at),
                     'published_at' => $announcement->published_at?->toDateTimeString(),
-                    'requested_by' => $announcement->creator?->name,
+                    'requested_by' => $announcement->event?->creator?->name,
                 ];
             })
             ->values();
@@ -388,6 +400,8 @@ class CreateTeamController extends Controller
                 'sport:id,name',
                 'coach.user',
                 'assistantCoach.user',
+                'headCoachAssignment',
+                'assistantCoachAssignment',
             ])
             ->withCount('players')
             ->whereNotNull('archived_at');
@@ -553,8 +567,8 @@ class CreateTeamController extends Controller
 
         $coachTeamLoad = Team::query()
             ->whereNull('archived_at')
-            ->with('sport:id,name')
-            ->get(['id', 'coach_id', 'assistant_coach_id', 'team_name', 'sport_id', 'year']);
+            ->with(['sport:id,name', 'headCoachAssignment', 'assistantCoachAssignment'])
+            ->get(['id', 'team_name', 'sport_id', 'year']);
 
         $coachWorkloads = [];
         $coachAvailabilityMap = [];
@@ -675,8 +689,7 @@ class CreateTeamController extends Controller
                     'id' => $p->id,
                     'name' => $this->resolveStudentDisplayName($p),
                     'student_id_number' => $p->student_id_number,
-                    'education_level' => $p->education_level,
-                    'current_grade_level' => $p->current_grade_level,
+                    'academic_level_label' => $p->academic_level_label,
                     'email' => $p->user?->email,
                     'is_available' => $availability['is_available'] ?? true,
                     'assigned_team_id' => $availability['assigned_team_id'] ?? null,
@@ -686,7 +699,7 @@ class CreateTeamController extends Controller
 
         $selectedTeam = null;
         if ($team) {
-            $team->load(['players.student', 'coach', 'assistantCoach']);
+            $team->load(['players.student', 'coach', 'assistantCoach', 'headCoachAssignment', 'assistantCoachAssignment']);
 
             if ($team->coach && !$coaches->contains('id', $team->coach->id)) {
                 $coaches->push([
@@ -719,8 +732,7 @@ class CreateTeamController extends Controller
                         'id' => $player->student->id,
                         'name' => $this->resolveStudentDisplayName($player->student),
                         'student_id_number' => $player->student->student_id_number,
-                        'education_level' => $player->student->education_level,
-                        'current_grade_level' => $player->student->current_grade_level,
+                        'academic_level_label' => $player->student->academic_level_label,
                         'email' => $player->student->user?->email,
                         'is_available' => true,
                         'assigned_team_id' => null,
@@ -864,8 +876,7 @@ class CreateTeamController extends Controller
         }
 
         $coachUserIds = collect([
-            Coach::where('id', $team->coach_id)->value('user_id'),
-            $team->assistant_coach_id ? Coach::where('id', $team->assistant_coach_id)->value('user_id') : null,
+            ...Coach::whereIn('id', $team->activeCoachIds())->pluck('user_id')->filter()->all(),
         ])->filter()->unique()->values();
 
         if ($coachUserIds->isNotEmpty()) {
@@ -899,8 +910,7 @@ class CreateTeamController extends Controller
         }
 
         $coachUserIds = collect([
-            Coach::where('id', $team->coach_id)->value('user_id'),
-            $team->assistant_coach_id ? Coach::where('id', $team->assistant_coach_id)->value('user_id') : null,
+            ...Coach::whereIn('id', $team->activeCoachIds())->pluck('user_id')->filter()->all(),
         ])->filter()->unique()->values();
 
         if ($coachUserIds->isNotEmpty()) {
@@ -968,8 +978,8 @@ class CreateTeamController extends Controller
 
         $query = Team::query()
             ->whereNull('archived_at')
-            ->where(function ($q) use ($coachIds) {
-                $q->whereIn('coach_id', $coachIds)->orWhereIn('assistant_coach_id', $coachIds);
+            ->whereHas('activeStaffAssignments', function ($q) use ($coachIds) {
+                $q->whereIn('coach_id', $coachIds);
             });
 
         if ($ignoreTeamId) {
@@ -1076,17 +1086,14 @@ class CreateTeamController extends Controller
     private function detectCoachConflicts(): array
     {
         $schedules = TeamSchedule::query()
-            ->join('teams', 'teams.id', '=', 'team_schedules.team_id')
-            ->whereNull('teams.archived_at')
+            ->with(['team.activeStaffAssignments'])
+            ->whereHas('team', fn ($query) => $query->whereNull('archived_at'))
             ->whereNotNull('team_schedules.start_time')
             ->whereNotNull('team_schedules.end_time')
             ->get([
                 'team_schedules.team_id',
                 'team_schedules.start_time',
                 'team_schedules.end_time',
-                'teams.team_name',
-                'teams.coach_id',
-                'teams.assistant_coach_id',
             ]);
 
         $byCoach = [];
@@ -1097,21 +1104,21 @@ class CreateTeamController extends Controller
                 continue;
             }
 
-            if ($schedule->coach_id) {
-                $byCoach[$schedule->coach_id][] = [
-                    'team_id' => (int) $schedule->team_id,
-                    'team_name' => $schedule->team_name,
-                    'role' => 'Head Coach',
-                    'start_time' => $start,
-                    'end_time' => $end,
-                ];
+            $team = $schedule->team;
+            if (!$team) {
+                continue;
             }
 
-            if ($schedule->assistant_coach_id) {
-                $byCoach[$schedule->assistant_coach_id][] = [
+            foreach ($team->activeStaffAssignments as $assignment) {
+                if (!$assignment->coach_id) {
+                    continue;
+                }
+
+                $roleLabel = $assignment->role === 'head' ? 'Head Coach' : 'Assistant Coach';
+                $byCoach[$assignment->coach_id][] = [
                     'team_id' => (int) $schedule->team_id,
-                    'team_name' => $schedule->team_name,
-                    'role' => 'Assistant Coach',
+                    'team_name' => $team->team_name,
+                    'role' => $roleLabel,
                     'start_time' => $start,
                     'end_time' => $end,
                 ];

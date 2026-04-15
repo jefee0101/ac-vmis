@@ -16,12 +16,14 @@ class AnnouncementController extends Controller
         $filter = $request->query('filter', 'all');
 
         $query = Announcement::query()
+            ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+            ->select('announcement_recipients.*')
             ->where('user_id', $user->id)
             ->when($filter === 'unread', fn ($q) => $q->whereNull('read_at'))
-            ->orderByRaw('read_at IS NULL DESC')
-            ->latest('published_at')
-            ->latest('created_at')
-            ->with(['creator:id,first_name,middle_name,last_name,role']);
+            ->orderByRaw('announcement_recipients.read_at IS NULL DESC')
+            ->orderByDesc('ae.published_at')
+            ->orderByDesc('announcement_recipients.id')
+            ->with(['event.creator:id,first_name,middle_name,last_name,role']);
 
         $rows = $query->paginate(12)->withQueryString();
 
@@ -37,10 +39,10 @@ class AnnouncementController extends Controller
                 'published_at' => optional($a->published_at)->toDateTimeString(),
                 'read_at' => optional($a->read_at)->toDateTimeString(),
                 'created_by' => $a->created_by,
-                'created_by_name' => $a->creator?->name,
-                'created_by_role' => $a->creator?->role,
-                'source_label' => $a->creator
-                    ? (ucfirst(str_replace('-', ' ', (string) $a->creator->role)) . ' · ' . $a->creator->name)
+                'created_by_name' => $a->event?->creator?->name,
+                'created_by_role' => $a->event?->creator?->role,
+                'source_label' => $a->event?->creator
+                    ? (ucfirst(str_replace('-', ' ', (string) $a->event->creator->role)) . ' · ' . $a->event->creator->name)
                     : 'System',
             ];
         });

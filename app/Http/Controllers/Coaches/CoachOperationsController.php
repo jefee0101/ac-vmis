@@ -38,8 +38,7 @@ class CoachOperationsController extends Controller
         }
 
         $teams = Team::with(['sport', 'players.student'])
-            ->where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+            ->forCoach($coach->id)
             ->orderBy('team_name')
             ->get();
 

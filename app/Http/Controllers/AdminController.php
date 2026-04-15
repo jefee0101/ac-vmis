@@ -12,6 +12,7 @@ use App\Models\AdminInvite;
 use App\Models\Announcement;
 use App\Models\Coach;
 use App\Models\Sport;
+use App\Models\StudentApprovalHistory;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
@@ -70,10 +71,7 @@ class AdminController extends Controller
                         'no_response' => $attendanceSummary['no_response'],
                         'expired_clearances' => $healthDistribution['expired'],
                         'academic_at_risk' => $academicByTeam['totals']['probation'] + $academicByTeam['totals']['ineligible'],
-                        'pending_approvals' => User::query()
-                            ->where('status', 'pending')
-                            ->whereIn('role', ['student-athlete', 'student', 'coach'])
-                            ->count(),
+                        'pending_approvals' => $this->pendingStudentApprovalUsers()->count(),
                     ],
                     'trends' => [
                         'labels' => $attendanceTrend['labels'],
@@ -97,6 +95,12 @@ class AdminController extends Controller
 
     public function approve(User $user)
     {
+        if (!in_array($user->role, ['student-athlete', 'student'], true) || !$user->student) {
+            return back()->withErrors([
+                'approval' => 'Only student accounts require approval.',
+            ]);
+        }
+
         $clearance = null;
 
         if (in_array($user->role, ['student-athlete', 'student'], true)) {
@@ -124,12 +128,12 @@ class AdminController extends Controller
                 ]);
             }
 
-            $user->update([
-                'status' => 'approved',
+            $user->student->update([
+                'approval_status' => 'approved',
             ]);
 
-            AccountApproval::create([
-                'user_id' => $user->id,
+            StudentApprovalHistory::create([
+                'student_id' => $user->student->id,
                 'admin_id' => Auth::id(),
                 'decision' => 'approved',
             ]);
@@ -152,17 +156,23 @@ class AdminController extends Controller
 
     public function reject(Request $request, User $user)
     {
+        if (!in_array($user->role, ['student-athlete', 'student'], true) || !$user->student) {
+            return back()->withErrors([
+                'approval' => 'Only student accounts require approval.',
+            ]);
+        }
+
         $request->validate([
             'remarks' => 'nullable|string|max:255',
         ]);
 
         DB::transaction(function () use ($user, $request) {
-            $user->update([
-                'status' => 'rejected',
+            $user->student->update([
+                'approval_status' => 'rejected',
             ]);
 
-            AccountApproval::create([
-                'user_id' => $user->id,
+            StudentApprovalHistory::create([
+                'student_id' => $user->student->id,
                 'admin_id' => Auth::id(),
                 'decision' => 'rejected',
                 'remarks' => $request->remarks,
@@ -192,16 +202,16 @@ class AdminController extends Controller
             ]);
         }
 
-        if ($user->status !== 'approved') {
+        if ($user->account_state !== 'active') {
             return back()->withErrors([
-                'user_action' => 'Only approved accounts can be deactivated.',
+                'user_action' => 'Only active accounts can be deactivated.',
             ]);
         }
 
         try {
             DB::transaction(function () use ($user) {
                 $user->update([
-                    'status' => 'deactivated',
+                    'account_state' => 'deactivated',
                 ]);
 
                 if ($user->role === 'coach' && $user->coach) {
@@ -251,7 +261,7 @@ class AdminController extends Controller
             ]);
         }
 
-        if ($user->status !== 'deactivated') {
+        if ($user->account_state !== 'deactivated') {
             return back()->withErrors([
                 'user_action' => 'Only deactivated accounts can be reactivated.',
             ]);
@@ -260,7 +270,7 @@ class AdminController extends Controller
         try {
             DB::transaction(function () use ($user) {
                 $user->update([
-                    'status' => 'approved',
+                    'account_state' => 'active',
                 ]);
 
                 if ($user->role === 'coach' && $user->coach) {
@@ -325,8 +335,8 @@ class AdminController extends Controller
         }
 
         $baseQuery = User::query()
-            ->where('status', $status)
-            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+            ->whereIn('role', ['student-athlete', 'student'])
+            ->whereHas('student', fn ($query) => $query->where('approval_status', $status));
 
         if ($search !== '') {
             $baseQuery->where(function ($query) use ($search) {
@@ -339,12 +349,9 @@ class AdminController extends Controller
         $applyReadinessFilter = function ($query, string $state): void {
             if ($state === 'ready') {
                 $query->where(function ($q) {
-                    $q->where('role', 'coach')
-                        ->orWhere(function ($sq) {
-                            $sq->whereIn('role', ['student-athlete', 'student'])
-                                ->whereHas('student.latestHealthClearance')
-                                ->whereHas('student.latestAcademicDocument');
-                        });
+                    $q->whereIn('role', ['student-athlete', 'student'])
+                        ->whereHas('student.latestHealthClearance')
+                        ->whereHas('student.latestAcademicDocument');
                 });
             }
 
@@ -362,9 +369,9 @@ class AdminController extends Controller
         }
 
         $queueQuery = (clone $baseQuery)
-            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'account_state', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course_or_strand,current_grade_level',
+                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status',
                 'student.latestHealthClearance' => function ($query) {
                     $query->select(
                         'athlete_health_clearances.id',
@@ -384,7 +391,6 @@ class AdminController extends Controller
                         'academic_documents.uploaded_at'
                     );
                 },
-                'coach:id,user_id,coach_status',
             ]);
 
         if ($sort === 'newest') {
@@ -399,24 +405,46 @@ class AdminController extends Controller
 
         $queue = $queueQuery
             ->paginate(10)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (User $user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'status' => $user->approval_status,
+                    'avatar' => $user->avatar,
+                    'created_at' => optional($user->created_at)->toDateTimeString(),
+                    'student' => $user->student ? [
+                        'id' => $user->student->id,
+                        'student_id_number' => $user->student->student_id_number,
+                        'first_name' => $user->student->first_name,
+                        'last_name' => $user->student->last_name,
+                        'course_or_strand' => $user->student->course_or_strand,
+                        'current_grade_level' => $user->student->current_grade_level,
+                        'academic_level_label' => $user->student->academic_level_label,
+                        'approval_status' => $user->student->approval_status,
+                        'latest_health_clearance' => $user->student->latestHealthClearance ? [
+                            'id' => $user->student->latestHealthClearance->id,
+                            'clearance_status' => $user->student->latestHealthClearance->clearance_status,
+                            'valid_until' => optional($user->student->latestHealthClearance->valid_until)->toDateString(),
+                            'physician_name' => $user->student->latestHealthClearance->physician_name,
+                        ] : null,
+                        'latest_academic_document' => $user->student->latestAcademicDocument ? [
+                            'id' => $user->student->latestAcademicDocument->id,
+                            'document_type' => $user->student->latestAcademicDocument->document_type,
+                            'uploaded_at' => optional($user->student->latestAcademicDocument->uploaded_at)->toDateTimeString(),
+                        ] : null,
+                    ] : null,
+                ];
+            });
 
-        $pendingPool = User::query()
-            ->where('status', 'pending')
-            ->whereIn('role', ['student-athlete', 'student', 'coach']);
-
-        $rejectedPool = User::query()
-            ->where('status', 'rejected')
-            ->whereIn('role', ['student-athlete', 'student', 'coach']);
-
-        $readyPool = User::query()
-            ->where('status', 'pending')
-            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+        $pendingPool = $this->pendingStudentApprovalUsers();
+        $rejectedPool = $this->rejectedStudentApprovalUsers();
+        $readyPool = $this->pendingStudentApprovalUsers();
         $applyReadinessFilter($readyPool, 'ready');
 
-        $incompletePool = User::query()
-            ->where('status', 'pending')
-            ->whereIn('role', ['student-athlete', 'student', 'coach']);
+        $incompletePool = $this->pendingStudentApprovalUsers();
         $applyReadinessFilter($incompletePool, 'incomplete');
 
         return inertia('Admin/PeopleQueue', [
@@ -441,7 +469,7 @@ class AdminController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
         $role = (string) $request->query('role', 'all');
-        $status = (string) $request->query('status', 'approved');
+        $status = (string) $request->query('status', 'active');
         $sort = (string) $request->query('sort', 'created_at');
         $direction = strtolower((string) $request->query('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
 
@@ -450,9 +478,9 @@ class AdminController extends Controller
             $role = 'all';
         }
 
-        $allowedStatuses = ['approved', 'deactivated'];
+        $allowedStatuses = ['active', 'deactivated'];
         if (!in_array($status, $allowedStatuses, true)) {
-            $status = 'approved';
+            $status = 'active';
         }
 
         $allowedSorts = ['name', 'email', 'created_at'];
@@ -461,8 +489,15 @@ class AdminController extends Controller
         }
 
         $baseQuery = User::query()
-            ->where('status', $status)
-            ->whereIn('role', ['student-athlete', 'coach']);
+            ->where('account_state', $status)
+            ->whereIn('role', ['student-athlete', 'coach'])
+            ->where(function ($query) {
+                $query->where('role', 'coach')
+                    ->orWhere(function ($studentQuery) {
+                        $studentQuery->whereIn('role', ['student-athlete', 'student'])
+                            ->whereHas('student', fn ($q) => $q->where('approval_status', 'approved'));
+                    });
+            });
 
         if ($role !== 'all') {
             $baseQuery->where('role', $role);
@@ -477,9 +512,9 @@ class AdminController extends Controller
         }
 
         $users = (clone $baseQuery)
-            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'status', 'avatar', 'created_at'])
+            ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'account_state', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
+                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status,student_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
                 'coach:id,user_id,coach_status,phone_number,date_of_birth,gender',
             ])
             ->when($sort === 'name', function ($query) use ($direction) {
@@ -488,20 +523,63 @@ class AdminController extends Controller
                 $query->orderBy($sort, $direction);
             })
             ->paginate(10)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (User $user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'status' => $user->account_state,
+                    'avatar' => $user->avatar,
+                    'created_at' => optional($user->created_at)->toDateTimeString(),
+                    'student' => $user->student ? [
+                        'student_id_number' => $user->student->student_id_number,
+                        'course_or_strand' => $user->student->course_or_strand,
+                        'current_grade_level' => $user->student->current_grade_level,
+                        'academic_level_label' => $user->student->academic_level_label,
+                        'student_status' => $user->student->student_status,
+                        'approval_status' => $user->student->approval_status,
+                        'phone_number' => $user->student->phone_number,
+                        'emergency_contact_name' => $user->student->emergency_contact_name,
+                        'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
+                        'emergency_contact_phone' => $user->student->emergency_contact_phone,
+                        'date_of_birth' => $user->student->date_of_birth ? (string) $user->student->date_of_birth : null,
+                        'gender' => $user->student->gender,
+                        'height' => $user->student->height,
+                        'weight' => $user->student->weight,
+                    ] : null,
+                    'coach' => $user->coach ? [
+                        'first_name' => $user->coach->first_name,
+                        'middle_name' => $user->coach->middle_name,
+                        'last_name' => $user->coach->last_name,
+                        'coach_status' => $user->coach->coach_status,
+                        'phone_number' => $user->coach->phone_number,
+                        'date_of_birth' => $user->coach->date_of_birth ? (string) $user->coach->date_of_birth : null,
+                        'gender' => $user->coach->gender,
+                    ] : null,
+                ];
+            });
 
         $totalBase = User::query()
-            ->whereIn('status', ['approved', 'deactivated'])
-            ->whereIn('role', ['student-athlete', 'coach']);
+            ->whereIn('account_state', ['active', 'deactivated'])
+            ->whereIn('role', ['student-athlete', 'coach'])
+            ->where(function ($query) {
+                $query->where('role', 'coach')
+                    ->orWhere(function ($studentQuery) {
+                        $studentQuery->whereIn('role', ['student-athlete', 'student'])
+                            ->whereHas('student', fn ($q) => $q->where('approval_status', 'approved'));
+                    });
+            });
 
         $totals = [
-            'all' => (clone $totalBase)->where('status', 'approved')->count(),
-            'students' => (clone $totalBase)->where('status', 'approved')->where('role', 'student-athlete')->count(),
-            'coaches' => (clone $totalBase)->where('status', 'approved')->where('role', 'coach')->count(),
-            'deactivated' => (clone $totalBase)->where('status', 'deactivated')->count(),
+            'all' => (clone $totalBase)->where('account_state', 'active')->count(),
+            'students' => (clone $totalBase)->where('account_state', 'active')->where('role', 'student-athlete')->count(),
+            'coaches' => (clone $totalBase)->where('account_state', 'active')->where('role', 'coach')->count(),
+            'deactivated' => (clone $totalBase)->where('account_state', 'deactivated')->count(),
             'filtered' => (clone $baseQuery)->count(),
         ];
-        $pendingCount = User::query()->where('status', 'pending')->count();
+        $pendingCount = $this->pendingStudentApprovalUsers()->count();
         $sports = Sport::query()
             ->orderBy('name')
             ->get(['id', 'name'])
@@ -517,6 +595,8 @@ class AdminController extends Controller
                 'sport:id,name',
                 'coach.user:id,first_name,last_name',
                 'assistantCoach.user:id,first_name,last_name',
+                'headCoachAssignment',
+                'assistantCoachAssignment',
             ])
             ->orderBy('team_name')
             ->get()
@@ -653,6 +733,7 @@ class AdminController extends Controller
                 'password' => Hash::make($validated['password']),
                 'must_change_password' => false,
                 'role' => 'admin',
+                'account_state' => 'active',
                 'status' => 'approved',
                 'email_verified_at' => now(),
             ]);
@@ -693,7 +774,8 @@ class AdminController extends Controller
         $activeTeams = Team::query()
             ->whereIn('id', $teamIds)
             ->whereNull('archived_at')
-            ->get(['id', 'team_name', 'sport_id', 'year', 'coach_id', 'assistant_coach_id']);
+            ->with(['headCoachAssignment', 'assistantCoachAssignment'])
+            ->get(['id', 'team_name', 'sport_id', 'year']);
 
         if (count($teamIds) !== $activeTeams->count()) {
             throw ValidationException::withMessages([
@@ -726,6 +808,7 @@ class AdminController extends Controller
                 'password' => Hash::make($temporaryPassword),
                 'must_change_password' => true,
                 'role' => 'coach',
+                'account_state' => 'active',
                 'status' => 'approved',
             ]);
 
@@ -739,14 +822,18 @@ class AdminController extends Controller
             ]);
 
             if (!empty($teamIds)) {
-                $column = $assignmentRole === 'head' ? 'coach_id' : 'assistant_coach_id';
                 $teams = Team::query()
                     ->whereIn('id', $teamIds)
                     ->whereNull('archived_at')
-                    ->get(['id', 'team_name', 'year', 'coach_id', 'assistant_coach_id']);
+                    ->with(['headCoachAssignment', 'assistantCoachAssignment'])
+                    ->get(['id', 'team_name', 'year']);
 
                 foreach ($teams as $team) {
-                    $team->update([$column => $coach->id]);
+                    $team->syncStaffAssignments(
+                        $assignmentRole === 'head' ? $coach->id : $team->coach_id,
+                        $assignmentRole === 'assistant' ? $coach->id : $team->assistant_coach_id,
+                        Auth::id()
+                    );
                     $roleLabel = $assignmentRole === 'head' ? 'head coach' : 'assistant coach';
                     AccountApproval::create([
                         'user_id' => $user->id,
@@ -1171,9 +1258,7 @@ class AdminController extends Controller
                 'priority' => ($row->gpa !== null && (float) $row->gpa > $probationMax) ? 95 : 85,
             ]);
 
-        $pendingApprovals = User::query()
-            ->where('status', 'pending')
-            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+        $pendingApprovals = $this->pendingStudentApprovalUsers()
             ->latest('created_at')
             ->limit(4)
             ->get(['first_name', 'last_name'])
@@ -1295,9 +1380,7 @@ class AdminController extends Controller
         $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
         $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
 
-        $pendingApprovals = User::query()
-            ->where('status', 'pending')
-            ->whereIn('role', ['student-athlete', 'student', 'coach'])
+        $pendingApprovals = $this->pendingStudentApprovalUsers()
             ->latest('created_at')
             ->limit(3)
             ->get(['id', 'first_name', 'last_name', 'role', 'created_at'])
@@ -1470,13 +1553,14 @@ class AdminController extends Controller
         $teamAlerts = Team::query()
             ->whereNull('archived_at')
             ->where(function ($query) {
-                $query->whereNull('coach_id')
+                $query->whereDoesntHave('headCoachAssignment')
                     ->orWhereDoesntHave('players');
             })
+            ->with('headCoachAssignment')
             ->withCount('players')
             ->orderBy('team_name')
             ->limit(3)
-            ->get(['id', 'team_name', 'year', 'coach_id'])
+            ->get(['id', 'team_name', 'year'])
             ->map(function (Team $team) {
                 $subtitle = $team->coach_id
                     ? 'Team roster still needs athlete assignments'
@@ -1494,10 +1578,13 @@ class AdminController extends Controller
             });
 
         $teamChangeRequests = Announcement::query()
-            ->where('title', 'Team Change Request')
+            ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+            ->select('announcement_recipients.*')
+            ->where('ae.title', 'Team Change Request')
             ->whereNull('read_at')
-            ->latest('published_at')
+            ->orderByDesc('ae.published_at')
             ->limit(1)
+            ->with('event')
             ->get()
             ->map(fn (Announcement $announcement) => [
                 'id' => 'team-request-' . $announcement->id,
@@ -1548,8 +1635,8 @@ class AdminController extends Controller
             [
                 'key' => 'pending_approvals',
                 'title' => 'Pending Approvals',
-                'description' => 'Newly registered accounts awaiting admin review.',
-                'count' => User::query()->where('status', 'pending')->whereIn('role', ['student-athlete', 'student', 'coach'])->count(),
+                'description' => 'New student registrations awaiting admin review.',
+                'count' => $this->pendingStudentApprovalUsers()->count(),
                 'action_label' => 'Open Queue',
                 'action_url' => '/people/queue',
                 'tone' => 'slate',
@@ -1630,6 +1717,20 @@ class AdminController extends Controller
             'high_priority_count' => $criticalCount + $highCount,
             'source_count' => count($needsAttentionQueue),
         ];
+    }
+
+    private function pendingStudentApprovalUsers()
+    {
+        return User::query()
+            ->whereIn('role', ['student-athlete', 'student'])
+            ->whereHas('student', fn ($query) => $query->where('approval_status', 'pending'));
+    }
+
+    private function rejectedStudentApprovalUsers()
+    {
+        return User::query()
+            ->whereIn('role', ['student-athlete', 'student'])
+            ->whereHas('student', fn ($query) => $query->where('approval_status', 'rejected'));
     }
 
     private function sendAccountStatusMail(User $user, Mailable $mailable): void

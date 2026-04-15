@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicDocument;
+use App\Models\AcademicEvaluationDocument;
 use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
 use App\Models\Student;
@@ -12,7 +13,6 @@ use App\Services\AnnouncementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 
 class AcademicEligibilityController extends Controller
@@ -40,9 +40,7 @@ class AcademicEligibilityController extends Controller
                 'starts_on' => optional($p->starts_on)->toDateString(),
                 'ends_on' => optional($p->ends_on)->toDateString(),
                 'status' => $this->resolveStatus($p),
-                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
-                    ? $p->announcement
-                    : null,
+                'announcement' => $p->announcement,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
         ]);
@@ -62,9 +60,9 @@ class AcademicEligibilityController extends Controller
         $docs = collect();
         if ($selectedPeriodId) {
             $docs = AcademicDocument::query()
+                ->periodSubmission()
                 ->with(['student.user'])
                 ->where('academic_period_id', $selectedPeriodId)
-                ->whereIn('document_type', ['grade_report', 'other'])
                 ->latest('uploaded_at')
                 ->get();
         }
@@ -105,9 +103,7 @@ class AcademicEligibilityController extends Controller
                 'starts_on' => optional($p->starts_on)->toDateString(),
                 'ends_on' => optional($p->ends_on)->toDateString(),
                 'status' => $this->resolveStatus($p),
-                'announcement' => Schema::hasColumn('academic_periods', 'announcement')
-                    ? $p->announcement
-                    : null,
+                'announcement' => $p->announcement,
             ]),
             'selectedPeriodId' => $selectedPeriodId ?: null,
             'rows' => $rows,
@@ -159,12 +155,13 @@ class AcademicEligibilityController extends Controller
             'announcement' => 'nullable|string',
         ]);
 
-        $payload = $validated;
-        if (!Schema::hasColumn('academic_periods', 'announcement')) {
-            unset($payload['announcement']);
-        }
-
-        AcademicPeriod::create($payload);
+        $period = AcademicPeriod::create([
+            'school_year' => $validated['school_year'],
+            'term' => $validated['term'],
+            'starts_on' => $validated['starts_on'],
+            'ends_on' => $validated['ends_on'],
+        ]);
+        $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
 
         return back()->with('success', 'Academic period created.');
     }
@@ -175,11 +172,7 @@ class AcademicEligibilityController extends Controller
             'announcement' => 'nullable|string',
         ]);
 
-        if (Schema::hasColumn('academic_periods', 'announcement')) {
-            $period->update([
-                'announcement' => $validated['announcement'] ?? $period->announcement,
-            ]);
-        }
+        $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
 
         return back()->with('success', 'Academic period updated.');
     }
@@ -234,6 +227,16 @@ class AcademicEligibilityController extends Controller
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
             ]
+        );
+
+        $evaluation = AcademicEligibilityEvaluation::query()
+            ->where('student_id', (int) $validated['student_id'])
+            ->where('academic_period_id', (int) $validated['period_id'])
+            ->firstOrFail();
+
+        AcademicEvaluationDocument::query()->updateOrCreate(
+            ['evaluation_id' => $evaluation->id],
+            ['document_id' => $doc->id]
         );
 
         $student = Student::find((int) $validated['student_id']);
@@ -381,19 +384,12 @@ class AcademicEligibilityController extends Controller
     {
         $filters = $this->validatedRecordsFilters($request);
 
-        $latestDocs = DB::table('academic_documents as ad')
-            ->selectRaw('MAX(ad.id) as id, ad.student_id, ad.academic_period_id')
-            ->groupBy('ad.student_id', 'ad.academic_period_id');
-
         $query = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoinSub($latestDocs, 'ld', function ($join) {
-                $join->on('ld.student_id', '=', 'e.student_id')
-                    ->on('ld.academic_period_id', '=', 'e.academic_period_id');
-            })
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'ld.id')
+            ->leftJoin('academic_evaluation_documents as aed', 'aed.evaluation_id', '=', 'e.id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'aed.document_id')
             ->leftJoin('users as evaluator', 'evaluator.id', '=', 'e.evaluated_by')
             ->leftJoin('teams as t', function ($join) {
                 $join->on('t.id', '=', DB::raw('(SELECT tp.team_id FROM team_players tp WHERE tp.student_id = e.student_id ORDER BY tp.id ASC LIMIT 1)'));
@@ -495,11 +491,10 @@ class AcademicEligibilityController extends Controller
                     $sq->selectRaw('1')
                         ->from('team_players as tp')
                         ->join('teams as t', 't.id', '=', 'tp.team_id')
+                        ->join('team_staff_assignments as tsa', 'tsa.team_id', '=', 't.id')
                         ->whereColumn('tp.student_id', 's.id')
-                        ->where(function ($cq) use ($coachId) {
-                            $cq->where('t.coach_id', $coachId)
-                                ->orWhere('t.assistant_coach_id', $coachId);
-                        });
+                        ->whereNull('tsa.ends_at')
+                        ->where('tsa.coach_id', $coachId);
                 });
             });
 
@@ -623,6 +618,11 @@ class AcademicEligibilityController extends Controller
             ]
         );
 
+        AcademicEvaluationDocument::query()->updateOrCreate(
+            ['evaluation_id' => $evaluation->id],
+            ['document_id' => $document->id]
+        );
+
         return response()->json([
             'message' => 'Evaluation updated.',
             'evaluation_id' => $evaluation->id,
@@ -665,9 +665,9 @@ class AcademicEligibilityController extends Controller
         $period = AcademicPeriod::findOrFail($periodId);
 
         $docs = AcademicDocument::query()
+            ->periodSubmission()
             ->with(['student.user'])
             ->where('academic_period_id', $periodId)
-            ->whereIn('document_type', ['grade_report', 'other'])
             ->latest('uploaded_at')
             ->get();
 
@@ -828,11 +828,10 @@ class AcademicEligibilityController extends Controller
                 $sq->selectRaw('1')
                     ->from('team_players as tp')
                     ->join('teams as t', 't.id', '=', 'tp.team_id')
+                    ->join('team_staff_assignments as tsa', 'tsa.team_id', '=', 't.id')
                     ->whereColumn('tp.student_id', "{$studentAlias}.id")
-                    ->where(function ($cq) use ($coachId) {
-                        $cq->where('t.coach_id', $coachId)
-                            ->orWhere('t.assistant_coach_id', $coachId);
-                    });
+                    ->whereNull('tsa.ends_at')
+                    ->where('tsa.coach_id', $coachId);
             });
         }
     }
@@ -879,19 +878,12 @@ class AcademicEligibilityController extends Controller
 
     private function evaluationsExportRows(array $filters): array
     {
-        $latestDocs = DB::table('academic_documents as ad')
-            ->selectRaw('MAX(ad.id) as id, ad.student_id, ad.academic_period_id')
-            ->groupBy('ad.student_id', 'ad.academic_period_id');
-
         $query = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->leftJoin('academic_periods as p', 'p.id', '=', 'e.academic_period_id')
-            ->leftJoinSub($latestDocs, 'ld', function ($join) {
-                $join->on('ld.student_id', '=', 'e.student_id')
-                    ->on('ld.academic_period_id', '=', 'e.academic_period_id');
-            })
-            ->leftJoin('academic_documents as d', 'd.id', '=', 'ld.id')
+            ->leftJoin('academic_evaluation_documents as aed', 'aed.evaluation_id', '=', 'e.id')
+            ->leftJoin('academic_documents as d', 'd.id', '=', 'aed.document_id')
             ->select([
                 'e.id as evaluation_id',
                 's.student_id_number',

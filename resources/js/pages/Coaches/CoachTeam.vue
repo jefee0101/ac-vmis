@@ -23,6 +23,7 @@ type PlayerRow = {
         student_id_number?: string
         course_or_strand?: string | null
         current_grade_level?: string | null
+        academic_level_label?: string | null
         phone_number?: string | null
         gender?: string | null
         height?: string | null
@@ -446,7 +447,7 @@ function printTeamRoster() {
 
                         <div class="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
                             <p><span class="font-semibold text-slate-900">Course/Strand:</span> {{ formatSimple(selectedStudent?.course_or_strand) }}</p>
-                            <p><span class="font-semibold text-slate-900">Current Grade Level:</span> {{ formatSimple(selectedStudent?.current_grade_level) }}</p>
+                            <p><span class="font-semibold text-slate-900">Academic Level:</span> {{ formatSimple(selectedStudent?.academic_level_label ?? selectedStudent?.current_grade_level) }}</p>
                             <p><span class="font-semibold text-slate-900">Gender:</span> {{ formatSimple(selectedStudent?.gender) }}</p>
                             <p><span class="font-semibold text-slate-900">Height:</span> {{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
                             <p><span class="font-semibold text-slate-900">Weight:</span> {{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>

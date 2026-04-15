@@ -29,8 +29,7 @@ type PlayerOption = {
     name: string
     student_id_number: string | null
     email?: string | null
-    education_level?: string | null
-    current_grade_level?: string | null
+    academic_level_label?: string | null
     is_available?: boolean
     assigned_team_id?: number | null
     unavailable_reason?: string | null
@@ -67,8 +66,7 @@ const errors = ref<Record<string, string>>({})
 const isSaving = ref(false)
 const isOptionLoading = ref(false)
 const draftMessage = ref('')
-const playerRoleFilter = ref('all')
-const playerGradeFilter = ref('all')
+const playerAcademicLevelFilter = ref('all')
 let optionLoadingTimer: ReturnType<typeof setTimeout> | null = null
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -92,24 +90,16 @@ const selectableCoaches = computed(() =>
             .join(' • '),
     }))
 )
-const playerRoleOptions = computed(() => {
+const playerAcademicLevelOptions = computed(() => {
     const set = new Set<string>()
     allPlayers.value.forEach((player) => {
-        if (player.education_level) set.add(String(player.education_level))
-    })
-    return Array.from(set).sort()
-})
-const playerGradeOptions = computed(() => {
-    const set = new Set<string>()
-    allPlayers.value.forEach((player) => {
-        if (player.current_grade_level) set.add(String(player.current_grade_level))
+        if (player.academic_level_label) set.add(String(player.academic_level_label))
     })
     return Array.from(set).sort()
 })
 const selectablePlayers = computed(() => {
     const filtered = allPlayers.value.filter((player) => {
-        if (playerRoleFilter.value !== 'all' && player.education_level !== playerRoleFilter.value) return false
-        if (playerGradeFilter.value !== 'all' && String(player.current_grade_level ?? '') !== playerGradeFilter.value) return false
+        if (playerAcademicLevelFilter.value !== 'all' && player.academic_level_label !== playerAcademicLevelFilter.value) return false
         return true
     })
     const selectedSet = new Set(selectedPlayerIds.value)
@@ -123,8 +113,7 @@ const selectablePlayers = computed(() => {
         meta: [
             playerOption.student_id_number ? `Student ID: ${playerOption.student_id_number}` : null,
             playerOption.email ? `Email: ${playerOption.email}` : null,
-            playerOption.education_level ? playerOption.education_level : null,
-            playerOption.current_grade_level ? `Level: ${playerOption.current_grade_level}` : null,
+            playerOption.academic_level_label ? `Academic Level: ${playerOption.academic_level_label}` : null,
         ]
             .filter(Boolean)
             .join(' • '),
@@ -540,20 +529,11 @@ onBeforeUnmount(() => {
 
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600">Education Level</label>
-                                <select v-model="playerRoleFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
+                                <label class="mb-1 block text-xs font-medium text-slate-600">Academic Level</label>
+                                <select v-model="playerAcademicLevelFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
                                     <option value="all">All Levels</option>
-                                    <option v-for="level in playerRoleOptions" :key="level" :value="level">
+                                    <option v-for="level in playerAcademicLevelOptions" :key="level" :value="level">
                                         {{ level }}
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600">Grade / Year Level</label>
-                                <select v-model="playerGradeFilter" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs">
-                                    <option value="all">All Grades</option>
-                                    <option v-for="grade in playerGradeOptions" :key="grade" :value="grade">
-                                        {{ grade }}
                                     </option>
                                 </select>
                             </div>

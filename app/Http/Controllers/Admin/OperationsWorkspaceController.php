@@ -706,9 +706,12 @@ class OperationsWorkspaceController extends Controller
 
         if (!empty($filters['coach_id'])) {
             $coachId = (int) $filters['coach_id'];
-            $query->where(function ($builder) use ($coachId) {
-                $builder->where('t.coach_id', $coachId)
-                    ->orWhere('t.assistant_coach_id', $coachId);
+            $query->whereExists(function ($subQuery) use ($coachId) {
+                $subQuery->selectRaw('1')
+                    ->from('team_staff_assignments as tsa')
+                    ->whereColumn('tsa.team_id', 't.id')
+                    ->whereNull('tsa.ends_at')
+                    ->where('tsa.coach_id', $coachId);
             });
         }
 

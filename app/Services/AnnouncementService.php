@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\AnnouncementNotificationMail;
 use App\Models\Announcement;
+use App\Models\AnnouncementEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -34,13 +35,17 @@ class AnnouncementService
     ): void {
         $normalizedType = \App\Models\Announcement::normalizeType($type);
 
-        Announcement::create([
-            'user_id' => $userId,
+        $event = AnnouncementEvent::create([
             'title' => $title,
             'message' => $message,
             'type' => $normalizedType,
             'published_at' => now(),
             'created_by' => $createdBy,
+        ]);
+
+        Announcement::create([
+            'event_id' => $event->id,
+            'user_id' => $userId,
         ]);
 
         if ($sendEmail) {
@@ -75,15 +80,43 @@ class AnnouncementService
             ->values()
             ->all();
 
+        if (empty($uniqueIds)) {
+            return;
+        }
+
+        $event = AnnouncementEvent::create([
+            'title' => $title,
+            'message' => $message,
+            'type' => $normalizedType,
+            'published_at' => now(),
+            'created_by' => $createdBy,
+        ]);
+
+        Announcement::insert(
+            array_map(
+                fn (int $userId) => [
+                    'event_id' => $event->id,
+                    'user_id' => $userId,
+                    'read_at' => null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                $uniqueIds
+            )
+        );
+
         foreach ($uniqueIds as $userId) {
-            $this->announce(
+            if (!$sendEmail) {
+                continue;
+            }
+
+            $this->sendAnnouncementEmail(
                 $userId,
                 $title,
                 $message,
                 $normalizedType,
                 $createdBy,
-                $notificationPreference,
-                $sendEmail
+                $notificationPreference
             );
         }
     }

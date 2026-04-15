@@ -31,14 +31,14 @@ class LoginController extends Controller
 
         $user = Auth::user();
 
-        // Approval check
-        if ($user->status !== 'approved') {
+        if ($user->account_state === 'deactivated') {
             Auth::logout();
-            return redirect(match ($user->status) {
-                'rejected' => '/rejected',
-                'deactivated' => '/deactivated',
-                default => '/pending-approval',
-            });
+            return redirect('/deactivated');
+        }
+
+        if ($user->requiresStudentApproval() && $user->approval_status !== 'approved') {
+            Auth::logout();
+            return redirect($user->approval_status === 'rejected' ? '/rejected' : '/pending-approval');
         }
 
         if ($user->must_change_password) {

@@ -43,6 +43,7 @@ const props = defineProps<{
         student_id_number: string | null
         course_or_strand?: string | null
         current_grade_level?: string | null
+        academic_level_label?: string | null
     } | null
     openPeriods: Period[]
     submissions: Submission[]
@@ -215,7 +216,7 @@ function printAcademicSummary() {
                     <div class="mt-2 grid gap-1 text-xs text-slate-500">
                         <div><span class="font-semibold text-slate-700">ID:</span> {{ student.student_id_number || '-' }}</div>
                         <div><span class="font-semibold text-slate-700">Course/Strand:</span> {{ student.course_or_strand || '-' }}</div>
-                        <div><span class="font-semibold text-slate-700">Grade Level:</span> {{ student.current_grade_level || '-' }}</div>
+                        <div><span class="font-semibold text-slate-700">Academic Level:</span> {{ student.academic_level_label || student.current_grade_level || '-' }}</div>
                     </div>
                 </div>
 

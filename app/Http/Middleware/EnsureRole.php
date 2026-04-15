@@ -17,12 +17,12 @@ class EnsureRole
             return redirect('/Login');
         }
 
-        if ($user->status !== 'approved') {
-            return redirect(match ($user->status) {
-                'rejected' => '/rejected',
-                'deactivated' => '/deactivated',
-                default => '/pending-approval',
-            });
+        if ($user->account_state === 'deactivated') {
+            return redirect('/deactivated');
+        }
+
+        if ($user->requiresStudentApproval() && $user->approval_status !== 'approved') {
+            return redirect($user->approval_status === 'rejected' ? '/rejected' : '/pending-approval');
         }
 
         if (!in_array($user->role, $roles, true)) {

@@ -34,9 +34,9 @@ const props = defineProps<{
       phone_number: string | null
       home_address: string | null
       course_or_strand: string | null
-      education_level: string | null
-      current_grade_level: string | null
+      academic_level_label: string | null
       student_status: string | null
+      approval_status: string | null
       emergency_contact_name: string | null
       emergency_contact_relationship: string | null
       emergency_contact_phone: string | null
@@ -116,16 +116,15 @@ const studentDetails = computed(() => {
   const student = props.profile.student
   if (!student) return []
   const recordName = [student.first_name, student.middle_name, student.last_name].filter(Boolean).join(' ').trim()
-  const yearOrGrade = student.current_grade_level
   return [
     { label: 'Student Record Name', value: recordName || null },
     { label: 'Student ID', value: student.student_id_number },
     { label: 'Date of Birth', value: student.date_of_birth },
     { label: 'Gender', value: student.gender },
     { label: 'Course/Strand', value: student.course_or_strand },
-    { label: 'Education Level', value: student.education_level },
-    { label: 'Current Grade Level', value: yearOrGrade },
-    { label: 'Status', value: student.student_status },
+    { label: 'Academic Level', value: student.academic_level_label },
+    { label: 'Enrollment Status', value: student.student_status },
+    { label: 'Approval Status', value: student.approval_status },
     { label: 'Height', value: student.height },
     { label: 'Weight', value: student.weight },
   ]

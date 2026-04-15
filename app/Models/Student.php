@@ -23,6 +23,7 @@ class Student extends Model
         'home_address',
         'course_or_strand',
         'current_grade_level',
+        'approval_status',
         'student_status',
         'phone_number',
         'emergency_contact_name',
@@ -40,6 +41,7 @@ class Student extends Model
         'last_name',
         'full_name',
         'education_level',
+        'academic_level_label',
     ];
 
     /**
@@ -85,6 +87,38 @@ class Student extends Model
         return 'College';
     }
 
+    public function getApprovalStatusAttribute(?string $value): string
+    {
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        $legacyStatus = (string) ($this->user?->getRawOriginal('status') ?? '');
+        if (in_array($legacyStatus, ['pending', 'approved', 'rejected'], true)) {
+            return $legacyStatus;
+        }
+
+        return 'pending';
+    }
+
+    public function getAcademicLevelLabelAttribute(): ?string
+    {
+        $raw = trim((string) ($this->current_grade_level ?? ''));
+        if ($raw === '') {
+            return null;
+        }
+
+        return match ($raw) {
+            '11' => '11 - Senior High',
+            '12' => '12 - Senior High',
+            '1' => 'First Year College',
+            '2' => 'Second Year College',
+            '3' => 'Third Year College',
+            '4' => 'Fourth Year College',
+            default => $raw,
+        };
+    }
+
     /**
      * Teams the student belongs to (via pivot table team_players)
      */
@@ -118,13 +152,30 @@ class Student extends Model
         return $this->hasMany(AcademicDocument::class, 'student_id');
     }
 
+    public function registrationAcademicDocuments()
+    {
+        return $this->academicDocuments()->registration();
+    }
+
+    public function periodSubmissionDocuments()
+    {
+        return $this->academicDocuments()->periodSubmission();
+    }
+
     public function latestAcademicDocument()
     {
-        return $this->hasOne(AcademicDocument::class, 'student_id')->latestOfMany();
+        return $this->hasOne(AcademicDocument::class, 'student_id')
+            ->where('document_context', AcademicDocument::CONTEXT_REGISTRATION)
+            ->latestOfMany();
     }
 
     public function academicEvaluations()
     {
         return $this->hasMany(AcademicEligibilityEvaluation::class, 'student_id');
+    }
+
+    public function academicHolds()
+    {
+        return $this->hasMany(AcademicHold::class, 'student_id');
     }
 }

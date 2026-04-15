@@ -63,9 +63,9 @@ class AcademicSubmissionController extends Controller
         $submissionHoldStatus = $holdState['status'];
 
         $submissions = AcademicDocument::query()
+            ->periodSubmission()
             ->with('academicPeriod')
             ->where('student_id', $student->id)
-            ->whereNotNull('academic_period_id')
             ->latest('uploaded_at')
             ->get();
 
@@ -82,6 +82,7 @@ class AcademicSubmissionController extends Controller
                 'student_id_number' => $student->student_id_number,
                 'course_or_strand' => $student->course_or_strand,
                 'current_grade_level' => $student->current_grade_level,
+                'academic_level_label' => $student->academic_level_label,
             ],
             'submissionHoldStatus' => $submissionHoldStatus,
             'hasActiveWindow' => $holdState['hasActiveWindow'],
@@ -167,6 +168,7 @@ class AcademicSubmissionController extends Controller
         AcademicDocument::create([
             'student_id' => $student->id,
             'document_type' => $validated['document_type'],
+            'document_context' => AcademicDocument::CONTEXT_PERIOD_SUBMISSION,
             'academic_period_id' => (int) $validated['academic_period_id'],
             'file_path' => $filePath,
             'uploaded_by' => Auth::id(),
@@ -179,7 +181,7 @@ class AcademicSubmissionController extends Controller
         $message = "New academic submission from {$studentName} for {$periodLabel}.";
 
         $adminUserIds = User::query()
-            ->where('status', 'approved')
+            ->where('account_state', 'active')
             ->where('role', 'admin')
             ->pluck('id')
             ->all();
@@ -224,9 +226,9 @@ class AcademicSubmissionController extends Controller
         $openPeriods = $openPeriodsQuery->get();
 
         $submissions = AcademicDocument::query()
+            ->periodSubmission()
             ->with('academicPeriod')
             ->where('student_id', $student->id)
-            ->whereNotNull('academic_period_id')
             ->latest('uploaded_at')
             ->get();
 

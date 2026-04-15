@@ -10,6 +10,7 @@ use App\Models\ScheduleAttendance;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
+use App\Models\TeamStaffAssignment;
 use App\Models\User;
 use App\Models\UserSetting;
 use App\Models\WellnessLog;
@@ -94,14 +95,15 @@ class HandleInertiaRequests extends Middleware
                             $adminId = $request->user()->id;
                             $now = now();
 
-                            $pendingAccounts = User::query()
-                                ->where('status', 'pending')
-                                ->whereIn('role', ['student-athlete', 'student', 'coach'])
+                            $pendingAccounts = \App\Models\Student::query()
+                                ->where('approval_status', 'pending')
                                 ->count();
 
                             $teamChangeRequests = Announcement::query()
+                                ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                ->select('announcement_recipients.*')
                                 ->where('user_id', $adminId)
-                                ->where('title', 'Team Change Request')
+                                ->where('ae.title', 'Team Change Request')
                                 ->whereNull('read_at')
                                 ->count();
 
@@ -184,10 +186,13 @@ class HandleInertiaRequests extends Middleware
                                 'total' => array_sum(array_map(fn ($item) => (int) $item['count'], $items)),
                                 'items' => $items,
                                 'recent' => Announcement::query()
+                                    ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                    ->select('announcement_recipients.*')
                                     ->where('user_id', $adminId)
-                                    ->orderByDesc('published_at')
-                                    ->orderByDesc('id')
+                                    ->orderByDesc('ae.published_at')
+                                    ->orderByDesc('announcement_recipients.id')
                                     ->limit(6)
+                                    ->with('event')
                                     ->get()
                                     ->map(function (Announcement $announcement) {
                                         return [
@@ -216,8 +221,7 @@ class HandleInertiaRequests extends Middleware
 
                             $now = now();
                             $teamIds = Team::query()
-                                ->where('coach_id', $coach->id)
-                                ->orWhere('assistant_coach_id', $coach->id)
+                                ->forCoach($coach->id)
                                 ->pluck('id')
                                 ->all();
 
@@ -260,10 +264,10 @@ class HandleInertiaRequests extends Middleware
                                 ->whereDate('created_at', '>=', $rosterWindow->toDateString())
                                 ->count();
 
-                            $assistantAdds = Team::query()
-                                ->whereIn('id', $teamIds)
-                                ->whereNotNull('assistant_coach_id')
-                                ->whereDate('updated_at', '>=', $rosterWindow->toDateString())
+                            $assistantAdds = TeamStaffAssignment::query()
+                                ->whereIn('team_id', $teamIds)
+                                ->where('role', TeamStaffAssignment::ROLE_ASSISTANT)
+                                ->whereDate('created_at', '>=', $rosterWindow->toDateString())
                                 ->count();
 
                             $statusWindow = (clone $now)->subDays(7);
@@ -303,10 +307,13 @@ class HandleInertiaRequests extends Middleware
                                 'total' => array_sum(array_map(fn ($item) => (int) $item['count'], $items)),
                                 'items' => $items,
                                 'recent' => Announcement::query()
+                                    ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                    ->select('announcement_recipients.*')
                                     ->where('user_id', $request->user()->id)
-                                    ->orderByDesc('published_at')
-                                    ->orderByDesc('id')
+                                    ->orderByDesc('ae.published_at')
+                                    ->orderByDesc('announcement_recipients.id')
                                     ->limit(6)
+                                    ->with('event')
                                     ->get()
                                     ->map(function (Announcement $announcement) {
                                         return [
@@ -332,10 +339,13 @@ class HandleInertiaRequests extends Middleware
 
                             return [
                                 'recent' => Announcement::query()
+                                    ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                    ->select('announcement_recipients.*')
                                     ->where('user_id', $studentId)
-                                    ->orderByDesc('published_at')
-                                    ->orderByDesc('id')
+                                    ->orderByDesc('ae.published_at')
+                                    ->orderByDesc('announcement_recipients.id')
                                     ->limit(6)
+                                    ->with('event')
                                     ->get()
                                     ->map(function (Announcement $announcement) {
                                         return [

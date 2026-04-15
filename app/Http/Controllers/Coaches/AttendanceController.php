@@ -64,8 +64,8 @@ class AttendanceController extends Controller
             ]);
         }
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
 
@@ -197,8 +197,8 @@ class AttendanceController extends Controller
             ]);
         }
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
@@ -312,8 +312,8 @@ class AttendanceController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
@@ -343,8 +343,8 @@ class AttendanceController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
@@ -378,8 +378,8 @@ class AttendanceController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
         $schedule = TeamSchedule::findOrFail((int) $scheduleId);
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
@@ -447,8 +447,8 @@ class AttendanceController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
         $schedule = TeamSchedule::findOrFail((int) $scheduleId);
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');

@@ -9,6 +9,8 @@ class Announcement extends Model
 {
     use HasFactory;
 
+    protected $table = 'announcement_recipients';
+
     public const TYPE_APPROVAL = 'approval';
     public const TYPE_GENERAL = 'general';
     public const TYPE_ACADEMIC = 'academic';
@@ -16,17 +18,12 @@ class Announcement extends Model
     public const TYPE_SYSTEM = 'system';
 
     protected $fillable = [
+        'event_id',
         'user_id',
-        'title',
-        'message',
-        'type',
-        'published_at',
         'read_at',
-        'created_by',
     ];
 
     protected $casts = [
-        'published_at' => 'datetime',
         'read_at' => 'datetime',
     ];
 
@@ -71,8 +68,38 @@ class Announcement extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function creator()
+    public function event()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(AnnouncementEvent::class, 'event_id');
+    }
+
+    public function getTitleAttribute(): ?string
+    {
+        return $this->event?->title;
+    }
+
+    public function getMessageAttribute(): ?string
+    {
+        return $this->event?->message;
+    }
+
+    public function getTypeAttribute(): string
+    {
+        return self::normalizeType($this->event?->type);
+    }
+
+    public function getPublishedAtAttribute()
+    {
+        return $this->event?->published_at;
+    }
+
+    public function getCreatedByAttribute(): ?int
+    {
+        return $this->event?->created_by;
+    }
+
+    public function getCreatorAttribute(): ?User
+    {
+        return $this->event?->creator;
     }
 }

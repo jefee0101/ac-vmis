@@ -35,8 +35,7 @@ class WellnessMonitoringController extends Controller
         }
 
         $ownerTeam = Team::with(['sport'])
-            ->where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+            ->forCoach($coach->id)
             ->first();
 
         if (!$ownerTeam) {
@@ -143,8 +142,8 @@ class WellnessMonitoringController extends Controller
             'Wellness monitoring is only for practice/game schedules.'
         );
 
-        $ownerTeam = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $ownerTeam = Team::query()
+            ->forCoach($coach->id)
             ->first();
 
         abort_unless($ownerTeam && $schedule->team_id === $ownerTeam->id, 403, 'Unauthorized schedule.');
@@ -192,7 +191,7 @@ class WellnessMonitoringController extends Controller
 
         if ((bool) $wellness->injury_observed) {
             $adminUserIds = User::query()
-                ->where('status', 'approved')
+                ->where('account_state', 'active')
                 ->where('role', 'admin')
                 ->pluck('id')
                 ->all();

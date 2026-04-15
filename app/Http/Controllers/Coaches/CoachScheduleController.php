@@ -33,8 +33,7 @@ class CoachScheduleController extends Controller
         }
 
         $teams = Team::with('sport')
-            ->where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+            ->forCoach($coach->id)
             ->orderBy('team_name')
             ->get();
 
@@ -137,8 +136,8 @@ class CoachScheduleController extends Controller
             return back()->withErrors(['coach' => 'No coach record']);
         }
 
-        $teams = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teams = Team::query()
+            ->forCoach($coach->id)
             ->get();
 
         if ($teams->isEmpty()) {
@@ -201,8 +200,8 @@ class CoachScheduleController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
 
@@ -254,8 +253,8 @@ class CoachScheduleController extends Controller
         $coach = Auth::user()?->coach;
         abort_unless($coach, 403);
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
 
@@ -293,8 +292,8 @@ class CoachScheduleController extends Controller
         $coach = $request->user()?->coach;
         abort_unless($coach, 403);
 
-        $teamIds = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teamIds = Team::query()
+            ->forCoach($coach->id)
             ->pluck('id')
             ->all();
         abort_unless(!empty($teamIds), 403);

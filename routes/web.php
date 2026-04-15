@@ -51,40 +51,49 @@ Route::redirect('/privacy-policy', '/#privacy-policy')->name('privacy-policy');
 Route::redirect('/terms-of-use', '/#terms-of-use')->name('terms-of-use');
 
 Route::get('/pending-approval', function () {
-    if (Auth::check() && Auth::user()->status === 'approved') {
-        $role = Auth::user()->role;
-        return redirect(match ($role) {
-            'admin' => '/AdminDashboard',
-            'coach' => '/coach/dashboard',
-            'student-athlete', 'student' => '/StudentAthleteDashboard',
-            default => '/Login',
-        });
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user->account_state === 'active' && (!$user->requiresStudentApproval() || $user->approval_status === 'approved')) {
+            $role = $user->role;
+            return redirect(match ($role) {
+                'admin' => '/AdminDashboard',
+                'coach' => '/coach/dashboard',
+                'student-athlete', 'student' => '/StudentAthleteDashboard',
+                default => '/Login',
+            });
+        }
     }
     return inertia('Status/PendingApproval');
 })->name('pendingapproval');
 
 Route::get('/rejected', function () {
-    if (Auth::check() && Auth::user()->status === 'approved') {
-        $role = Auth::user()->role;
-        return redirect(match ($role) {
-            'admin' => '/AdminDashboard',
-            'coach' => '/coach/dashboard',
-            'student-athlete', 'student' => '/StudentAthleteDashboard',
-            default => '/Login',
-        });
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user->account_state === 'active' && (!$user->requiresStudentApproval() || $user->approval_status === 'approved')) {
+            $role = $user->role;
+            return redirect(match ($role) {
+                'admin' => '/AdminDashboard',
+                'coach' => '/coach/dashboard',
+                'student-athlete', 'student' => '/StudentAthleteDashboard',
+                default => '/Login',
+            });
+        }
     }
     return inertia('Status/Rejected');
 })->name('rejected');
 
 Route::get('/deactivated', function () {
-    if (Auth::check() && Auth::user()->status === 'approved') {
-        $role = Auth::user()->role;
-        return redirect(match ($role) {
-            'admin' => '/AdminDashboard',
-            'coach' => '/coach/dashboard',
-            'student-athlete', 'student' => '/StudentAthleteDashboard',
-            default => '/Login',
-        });
+    if (Auth::check()) {
+        $user = Auth::user();
+        if ($user->account_state === 'active' && (!$user->requiresStudentApproval() || $user->approval_status === 'approved')) {
+            $role = $user->role;
+            return redirect(match ($role) {
+                'admin' => '/AdminDashboard',
+                'coach' => '/coach/dashboard',
+                'student-athlete', 'student' => '/StudentAthleteDashboard',
+                default => '/Login',
+            });
+        }
     }
     return inertia('Status/Deactivated');
 })->name('deactivated');

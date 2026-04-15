@@ -34,8 +34,7 @@ class CoachTeamController extends Controller
             'assistantCoach',
             'players.student.user'
         ])
-        ->where('coach_id', $coach->id)
-        ->orWhere('assistant_coach_id', $coach->id)
+        ->forCoach($coach->id)
         ->orderBy('team_name')
         ->get();
 
@@ -91,8 +90,7 @@ class CoachTeamController extends Controller
             'assistantCoach',
             'players.student.user',
         ])
-            ->where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+            ->forCoach($coach->id)
             ->get();
 
         abort_unless($teams->isNotEmpty(), 403);
@@ -143,7 +141,7 @@ class CoachTeamController extends Controller
 
         $teamPlayer->load(['team', 'student']);
         $team = $teamPlayer->team;
-        if (!$team || ($team->coach_id !== $coach->id && $team->assistant_coach_id !== $coach->id)) {
+        if (!$team || !in_array($coach->id, $team->activeCoachIds(), true)) {
             abort(403);
         }
 
@@ -184,7 +182,7 @@ class CoachTeamController extends Controller
 
         $teamPlayer->load(['team', 'student']);
         $team = $teamPlayer->team;
-        if (!$team || ($team->coach_id !== $coach->id && $team->assistant_coach_id !== $coach->id)) {
+        if (!$team || !in_array($coach->id, $team->activeCoachIds(), true)) {
             abort(403);
         }
 
@@ -213,8 +211,8 @@ class CoachTeamController extends Controller
             abort(403);
         }
 
-        $teams = Team::where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+        $teams = Team::query()
+            ->forCoach($coach->id)
             ->get();
 
         if ($teams->isEmpty()) {
@@ -261,7 +259,7 @@ class CoachTeamController extends Controller
         }
 
         $adminUserIds = User::query()
-            ->where('status', 'approved')
+            ->where('account_state', 'active')
             ->where('role', 'admin')
             ->pluck('id')
             ->all();

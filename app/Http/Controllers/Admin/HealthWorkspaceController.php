@@ -104,8 +104,11 @@ class HealthWorkspaceController extends Controller
 
         $base = AthleteHealthClearance::query()
             ->whereHas('student.user', function ($q) {
-                $q->where('status', 'approved')
+                $q->where('account_state', 'active')
                     ->whereIn('role', ['student-athlete', 'student']);
+            })
+            ->whereHas('student', function ($q) {
+                $q->where('approval_status', 'approved');
             });
         $applyFilters($base);
 

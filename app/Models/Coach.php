@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Team;
+use App\Models\TeamStaffAssignment;
 
 class Coach extends Model
 {
@@ -61,7 +62,9 @@ class Coach extends Model
      */
     public function headTeams()
     {
-        return $this->hasMany(Team::class, 'coach_id');
+        return $this->belongsToMany(Team::class, 'team_staff_assignments', 'coach_id', 'team_id')
+            ->wherePivot('role', TeamStaffAssignment::ROLE_HEAD)
+            ->wherePivotNull('ends_at');
     }
 
     /**
@@ -69,6 +72,13 @@ class Coach extends Model
      */
     public function assistantTeams()
     {
-        return $this->hasMany(Team::class, 'assistant_coach_id');
+        return $this->belongsToMany(Team::class, 'team_staff_assignments', 'coach_id', 'team_id')
+            ->wherePivot('role', TeamStaffAssignment::ROLE_ASSISTANT)
+            ->wherePivotNull('ends_at');
+    }
+
+    public function staffAssignments()
+    {
+        return $this->hasMany(TeamStaffAssignment::class, 'coach_id');
     }
 }

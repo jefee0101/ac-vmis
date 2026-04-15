@@ -26,8 +26,7 @@ class CoachDashboardController extends Controller
         }
 
         $team = Team::with('sport')
-            ->where('coach_id', $coach->id)
-            ->orWhere('assistant_coach_id', $coach->id)
+            ->forCoach($coach->id)
             ->first();
 
         if (!$team) {

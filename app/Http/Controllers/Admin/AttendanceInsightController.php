@@ -55,8 +55,7 @@ class AttendanceInsightController extends Controller
         if (!empty($selected['coach_id'])) {
             $coachId = (int) $selected['coach_id'];
             $scheduleQuery->whereHas('team', function ($q) use ($coachId) {
-                $q->where('coach_id', $coachId)
-                    ->orWhere('assistant_coach_id', $coachId);
+                $q->forCoach($coachId);
             });
         }
 

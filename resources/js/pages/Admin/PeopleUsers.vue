@@ -9,7 +9,7 @@ defineOptions({
 });
 
 type RoleFilter = 'all' | 'student-athlete' | 'coach';
-type UserStatusFilter = 'approved' | 'deactivated';
+type UserStatusFilter = 'active' | 'deactivated';
 type SortField = 'name' | 'email' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 type SortOption = `${SortField}:${SortDirection}`;
@@ -17,9 +17,10 @@ type SortOption = `${SortField}:${SortDirection}`;
 type StudentInfo = {
     student_id_number: string | null;
     course_or_strand: string | null;
-    education_level: string | null;
     current_grade_level: string | null;
+    academic_level_label: string | null;
     student_status: string | null;
+    approval_status: string | null;
     phone_number: string | null;
     emergency_contact_name: string | null;
     emergency_contact_relationship: string | null;
@@ -125,9 +126,9 @@ const reactivateTarget = ref<UserRow | null>(null);
 const actionLoadingId = ref<number | null>(null);
 const search = ref(props.filters?.search ?? '');
 const roleFilter = ref<RoleFilter>(props.filters?.role ?? 'all');
-const statusFilter = ref<UserStatusFilter>(props.filters?.status ?? 'approved');
+const statusFilter = ref<UserStatusFilter>(props.filters?.status ?? 'active');
 const sortOption = ref<SortOption>(`${props.filters?.sort ?? 'created_at'}:${props.filters?.direction ?? 'desc'}` as SortOption);
-const topTab = ref<'approved' | 'queue'>('approved');
+const topTab = ref<'active' | 'queue'>('active');
 const createCoachOpen = ref(false);
 const createCoachFeedback = ref<string | null>(null);
 const adminInviteOpen = ref(false);
@@ -167,7 +168,7 @@ const totalCoaches = computed(() => props.totals?.coaches ?? 0);
 const totalDeactivated = computed(() => props.totals?.deactivated ?? 0);
 const filteredTotal = computed(() => props.totals?.filtered ?? props.users.total);
 const hasActiveFilters = computed(
-    () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'approved' || sortOption.value !== defaultSort,
+    () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'active' || sortOption.value !== defaultSort,
 );
 const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
 const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || adminInviteOpen.value));
@@ -384,7 +385,7 @@ function visitPage(url: string | null) {
 function resetAllFilters() {
     search.value = '';
     roleFilter.value = 'all';
-    statusFilter.value = 'approved';
+    statusFilter.value = 'active';
     sortOption.value = defaultSort;
     applyFilters({ resetPage: true });
 }
@@ -434,7 +435,7 @@ function profileCompleteness(user: UserRow) {
         const fields = [
             user.student.student_id_number,
             user.student.course_or_strand,
-            user.student.current_grade_level,
+            user.student.academic_level_label ?? user.student.current_grade_level,
             user.student.phone_number,
             user.student.date_of_birth,
             user.student.gender,
@@ -582,16 +583,16 @@ watch(
             <div class="relative inline-grid grid-cols-2 items-center rounded-full border border-[#034485]/45 bg-white p-1">
                 <span
                     class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#1f2937] transition-transform duration-200 ease-out"
-                    :class="topTab === 'approved' ? 'translate-x-0' : 'translate-x-full'"
+                    :class="topTab === 'active' ? 'translate-x-0' : 'translate-x-full'"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
                     class="relative z-10 w-full justify-center rounded-full px-4 py-1.5 text-xs font-semibold transition"
-                    :class="topTab === 'approved' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                     aria-current="page"
                 >
-                    Approved Users
+                    Active Users
                 </button>
                 <button
                     type="button"
@@ -655,16 +656,16 @@ watch(
             <div class="relative mb-3 inline-flex items-center rounded-full border border-[#034485]/45 bg-white p-1">
                 <span
                     class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full transition-transform duration-200 ease-out"
-                    :class="statusFilter === 'approved' ? 'translate-x-0 bg-[#1f2937]' : 'translate-x-full bg-amber-600'"
+                    :class="statusFilter === 'active' ? 'translate-x-0 bg-[#1f2937]' : 'translate-x-full bg-amber-600'"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
-                    @click="statusFilter = 'approved'"
+                    @click="statusFilter = 'active'"
                     class="relative z-10 rounded-full px-4 py-1.5 text-xs font-semibold transition"
-                    :class="statusFilter === 'approved' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="statusFilter === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                 >
-                    Approved
+                    Active
                 </button>
                 <button
                     type="button"
@@ -763,7 +764,7 @@ watch(
                                 <td class="px-4 py-3">
                                     <span
                                         class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :class="user.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                        :class="user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
                                     >
                                         {{ user.status }}
                                     </span>
@@ -801,7 +802,7 @@ watch(
                                             Regenerate Credentials
                                         </button>
                                         <button
-                                            v-if="user.status === 'approved'"
+                                            v-if="user.status === 'active'"
                                             type="button"
                                             @click="openDeactivateDialog(user)"
                                             :disabled="actionLoadingId === user.id"
@@ -1173,7 +1174,7 @@ watch(
                             </span>
                             <span
                                 class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                                :class="selectedUser.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                                :class="selectedUser.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
                             >
                                 {{ selectedUser.status }}
                             </span>
@@ -1251,11 +1252,11 @@ watch(
                             <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <p><span class="font-medium">Student ID:</span> {{ selectedUser.student.student_id_number || '-' }}</p>
                                 <p><span class="font-medium">Course/Strand:</span> {{ formatSimple(selectedUser.student.course_or_strand) }}</p>
-                                <p><span class="font-medium">Education Level:</span> {{ formatSimple(selectedUser.student.education_level) }}</p>
                                 <p>
-                                    <span class="font-medium">Current Grade Level:</span> {{ formatSimple(selectedUser.student.current_grade_level) }}
+                                    <span class="font-medium">Academic Level:</span> {{ formatSimple(selectedUser.student.academic_level_label) }}
                                 </p>
-                                <p><span class="font-medium">Status:</span> {{ formatSimple(selectedUser.student.student_status) }}</p>
+                                <p><span class="font-medium">Enrollment Status:</span> {{ formatSimple(selectedUser.student.student_status) }}</p>
+                                <p><span class="font-medium">Approval Status:</span> {{ formatSimple(selectedUser.student.approval_status) }}</p>
                                 <p><span class="font-medium">Phone:</span> {{ formatSimple(selectedUser.student.phone_number) }}</p>
                                 <p><span class="font-medium">Gender:</span> {{ formatSimple(selectedUser.student.gender) }}</p>
                                 <p><span class="font-medium">Birth Date:</span> {{ formatDate(selectedUser.student.date_of_birth) }}</p>

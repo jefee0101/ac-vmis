@@ -16,8 +16,8 @@ type QueueUser = {
     id: number;
     name: string;
     email: string;
-    role: 'student-athlete' | 'student' | 'coach';
-    status: 'pending' | 'approved' | 'rejected';
+    role: 'student-athlete' | 'student';
+    status: 'pending' | 'rejected';
     created_at: string | null;
     student?: {
         id: number;
@@ -26,6 +26,7 @@ type QueueUser = {
         last_name: string | null;
         course_or_strand: string | null;
         current_grade_level: string | null;
+        academic_level_label?: string | null;
         latest_health_clearance?: {
             id: number;
             clearance_status: string | null;
@@ -37,12 +38,6 @@ type QueueUser = {
             document_type: string | null;
             uploaded_at: string | null;
         } | null;
-    } | null;
-    coach?: {
-        id: number;
-        first_name: string | null;
-        last_name: string | null;
-        coach_status: string | null;
     } | null;
 };
 
@@ -93,7 +88,7 @@ const rejectingId = ref<number | null>(null);
 const approveTarget = ref<QueueUser | null>(null);
 const rejectTarget = ref<QueueUser | null>(null);
 const rejectRemarks = ref('');
-const topTab = ref<'approved' | 'queue'>('queue');
+const topTab = ref<'active' | 'queue'>('queue');
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 let topTabTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -159,8 +154,8 @@ watch(sort, () => {
 });
 
 function goToUserManagement() {
-    if (topTab.value === 'approved') return;
-    topTab.value = 'approved';
+    if (topTab.value === 'active') return;
+    topTab.value = 'active';
     if (topTabTimeout) clearTimeout(topTabTimeout);
     topTabTimeout = setTimeout(() => {
         router.get('/people');
@@ -177,19 +172,11 @@ function visitPage(url: string | null) {
     });
 }
 
-function isStudentRole(user: QueueUser) {
-    return user.role === 'student-athlete' || user.role === 'student';
-}
-
 function hasRequirements(user: QueueUser) {
-    if (!isStudentRole(user)) return true;
-
     return Boolean(user.student?.latest_health_clearance) && Boolean(user.student?.latest_academic_document);
 }
 
 function requirementIssues(user: QueueUser) {
-    if (!isStudentRole(user)) return [];
-
     const issues: string[] = [];
 
     if (!user.student?.latest_health_clearance) {
@@ -312,16 +299,16 @@ function rejectUser() {
             <div class="relative inline-grid grid-cols-2 items-center rounded-full border border-[#034485]/45 bg-white p-1">
                 <span
                     class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-[#1f2937] transition-transform duration-200 ease-out"
-                    :class="topTab === 'approved' ? 'translate-x-0' : 'translate-x-full'"
+                    :class="topTab === 'active' ? 'translate-x-0' : 'translate-x-full'"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
                     @click="goToUserManagement"
                     class="relative z-10 w-full justify-center rounded-full px-4 py-1.5 text-xs font-semibold transition"
-                    :class="topTab === 'approved' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    :class="topTab === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
                 >
-                    Approved Users
+                    Active Users
                 </button>
                 <button
                     type="button"
@@ -463,43 +450,40 @@ function rejectUser() {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <template v-if="isStudentRole(user)">
-                                        <div class="space-y-1 text-xs">
-                                            <p :class="user.student?.latest_health_clearance ? 'text-emerald-700' : 'text-amber-700'">
-                                                {{
-                                                    user.student?.latest_health_clearance
-                                                        ? `Health: ${formatClearanceStatus(user.student.latest_health_clearance.clearance_status)}`
-                                                        : 'Health: Missing'
-                                                }}
-                                            </p>
-                                            <p :class="user.student?.latest_academic_document ? 'text-emerald-700' : 'text-amber-700'">
-                                                {{
-                                                    user.student?.latest_academic_document
-                                                        ? `Academic: ${formatDocumentType(user.student.latest_academic_document.document_type)}`
-                                                        : 'Academic: Missing'
-                                                }}
-                                            </p>
-                                            <div class="flex flex-wrap gap-2 pt-1">
-                                                <a
-                                                    v-if="clearanceFileUrl(user.student?.latest_health_clearance?.id)"
-                                                    :href="clearanceFileUrl(user.student?.latest_health_clearance?.id)!"
-                                                    target="_blank"
-                                                    class="text-[11px] font-semibold text-[#1f2937] hover:underline"
-                                                >
-                                                    View Clearance
-                                                </a>
-                                                <a
-                                                    v-if="academicFileUrl(user.student?.latest_academic_document?.id)"
-                                                    :href="academicFileUrl(user.student?.latest_academic_document?.id)!"
-                                                    target="_blank"
-                                                    class="text-[11px] font-semibold text-[#1f2937] hover:underline"
-                                                >
-                                                    View Academic
-                                                </a>
-                                            </div>
+                                    <div class="space-y-1 text-xs">
+                                        <p :class="user.student?.latest_health_clearance ? 'text-emerald-700' : 'text-amber-700'">
+                                            {{
+                                                user.student?.latest_health_clearance
+                                                    ? `Health: ${formatClearanceStatus(user.student.latest_health_clearance.clearance_status)}`
+                                                    : 'Health: Missing'
+                                            }}
+                                        </p>
+                                        <p :class="user.student?.latest_academic_document ? 'text-emerald-700' : 'text-amber-700'">
+                                            {{
+                                                user.student?.latest_academic_document
+                                                    ? `Academic: ${formatDocumentType(user.student.latest_academic_document.document_type)}`
+                                                    : 'Academic: Missing'
+                                            }}
+                                        </p>
+                                        <div class="flex flex-wrap gap-2 pt-1">
+                                            <a
+                                                v-if="clearanceFileUrl(user.student?.latest_health_clearance?.id)"
+                                                :href="clearanceFileUrl(user.student?.latest_health_clearance?.id)!"
+                                                target="_blank"
+                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                            >
+                                                View Clearance
+                                            </a>
+                                            <a
+                                                v-if="academicFileUrl(user.student?.latest_academic_document?.id)"
+                                                :href="academicFileUrl(user.student?.latest_academic_document?.id)!"
+                                                target="_blank"
+                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                            >
+                                                View Academic
+                                            </a>
                                         </div>
-                                    </template>
-                                    <p v-else class="text-xs text-slate-500">Coach accounts are approval-ready.</p>
+                                    </div>
                                 </td>
                                 <td class="px-4 py-3">
                                     <div v-if="!isRejectedView" class="flex flex-wrap gap-2">

@@ -139,6 +139,7 @@ class RegisterController extends Controller
         return AcademicDocument::create([
             'student_id' => $student->id,
             'document_type' => $request->academic_document_type,
+            'document_context' => AcademicDocument::CONTEXT_REGISTRATION,
             'academic_period_id' => null,
             'file_path' => $filePath,
             'uploaded_by' => $user->id,
@@ -165,6 +166,7 @@ class RegisterController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'student-athlete',
+            'account_state' => 'active',
             'status' => 'pending',
             'avatar' => $avatarPath,
         ]);
@@ -181,6 +183,7 @@ class RegisterController extends Controller
                 'home_address' => $request->home_address,
                 'course_or_strand' => $request->course_or_strand,
                 'current_grade_level' => $request->current_grade_level,
+                'approval_status' => 'pending',
                 'student_status' => 'Enrolled',
                 'phone_number' => $request->phone_number,
                 'height' => $request->height,
@@ -242,7 +245,8 @@ class RegisterController extends Controller
                     'email' => $request->email,
                     'password' => Hash::make($request->password),
                     'role' => 'coach',
-                    'status' => 'pending',
+                    'account_state' => 'active',
+                    'status' => 'approved',
                     'avatar' => $avatarPath,
                 ]);
 
@@ -259,14 +263,7 @@ class RegisterController extends Controller
                 return $user;
             });
 
-            $this->sendPendingApprovalMail($user);
-            $this->notifyAdminsOfPendingAccount($user);
-
-
-            // --- Redirect with success ---
-            return inertia('Status/PendingApproval', [
-                'successMessage' => 'Coach registered successfully.'
-            ]);
+            return redirect('/Login')->with('success', 'Coach registered successfully. You may now sign in.');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()])->withInput();
         }
@@ -298,8 +295,12 @@ class RegisterController extends Controller
 
     private function notifyAdminsOfPendingAccount(User $user): void
     {
+        if (!$user->requiresStudentApproval()) {
+            return;
+        }
+
         $adminUserIds = User::query()
-            ->where('status', 'approved')
+            ->where('account_state', 'active')
             ->where('role', 'admin')
             ->pluck('id')
             ->all();

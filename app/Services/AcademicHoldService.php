@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AcademicHold;
 use App\Models\AcademicPeriod;
 use App\Models\AcademicDocument;
 use App\Models\Student;
@@ -28,8 +29,11 @@ class AcademicHoldService
         }
 
         $status = null;
+        $reason = null;
+        $sourcePeriodId = $hasActiveWindow ? (int) ($openPeriodIds->sortDesc()->first() ?? 0) : null;
         if ($hasActiveWindow && !$hasSubmittedAll) {
             $status = $hasTeam ? 'Suspended' : 'Unenrolled';
+            $reason = 'missing_submissions';
         }
 
         return [
@@ -37,22 +41,42 @@ class AcademicHoldService
             'hasTeam' => $hasTeam,
             'hasSubmittedAll' => $hasSubmittedAll,
             'status' => $status,
+            'reason' => $reason,
+            'source_period_id' => $sourcePeriodId ?: null,
         ];
     }
 
     public function syncStudentStatus(Student $student): array
     {
         $state = $this->evaluate($student);
+        $openHold = AcademicHold::query()
+            ->where('student_id', $student->id)
+            ->whereIn('status', ['suspended', 'unenrolled'])
+            ->orderByDesc('started_at')
+            ->first();
 
         if ($state['hasActiveWindow'] && !$state['hasSubmittedAll']) {
-            $target = $state['status'];
-            if ($target && !in_array($student->student_status, ['Dropped', 'Graduated'], true) && $student->student_status !== $target) {
-                $student->update(['student_status' => $target]);
+            $target = strtolower((string) ($state['status'] ?? ''));
+
+            if ($target !== '') {
+                AcademicHold::query()->updateOrCreate(
+                    [
+                        'student_id' => $student->id,
+                        'source_period_id' => $state['source_period_id'],
+                        'status' => $target,
+                        'resolved_at' => null,
+                    ],
+                    [
+                        'reason' => $state['reason'] ?? 'missing_submissions',
+                        'started_at' => $openHold?->started_at ?? now(),
+                    ]
+                );
             }
-        } else {
-            if (in_array($student->student_status, ['Suspended', 'Unenrolled'], true)) {
-                $student->update(['student_status' => 'Enrolled']);
-            }
+        } elseif ($openHold) {
+            $openHold->update([
+                'status' => 'resolved',
+                'resolved_at' => now(),
+            ]);
         }
 
         return $state;

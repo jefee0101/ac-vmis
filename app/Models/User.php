@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\AnnouncementEvent;
 use App\Models\Coach;
 use App\Models\Student;
 use App\Models\Team;
@@ -24,6 +25,7 @@ class User extends Authenticatable
         'password',
         'must_change_password',
         'role',
+        'account_state',
         'status',
         'avatar', // added avatar
     ];
@@ -31,6 +33,8 @@ class User extends Authenticatable
     protected $appends = [
         'full_name',
         'name',
+        'account_state',
+        'approval_status',
     ];
 
     protected $hidden = [
@@ -62,6 +66,47 @@ class User extends Authenticatable
         return $this->full_name;
     }
 
+    public function getAccountStateAttribute(): string
+    {
+        $raw = $this->attributes['account_state'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            return $raw;
+        }
+
+        return ($this->attributes['status'] ?? null) === 'deactivated'
+            ? 'deactivated'
+            : 'active';
+    }
+
+    public function getApprovalStatusAttribute(): ?string
+    {
+        if (!in_array($this->role, ['student', 'student-athlete'], true)) {
+            return null;
+        }
+
+        $studentApproval = $this->student?->getAttribute('approval_status');
+        if (is_string($studentApproval) && $studentApproval !== '') {
+            return $studentApproval;
+        }
+
+        $legacyStatus = (string) ($this->attributes['status'] ?? '');
+        if (in_array($legacyStatus, ['pending', 'approved', 'rejected'], true)) {
+            return $legacyStatus;
+        }
+
+        return 'pending';
+    }
+
+    public function isActiveAccount(): bool
+    {
+        return $this->account_state === 'active';
+    }
+
+    public function requiresStudentApproval(): bool
+    {
+        return in_array($this->role, ['student', 'student-athlete'], true);
+    }
+
     /**
      * Relation to Student
      */
@@ -89,8 +134,8 @@ class User extends Authenticatable
                 return collect();
             }
 
-            return Team::where('coach_id', $coachId)
-                ->orWhere('assistant_coach_id', $coachId)
+            return Team::query()
+                ->forCoach($coachId)
                 ->get();
         } elseif ($this->role === 'student' || $this->role === 'student-athlete') {
             return Team::whereHas('players', function ($q) {
@@ -137,7 +182,7 @@ class User extends Authenticatable
 
     public function createdAnnouncements()
     {
-        return $this->hasMany(Announcement::class, 'created_by');
+        return $this->hasMany(AnnouncementEvent::class, 'created_by');
     }
 
     public function settings()
