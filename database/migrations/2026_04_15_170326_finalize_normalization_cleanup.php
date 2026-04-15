@@ -9,6 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $driver = Schema::getConnection()->getDriverName();
+
         if (Schema::hasTable('academic_eligibility_evaluations') && !Schema::hasColumn('academic_eligibility_evaluations', 'document_id')) {
             Schema::table('academic_eligibility_evaluations', function (Blueprint $table) {
                 $table->foreignId('document_id')
@@ -41,12 +43,40 @@ return new class extends Migration
             ->whereIn('student_status', ['Suspended', 'Unenrolled'])
             ->update(['student_status' => 'Enrolled']);
 
-        DB::statement("ALTER TABLE students MODIFY student_status ENUM('Enrolled','Dropped','Graduated') NOT NULL DEFAULT 'Enrolled'");
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE students MODIFY student_status ENUM('Enrolled','Dropped','Graduated') NOT NULL DEFAULT 'Enrolled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("
+                ALTER TABLE students
+                DROP CONSTRAINT IF EXISTS students_student_status_check
+            ");
+
+            DB::statement("
+                ALTER TABLE students
+                ADD CONSTRAINT students_student_status_check
+                CHECK (student_status IN ('Enrolled', 'Dropped', 'Graduated'))
+            ");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE students MODIFY student_status ENUM('Enrolled','Dropped','Graduated','Suspended','Unenrolled') NOT NULL DEFAULT 'Enrolled'");
+        $driver = Schema::getConnection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement("ALTER TABLE students MODIFY student_status ENUM('Enrolled','Dropped','Graduated','Suspended','Unenrolled') NOT NULL DEFAULT 'Enrolled'");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("
+                ALTER TABLE students
+                DROP CONSTRAINT IF EXISTS students_student_status_check
+            ");
+
+            DB::statement("
+                ALTER TABLE students
+                ADD CONSTRAINT students_student_status_check
+                CHECK (student_status IN ('Enrolled', 'Dropped', 'Graduated', 'Suspended', 'Unenrolled'))
+            ");
+        }
 
         if (!Schema::hasTable('announcements')) {
             Schema::create('announcements', function (Blueprint $table) {
