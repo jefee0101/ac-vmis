@@ -24,6 +24,7 @@ return [
 
     'brevo' => [
         'key' => env('BREVO_API_KEY'),
+        'timeout' => (int) env('MAIL_TIMEOUT', 15),
     ],
 
     'ses' => [

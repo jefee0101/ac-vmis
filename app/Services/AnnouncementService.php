@@ -186,9 +186,8 @@ class AnnouncementService
                     'exception' => $e::class,
                     'error' => $e->getMessage(),
                     'code' => $e->getCode(),
-                    'mail_host' => config('mail.mailers.smtp.host'),
-                    'mail_port' => config('mail.mailers.smtp.port'),
-                    'mail_scheme' => config('mail.mailers.smtp.scheme'),
+                    'mail_provider' => 'brevo_api',
+                    'mail_timeout' => config('services.brevo.timeout'),
                 ]);
             }
         });

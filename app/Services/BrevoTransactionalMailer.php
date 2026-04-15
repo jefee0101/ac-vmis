@@ -39,7 +39,7 @@ class BrevoTransactionalMailer
             'textContent' => $text !== '' ? $text : Str::limit($subject, 1000),
         ];
 
-        $response = Http::timeout((int) config('mail.mailers.smtp.timeout', 15))
+        $response = Http::timeout((int) config('services.brevo.timeout', 15))
             ->withToken($apiKey)
             ->acceptJson()
             ->post('https://api.brevo.com/v3/smtp/email', $payload);
