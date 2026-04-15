@@ -7,10 +7,13 @@ use App\Models\Announcement;
 use App\Models\AnnouncementEvent;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class AnnouncementService
 {
+    public function __construct(private BrevoTransactionalMailer $mailer)
+    {
+    }
+
     /**
      * @var array<int, string>
      */
@@ -168,13 +171,13 @@ class AnnouncementService
 
         app()->terminating(function () use ($user, $title, $message, $type) {
             try {
-                Mail::to($user->email)->send(new AnnouncementNotificationMail(
+                $this->mailer->sendMailable($user->email, new AnnouncementNotificationMail(
                     $user,
                     $title,
                     $message,
                     Announcement::labelForType($type),
                     url('/announcements'),
-                ));
+                ), $user->name);
             } catch (\Throwable $e) {
                 Log::error('Announcement email failed.', [
                     'user_id' => $user->id,

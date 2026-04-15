@@ -2,7 +2,6 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Mail\AccountPendingApprovalMail;
 use App\Models\AcademicDocument;
@@ -10,6 +9,7 @@ use App\Models\AthleteHealthClearance;
 use App\Models\User;
 use App\Models\Team;
 use App\Models\WellnessAttachment;
+use App\Services\BrevoTransactionalMailer;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -26,7 +26,7 @@ Artisan::command('mail:test-pending {email} {--name=Test User}', function (strin
     ]);
 
     try {
-        Mail::to($email)->send(new AccountPendingApprovalMail($user));
+        app(BrevoTransactionalMailer::class)->sendMailable($email, new AccountPendingApprovalMail($user), $name);
         $this->info("Pending approval test email sent to {$email}");
     } catch (\Throwable $e) {
         $this->error('Failed to send test email.');

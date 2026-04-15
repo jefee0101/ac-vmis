@@ -17,6 +17,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\AnnouncementService;
+use App\Services\BrevoTransactionalMailer;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
@@ -26,7 +27,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -35,7 +35,10 @@ use Inertia\Inertia;
 
 class AdminController extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(
+        private AnnouncementService $announcements,
+        private BrevoTransactionalMailer $mailer,
+    )
     {
     }
 
@@ -666,7 +669,7 @@ class AdminController extends Controller
 
         app()->terminating(function () use ($invite, $request, $acceptUrl) {
             try {
-                Mail::to($invite->email)->send(new AdminInviteMail($invite, $request->user(), $acceptUrl));
+                $this->mailer->sendMailable($invite->email, new AdminInviteMail($invite, $request->user(), $acceptUrl), $invite->email);
             } catch (\Throwable $e) {
                 Log::error('Admin invite email failed.', [
                     'invite_id' => $invite->id,
@@ -877,7 +880,7 @@ class AdminController extends Controller
 
         $emailSent = true;
         try {
-            Mail::to($newUser->email)->send(new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl));
+            $this->mailer->sendMailable($newUser->email, new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl), $newUser->name);
         } catch (\Throwable $e) {
             $emailSent = false;
             Log::error('Coach onboarding email failed.', [
@@ -944,7 +947,7 @@ class AdminController extends Controller
 
         $emailSent = true;
         try {
-            Mail::to($user->email)->send(new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl));
+            $this->mailer->sendMailable($user->email, new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl), $user->name);
         } catch (\Throwable $e) {
             $emailSent = false;
             Log::error('Coach onboarding regeneration email failed.', [
@@ -1746,7 +1749,7 @@ class AdminController extends Controller
 
         app()->terminating(function () use ($user, $mailable) {
             try {
-                Mail::to($user->email)->send($mailable);
+                $this->mailer->sendMailable($user->email, $mailable, $user->name);
             } catch (\Throwable $e) {
                 Log::error('Account status email failed.', [
                     'user_id' => $user->id,

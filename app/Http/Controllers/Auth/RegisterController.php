@@ -12,12 +12,12 @@ use App\Models\Coach;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AnnouncementService;
+use App\Services\BrevoTransactionalMailer;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class RegisterController extends Controller
 {
@@ -34,6 +34,7 @@ class RegisterController extends Controller
     public function __construct(
         private SecureUploadService $secureUpload,
         private AnnouncementService $announcements,
+        private BrevoTransactionalMailer $mailer,
     ) {
     }
 
@@ -278,7 +279,7 @@ class RegisterController extends Controller
 
         app()->terminating(function () use ($user) {
             try {
-                Mail::to($user->email)->send(new AccountPendingApprovalMail($user));
+                $this->mailer->sendMailable($user->email, new AccountPendingApprovalMail($user), $user->name);
             } catch (\Throwable $e) {
                 Log::error('Pending approval email failed.', [
                     'user_id' => $user->id,
