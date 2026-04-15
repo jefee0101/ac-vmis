@@ -9,6 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $driver = Schema::getConnection()->getDriverName();
+
         if (!Schema::hasTable('academic_document_types')) {
             Schema::create('academic_document_types', function (Blueprint $table) {
                 $table->id();
@@ -60,7 +62,11 @@ return new class extends Migration
         $this->ensureIndex('academic_documents', 'academic_documents_student_fk_idx', 'CREATE INDEX academic_documents_student_fk_idx ON academic_documents (student_id)');
         $this->ensureIndex('academic_documents', 'academic_documents_period_fk_idx', 'CREATE INDEX academic_documents_period_fk_idx ON academic_documents (academic_period_id)');
 
-        DB::statement('ALTER TABLE academic_documents MODIFY document_type_id BIGINT UNSIGNED NOT NULL');
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            DB::statement('ALTER TABLE academic_documents MODIFY document_type_id BIGINT UNSIGNED NOT NULL');
+        } elseif ($driver === 'pgsql') {
+            DB::statement('ALTER TABLE academic_documents ALTER COLUMN document_type_id SET NOT NULL');
+        }
 
         $this->dropIndexIfExists('academic_documents', 'academic_documents_student_type_index');
         $this->dropIndexIfExists('academic_documents', 'academic_documents_period_type_index');
@@ -113,8 +119,18 @@ return new class extends Migration
 
     private function ensureIndex(string $table, string $indexName, string $statement): void
     {
-        $exists = collect(DB::select("SHOW INDEX FROM `{$table}`"))
-            ->contains(fn ($row) => ($row->Key_name ?? null) === $indexName);
+        $driver = Schema::getConnection()->getDriverName();
+        $exists = false;
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $exists = collect(DB::select("SHOW INDEX FROM `{$table}`"))
+                ->contains(fn ($row) => ($row->Key_name ?? null) === $indexName);
+        } elseif ($driver === 'pgsql') {
+            $exists = !empty(DB::select(
+                "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ? LIMIT 1",
+                [$table, $indexName]
+            ));
+        }
 
         if (!$exists) {
             DB::statement($statement);
@@ -123,11 +139,25 @@ return new class extends Migration
 
     private function dropIndexIfExists(string $table, string $indexName): void
     {
-        $exists = collect(DB::select("SHOW INDEX FROM `{$table}`"))
-            ->contains(fn ($row) => ($row->Key_name ?? null) === $indexName);
+        $driver = Schema::getConnection()->getDriverName();
+        $exists = false;
+
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            $exists = collect(DB::select("SHOW INDEX FROM `{$table}`"))
+                ->contains(fn ($row) => ($row->Key_name ?? null) === $indexName);
+        } elseif ($driver === 'pgsql') {
+            $exists = !empty(DB::select(
+                "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ? LIMIT 1",
+                [$table, $indexName]
+            ));
+        }
 
         if ($exists) {
-            DB::statement("DROP INDEX `{$indexName}` ON `{$table}`");
+            if (in_array($driver, ['mysql', 'mariadb'], true)) {
+                DB::statement("DROP INDEX `{$indexName}` ON `{$table}`");
+            } elseif ($driver === 'pgsql') {
+                DB::statement("DROP INDEX IF EXISTS {$indexName}");
+            }
         }
     }
 };
