@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\AcademicEligibilityAccessService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class RestrictIneligibleStudentAccess
@@ -21,7 +22,18 @@ class RestrictIneligibleStudentAccess
             return $next($request);
         }
 
-        $state = $this->eligibilityAccess->evaluate($user->student);
+        try {
+            $state = $this->eligibilityAccess->evaluate($user->student);
+        } catch (\Throwable $e) {
+            Log::warning('Academic eligibility gate failed.', [
+                'user_id' => $user->id,
+                'student_id' => $user->student?->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return $next($request);
+        }
+
         if (!$state['is_restricted']) {
             return $next($request);
         }

@@ -62,12 +62,26 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
                 'identity' => fn () => $request->user()
-                    ? [
-                        'name' => $request->user()->name,
-                        'subtitle' => in_array($request->user()->role, ['student', 'student-athlete'], true)
-                            ? $request->user()->student()?->value('student_status')
-                            : null,
-                    ]
+                    ? (function () use ($request) {
+                        try {
+                            return [
+                                'name' => $request->user()->name,
+                                'subtitle' => in_array($request->user()->role, ['student', 'student-athlete'], true)
+                                    ? $request->user()->student()?->value('student_status')
+                                    : null,
+                            ];
+                        } catch (\Throwable $e) {
+                            Log::warning('Identity share payload failed.', [
+                                'user_id' => $request->user()?->id,
+                                'message' => $e->getMessage(),
+                            ]);
+
+                            return [
+                                'name' => $request->user()->name,
+                                'subtitle' => null,
+                            ];
+                        }
+                    })()
                     : null,
                 'settings' => [
                     'theme_preference' => fn () => $request->user()
@@ -78,14 +92,25 @@ class HandleInertiaRequests extends Middleware
                 ],
                 'announcements' => [
                     'unread_count' => fn () => $request->user()
-                        ? Cache::remember(
-                            'announcements:unread:' . $request->user()->id,
-                            now()->addSeconds(60),
-                            fn () => Announcement::query()
-                                ->where('user_id', $request->user()->id)
-                                ->whereNull('read_at')
-                                ->count()
-                        )
+                        ? (function () use ($request) {
+                            try {
+                                return Cache::remember(
+                                    'announcements:unread:' . $request->user()->id,
+                                    now()->addSeconds(60),
+                                    fn () => Announcement::query()
+                                        ->where('user_id', $request->user()->id)
+                                        ->whereNull('read_at')
+                                        ->count()
+                                );
+                            } catch (\Throwable $e) {
+                                Log::warning('Announcement unread count share payload failed.', [
+                                    'user_id' => $request->user()?->id,
+                                    'message' => $e->getMessage(),
+                                ]);
+
+                                return 0;
+                            }
+                        })()
                         : 0,
                 ],
                 'admin_notifications' => fn () => $request->user() && $request->user()->role === 'admin'
@@ -215,119 +240,133 @@ class HandleInertiaRequests extends Middleware
                         'coach:notifications:' . $request->user()->id,
                         now()->addSeconds(60),
                         function () use ($request) {
-                            $coach = $request->user()?->coach;
-                            if (!$coach) {
-                                return null;
-                            }
+                            try {
+                                $coach = $request->user()?->coach;
+                                if (!$coach) {
+                                    return null;
+                                }
 
-                            $now = now();
-                            $teamIds = Team::query()
-                                ->forCoach($coach->id)
-                                ->pluck('id')
-                                ->all();
+                                $now = now();
+                                $teamIds = Team::query()
+                                    ->forCoach($coach->id)
+                                    ->pluck('id')
+                                    ->all();
 
-                            if (empty($teamIds)) {
+                                if (empty($teamIds)) {
+                                    return [
+                                        'total' => 0,
+                                        'items' => [],
+                                        'recent' => [],
+                                    ];
+                                }
+
+                                $studentIds = TeamPlayer::query()
+                                    ->whereIn('team_id', $teamIds)
+                                    ->pluck('student_id')
+                                    ->unique()
+                                    ->values()
+                                    ->all();
+
+                                $academicPeriodId = AcademicPeriod::query()
+                                    ->open()
+                                    ->orderByDesc('starts_on')
+                                    ->value('id');
+
+                                $studentSubmissions = $academicPeriodId
+                                    ? AcademicDocument::query()
+                                        ->where('academic_period_id', $academicPeriodId)
+                                        ->whereIn('student_id', $studentIds)
+                                        ->count()
+                                    : 0;
+
+                                $recentWindow = (clone $now)->subDays(30);
+                                $teamCreated = Team::query()
+                                    ->whereIn('id', $teamIds)
+                                    ->whereDate('created_at', '>=', $recentWindow->toDateString())
+                                    ->count();
+
+                                $rosterWindow = (clone $now)->subDays(14);
+                                $playerAdds = TeamPlayer::query()
+                                    ->whereIn('team_id', $teamIds)
+                                    ->whereDate('created_at', '>=', $rosterWindow->toDateString())
+                                    ->count();
+
+                                $assistantAdds = TeamStaffAssignment::query()
+                                    ->whereIn('team_id', $teamIds)
+                                    ->where('role', TeamStaffAssignment::ROLE_ASSISTANT)
+                                    ->whereDate('created_at', '>=', $rosterWindow->toDateString())
+                                    ->count();
+
+                                $statusWindow = (clone $now)->subDays(7);
+                                $statusUpdates = ScheduleAttendance::query()
+                                    ->whereHas('schedule', fn ($q) => $q->whereIn('team_id', $teamIds))
+                                    ->whereDate('updated_at', '>=', $statusWindow->toDateString())
+                                    ->count();
+
+                                $items = [
+                                    [
+                                        'key' => 'student_submissions',
+                                        'label' => 'Student submissions',
+                                        'count' => $studentSubmissions,
+                                        'href' => '/coach/academics',
+                                    ],
+                                    [
+                                        'key' => 'team_created',
+                                        'label' => 'Team created for coach',
+                                        'count' => $teamCreated,
+                                        'href' => '/coach/team',
+                                    ],
+                                    [
+                                        'key' => 'roster_updates',
+                                        'label' => 'Roster updates (assistant + players)',
+                                        'count' => $playerAdds + $assistantAdds,
+                                        'href' => '/coach/team',
+                                    ],
+                                    [
+                                        'key' => 'student_status',
+                                        'label' => 'Student status from a schedule',
+                                        'count' => $statusUpdates,
+                                        'href' => '/coach/operations',
+                                    ],
+                                ];
+
+                                return [
+                                    'total' => array_sum(array_map(fn ($item) => (int) $item['count'], $items)),
+                                    'items' => $items,
+                                    'recent' => Announcement::query()
+                                        ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                        ->select('announcement_recipients.*')
+                                        ->where('user_id', $request->user()->id)
+                                        ->orderByDesc('ae.published_at')
+                                        ->orderByDesc('announcement_recipients.id')
+                                        ->limit(6)
+                                        ->with('event')
+                                        ->get()
+                                        ->map(function (Announcement $announcement) {
+                                            return [
+                                                'id' => $announcement->id,
+                                                'title' => $announcement->title,
+                                                'message' => Str::limit((string) $announcement->message, 140),
+                                                'type' => $announcement->type,
+                                                'is_read' => !empty($announcement->read_at),
+                                                'published_at' => $announcement->published_at?->diffForHumans(),
+                                            ];
+                                        })
+                                        ->values(),
+                                ];
+                            } catch (\Throwable $e) {
+                                Log::warning('Coach notifications share payload failed.', [
+                                    'user_id' => $request->user()?->id,
+                                    'coach_id' => $request->user()?->coach?->id,
+                                    'message' => $e->getMessage(),
+                                ]);
+
                                 return [
                                     'total' => 0,
                                     'items' => [],
                                     'recent' => [],
                                 ];
                             }
-
-                            $studentIds = TeamPlayer::query()
-                                ->whereIn('team_id', $teamIds)
-                                ->pluck('student_id')
-                                ->unique()
-                                ->values()
-                                ->all();
-
-                            $academicPeriodId = AcademicPeriod::query()
-                                ->open()
-                                ->orderByDesc('starts_on')
-                                ->value('id');
-
-                            $studentSubmissions = $academicPeriodId
-                                ? AcademicDocument::query()
-                                    ->where('academic_period_id', $academicPeriodId)
-                                    ->whereIn('student_id', $studentIds)
-                                    ->count()
-                                : 0;
-
-                            $recentWindow = (clone $now)->subDays(30);
-                            $teamCreated = Team::query()
-                                ->whereIn('id', $teamIds)
-                                ->whereDate('created_at', '>=', $recentWindow->toDateString())
-                                ->count();
-
-                            $rosterWindow = (clone $now)->subDays(14);
-                            $playerAdds = TeamPlayer::query()
-                                ->whereIn('team_id', $teamIds)
-                                ->whereDate('created_at', '>=', $rosterWindow->toDateString())
-                                ->count();
-
-                            $assistantAdds = TeamStaffAssignment::query()
-                                ->whereIn('team_id', $teamIds)
-                                ->where('role', TeamStaffAssignment::ROLE_ASSISTANT)
-                                ->whereDate('created_at', '>=', $rosterWindow->toDateString())
-                                ->count();
-
-                            $statusWindow = (clone $now)->subDays(7);
-                            $statusUpdates = ScheduleAttendance::query()
-                                ->whereHas('schedule', fn ($q) => $q->whereIn('team_id', $teamIds))
-                                ->whereDate('updated_at', '>=', $statusWindow->toDateString())
-                                ->count();
-
-                            $items = [
-                                [
-                                    'key' => 'student_submissions',
-                                    'label' => 'Student submissions',
-                                    'count' => $studentSubmissions,
-                                    'href' => '/coach/academics',
-                                ],
-                                [
-                                    'key' => 'team_created',
-                                    'label' => 'Team created for coach',
-                                    'count' => $teamCreated,
-                                    'href' => '/coach/team',
-                                ],
-                                [
-                                    'key' => 'roster_updates',
-                                    'label' => 'Roster updates (assistant + players)',
-                                    'count' => $playerAdds + $assistantAdds,
-                                    'href' => '/coach/team',
-                                ],
-                                [
-                                    'key' => 'student_status',
-                                    'label' => 'Student status from a schedule',
-                                    'count' => $statusUpdates,
-                                    'href' => '/coach/operations',
-                                ],
-                            ];
-
-                            return [
-                                'total' => array_sum(array_map(fn ($item) => (int) $item['count'], $items)),
-                                'items' => $items,
-                                'recent' => Announcement::query()
-                                    ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
-                                    ->select('announcement_recipients.*')
-                                    ->where('user_id', $request->user()->id)
-                                    ->orderByDesc('ae.published_at')
-                                    ->orderByDesc('announcement_recipients.id')
-                                    ->limit(6)
-                                    ->with('event')
-                                    ->get()
-                                    ->map(function (Announcement $announcement) {
-                                        return [
-                                            'id' => $announcement->id,
-                                            'title' => $announcement->title,
-                                            'message' => Str::limit((string) $announcement->message, 140),
-                                            'type' => $announcement->type,
-                                            'is_read' => !empty($announcement->read_at),
-                                            'published_at' => $announcement->published_at?->diffForHumans(),
-                                        ];
-                                    })
-                                    ->values(),
-                            ];
                         }
                     )
                     : null,
