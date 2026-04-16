@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
 
@@ -130,6 +130,7 @@ const statusFilter = ref<UserStatusFilter>(props.filters?.status ?? 'active');
 const sortOption = ref<SortOption>(`${props.filters?.sort ?? 'created_at'}:${props.filters?.direction ?? 'desc'}` as SortOption);
 const topTab = ref<'active' | 'queue'>('active');
 const createCoachOpen = ref(false);
+const coachOnboardingOpen = ref(false);
 const createCoachFeedback = ref<string | null>(null);
 const adminInviteOpen = ref(false);
 const adminInviteFeedback = ref<string | null>(null);
@@ -137,6 +138,9 @@ const selectedSportIds = ref<number[]>([]);
 const copiedOnboardingPassword = ref(false);
 const copiedActivationLink = ref(false);
 const onboardingFlash = ref<CoachOnboardingFlash | null>(null);
+const onboardingMode = ref<'created' | 'regenerated'>('created');
+const createCoachPanel = ref<HTMLElement | null>(null);
+const onboardingPanel = ref<HTMLElement | null>(null);
 const page = usePage();
 const createCoachForm = useForm({
     first_name: '',
@@ -171,7 +175,7 @@ const hasActiveFilters = computed(
     () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'active' || sortOption.value !== defaultSort,
 );
 const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
-const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || adminInviteOpen.value));
+const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || coachOnboardingOpen.value || adminInviteOpen.value));
 const sportOptions = computed(() => props.sports ?? []);
 const assignableTeams = computed(() => props.assignableTeams ?? []);
 const filteredAssignableTeams = computed(() => {
@@ -239,6 +243,7 @@ function openInfo(user: UserRow) {
 
 function openCreateCoach() {
     createCoachOpen.value = true;
+    resetCreateCoachViewport();
 }
 
 function openAdminInvite() {
@@ -252,9 +257,41 @@ function closeCreateCoach() {
     createCoachForm.assignment_role = 'assistant';
     createCoachForm.team_ids = [];
     selectedSportIds.value = [];
+    createCoachFeedback.value = null;
     onboardingFlash.value = null;
+    onboardingMode.value = 'created';
     copiedOnboardingPassword.value = false;
     copiedActivationLink.value = false;
+}
+
+function openCoachOnboardingModal(mode: 'created' | 'regenerated') {
+    onboardingMode.value = mode;
+    coachOnboardingOpen.value = true;
+    createCoachOpen.value = false;
+    resetCreateCoachViewport();
+    focusOnboardingPanel();
+}
+
+function closeCoachOnboardingModal() {
+    coachOnboardingOpen.value = false;
+    onboardingFlash.value = null;
+    onboardingMode.value = 'created';
+    copiedOnboardingPassword.value = false;
+    copiedActivationLink.value = false;
+}
+
+function resetCreateCoachViewport() {
+    nextTick(() => {
+        if (!createCoachPanel.value) return;
+        createCoachPanel.value.scrollTop = 0;
+    });
+}
+
+function focusOnboardingPanel() {
+    nextTick(() => {
+        onboardingPanel.value?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        onboardingPanel.value?.focus({ preventScroll: true });
+    });
 }
 
 function closeAdminInvite() {
@@ -297,6 +334,7 @@ function submitCreateCoach() {
         onSuccess: (visit) => {
             const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined;
             onboardingFlash.value = flash ?? null;
+            onboardingMode.value = 'created';
             createCoachFeedback.value = flash
                 ? 'Coach account created. Share the temporary password now. It is shown only once.'
                 : 'Coach account created successfully.';
@@ -306,7 +344,19 @@ function submitCreateCoach() {
             selectedSportIds.value = [];
             copiedOnboardingPassword.value = false;
             copiedActivationLink.value = false;
+            if (flash) {
+                createCoachForm.reset();
+                createCoachForm.assignment_role = 'assistant';
+                createCoachForm.team_ids = [];
+                selectedSportIds.value = [];
+                openCoachOnboardingModal('created');
+                return;
+            }
+            createCoachOpen.value = false;
+        },
+        onError: () => {
             createCoachOpen.value = true;
+            resetCreateCoachViewport();
         },
     });
 }
@@ -350,12 +400,15 @@ function regenerateCoachCredentials(user: UserRow) {
             onSuccess: (visit) => {
                 const flash = (visit.props as any)?.flash?.coach_onboarding as CoachOnboardingFlash | undefined;
                 onboardingFlash.value = flash ?? null;
+                onboardingMode.value = 'regenerated';
                 copiedOnboardingPassword.value = false;
                 copiedActivationLink.value = false;
                 createCoachFeedback.value = flash
                     ? 'Coach credentials regenerated. Share the new temporary password now.'
                     : 'Coach onboarding credentials regenerated.';
-                createCoachOpen.value = true;
+                if (flash) {
+                    openCoachOnboardingModal('regenerated');
+                }
             },
         },
     );
@@ -572,6 +625,9 @@ watch(
         onboardingFlash.value = (value as CoachOnboardingFlash | null) ?? null;
         copiedOnboardingPassword.value = false;
         copiedActivationLink.value = false;
+        if (onboardingFlash.value) {
+            openCoachOnboardingModal(onboardingMode.value);
+        }
     },
     { immediate: true },
 );
@@ -925,6 +981,7 @@ watch(
             @click.self="closeCreateCoach"
         >
             <div
+                ref="createCoachPanel"
                 class="modal-panel my-6 max-h-[calc(100vh-3rem)] w-full max-w-4xl overflow-y-auto rounded-2xl border border-[#034485]/45 bg-white p-6 sm:my-0 sm:p-7"
             >
                 <div class="flex flex-wrap items-start justify-between gap-4">
@@ -952,42 +1009,6 @@ watch(
                             <path d="m6 6 12 12" />
                         </svg>
                     </button>
-                </div>
-
-                <div v-if="onboardingFlash" class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                    <p class="text-sm font-semibold text-emerald-800">New coach onboarding details (show once)</p>
-                    <p class="mt-1 text-xs text-emerald-700">
-                        Email: <span class="font-semibold">{{ onboardingFlash.email }}</span>
-                    </p>
-                    <div class="mt-3 flex flex-wrap items-center gap-2">
-                        <span class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 font-mono text-sm text-emerald-900">
-                            {{ onboardingFlash.temporary_password }}
-                        </span>
-                        <button
-                            type="button"
-                            @click="copyOnboardingPassword"
-                            class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                        >
-                            {{ copiedOnboardingPassword ? 'Copied' : 'Copy Password' }}
-                        </button>
-                    </div>
-                    <div class="mt-2 flex flex-wrap items-center gap-2">
-                        <span class="text-xs text-emerald-700">Activation link:</span>
-                        <button
-                            type="button"
-                            @click="copyActivationLink"
-                            class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
-                        >
-                            {{ copiedActivationLink ? 'Copied Link' : 'Copy Activation Link' }}
-                        </button>
-                    </div>
-                    <p class="mt-2 text-xs" :class="onboardingFlash.email_sent ? 'text-emerald-700' : 'text-amber-700'">
-                        {{
-                            onboardingFlash.email_sent
-                                ? 'Onboarding email sent successfully.'
-                                : 'Email could not be sent. Share this password manually.'
-                        }}
-                    </p>
                 </div>
 
                 <form class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2" @submit.prevent="submitCreateCoach">
@@ -1155,6 +1176,101 @@ watch(
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </Transition>
+
+    <Transition name="modal-fade">
+        <div
+            v-if="coachOnboardingOpen && onboardingFlash"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+            @click.self="closeCoachOnboardingModal"
+        >
+            <div class="modal-panel w-full max-w-xl rounded-2xl border border-emerald-200 bg-white p-6 shadow-2xl sm:p-7">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-semibold text-emerald-800">
+                            {{ onboardingMode === 'regenerated' ? 'Coach credentials regenerated (show once)' : 'New coach onboarding details (show once)' }}
+                        </p>
+                        <p class="mt-1 text-sm text-slate-600">Share these details with the coach now. The temporary password will not be shown again.</p>
+                    </div>
+                    <button
+                        type="button"
+                        @click="closeCoachOnboardingModal"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        aria-label="Close coach onboarding details"
+                    >
+                        <svg
+                            class="h-4 w-4"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div
+                    ref="onboardingPanel"
+                    tabindex="-1"
+                    class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 outline-none ring-0"
+                >
+                    <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Coach Email</p>
+                    <p class="mt-1 text-sm font-semibold text-emerald-900">{{ onboardingFlash.email }}</p>
+
+                    <div class="mt-4">
+                        <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Temporary Password</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <span class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 font-mono text-sm text-emerald-900">
+                                {{ onboardingFlash.temporary_password }}
+                            </span>
+                            <button
+                                type="button"
+                                @click="copyOnboardingPassword"
+                                class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                            >
+                                {{ copiedOnboardingPassword ? 'Copied' : 'Copy Password' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <p class="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Activation Link</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <button
+                                type="button"
+                                @click="copyActivationLink"
+                                class="rounded-md border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                            >
+                                {{ copiedActivationLink ? 'Copied Link' : 'Copy Activation Link' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="mt-4 text-xs" :class="onboardingFlash.email_sent ? 'text-emerald-700' : 'text-amber-700'">
+                        {{
+                            onboardingFlash.email_sent
+                                ? 'Onboarding email sent successfully.'
+                                : 'Email could not be sent. Share this password manually.'
+                        }}
+                    </p>
+                </div>
+
+                <div class="mt-5 flex justify-end">
+                    <button
+                        type="button"
+                        @click="closeCoachOnboardingModal"
+                        class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155]"
+                    >
+                        Done
+                    </button>
+                </div>
             </div>
         </div>
     </Transition>
