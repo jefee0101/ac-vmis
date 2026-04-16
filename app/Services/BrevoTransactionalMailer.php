@@ -40,8 +40,11 @@ class BrevoTransactionalMailer
         ];
 
         $response = Http::timeout((int) config('services.brevo.timeout', 15))
-            ->withToken($apiKey)
-            ->acceptJson()
+            ->withHeaders([
+                'api-key' => $apiKey,
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+            ])
             ->post('https://api.brevo.com/v3/smtp/email', $payload);
 
         if ($response->failed()) {
