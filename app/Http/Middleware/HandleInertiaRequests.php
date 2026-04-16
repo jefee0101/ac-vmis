@@ -7,6 +7,7 @@ use App\Models\AcademicPeriod;
 use App\Models\Announcement;
 use App\Models\AthleteHealthClearance;
 use App\Models\ScheduleAttendance;
+use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
@@ -78,10 +79,13 @@ class HandleInertiaRequests extends Middleware
                 'identity' => fn () => $request->user()
                     ? (function () use ($request) {
                         try {
-                            return [
-                                'name' => $request->user()->name,
-                                'subtitle' => in_array($request->user()->role, ['student', 'student-athlete'], true)
-                                    ? $request->user()->student()?->value('student_status')
+                                return [
+                                    'name' => $request->user()->name,
+                                    'subtitle' => in_array($request->user()->role, ['student', 'student-athlete'], true)
+                                    ? Student::query()
+                                        ->without('user')
+                                        ->where('user_id', $request->user()->id)
+                                        ->value('student_status')
                                     : null,
                             ];
                         } catch (\Throwable $e) {

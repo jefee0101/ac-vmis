@@ -78,7 +78,11 @@ class User extends Authenticatable
             return null;
         }
 
-        $studentApproval = $this->student?->getAttribute('approval_status');
+        $studentApproval = Student::query()
+            ->without('user')
+            ->where('user_id', $this->id)
+            ->value('approval_status');
+
         if (is_string($studentApproval) && $studentApproval !== '') {
             return $studentApproval;
         }
