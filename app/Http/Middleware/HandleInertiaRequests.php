@@ -18,6 +18,7 @@ use App\Services\AcademicEligibilityAccessService;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -335,35 +336,63 @@ class HandleInertiaRequests extends Middleware
                         'student:notifications:' . $request->user()->id,
                         now()->addSeconds(60),
                         function () use ($request) {
-                            $studentId = $request->user()->id;
+                            try {
+                                $studentId = $request->user()->id;
 
-                            return [
-                                'recent' => Announcement::query()
-                                    ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
-                                    ->select('announcement_recipients.*')
-                                    ->where('user_id', $studentId)
-                                    ->orderByDesc('ae.published_at')
-                                    ->orderByDesc('announcement_recipients.id')
-                                    ->limit(6)
-                                    ->with('event')
-                                    ->get()
-                                    ->map(function (Announcement $announcement) {
-                                        return [
-                                            'id' => $announcement->id,
-                                            'title' => $announcement->title,
-                                            'message' => Str::limit((string) $announcement->message, 140),
-                                            'type' => $announcement->type,
-                                            'is_read' => !empty($announcement->read_at),
-                                            'published_at' => $announcement->published_at?->diffForHumans(),
-                                        ];
-                                    })
-                                    ->values(),
-                            ];
+                                return [
+                                    'recent' => Announcement::query()
+                                        ->join('announcement_events as ae', 'ae.id', '=', 'announcement_recipients.event_id')
+                                        ->select('announcement_recipients.*')
+                                        ->where('user_id', $studentId)
+                                        ->orderByDesc('ae.published_at')
+                                        ->orderByDesc('announcement_recipients.id')
+                                        ->limit(6)
+                                        ->with('event')
+                                        ->get()
+                                        ->map(function (Announcement $announcement) {
+                                            return [
+                                                'id' => $announcement->id,
+                                                'title' => $announcement->title,
+                                                'message' => Str::limit((string) $announcement->message, 140),
+                                                'type' => $announcement->type,
+                                                'is_read' => !empty($announcement->read_at),
+                                                'published_at' => $announcement->published_at?->diffForHumans(),
+                                            ];
+                                        })
+                                        ->values(),
+                                ];
+                            } catch (\Throwable $e) {
+                                Log::warning('Student notifications share payload failed.', [
+                                    'user_id' => $request->user()?->id,
+                                    'message' => $e->getMessage(),
+                                ]);
+
+                                return [
+                                    'recent' => [],
+                                ];
+                            }
                         }
                     )
                     : null,
                 'academic_access' => fn () => $request->user() && in_array($request->user()->role, ['student', 'student-athlete'], true) && $request->user()->student
-                    ? app(AcademicEligibilityAccessService::class)->evaluate($request->user()->student)
+                    ? (function () use ($request) {
+                        try {
+                            return app(AcademicEligibilityAccessService::class)->evaluate($request->user()->student);
+                        } catch (\Throwable $e) {
+                            Log::warning('Academic access share payload failed.', [
+                                'user_id' => $request->user()?->id,
+                                'student_id' => $request->user()?->student?->id,
+                                'message' => $e->getMessage(),
+                            ]);
+
+                            return [
+                                'is_restricted' => false,
+                                'status' => null,
+                                'message' => null,
+                                'evaluation' => null,
+                            ];
+                        }
+                    })()
                     : null,
             ],
             'flash' => [
