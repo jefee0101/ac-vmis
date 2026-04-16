@@ -60,7 +60,21 @@ class HandleInertiaRequests extends Middleware
                 'login_success' => fn () => $request->session()->get('login_success'),
             ],
             'auth' => [
-                'user' => $request->user(),
+                'user' => fn () => $request->user()
+                    ? [
+                        'id' => $request->user()->id,
+                        'name' => $request->user()->name,
+                        'first_name' => $request->user()->first_name,
+                        'middle_name' => $request->user()->middle_name,
+                        'last_name' => $request->user()->last_name,
+                        'email' => $request->user()->email,
+                        'role' => $request->user()->role,
+                        'account_state' => $request->user()->account_state,
+                        'approval_status' => $request->user()->approval_status,
+                        'must_change_password' => (bool) $request->user()->must_change_password,
+                        'avatar' => $request->user()->avatar,
+                    ]
+                    : null,
                 'identity' => fn () => $request->user()
                     ? (function () use ($request) {
                         try {
