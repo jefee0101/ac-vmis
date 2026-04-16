@@ -171,6 +171,7 @@ const totalStudents = computed(() => props.totals?.students ?? 0);
 const totalCoaches = computed(() => props.totals?.coaches ?? 0);
 const totalDeactivated = computed(() => props.totals?.deactivated ?? 0);
 const filteredTotal = computed(() => props.totals?.filtered ?? props.users.total);
+const totalActive = computed(() => Math.max(totalUsers.value - totalDeactivated.value, 0));
 const hasActiveFilters = computed(
     () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'active' || sortOption.value !== defaultSort,
 );
@@ -445,6 +446,11 @@ function resetAllFilters() {
     applyFilters({ resetPage: true });
 }
 
+function setStatusView(next: UserStatusFilter) {
+    if (statusFilter.value === next) return;
+    statusFilter.value = next;
+}
+
 function formatRole(role: UserRow['role']) {
     return role.replace('-', ' ');
 }
@@ -555,7 +561,7 @@ function deactivateUser() {
             preserveScroll: true,
             onSuccess: () => {
                 closeDeactivateDialog();
-                router.reload({ only: ['users', 'filters', 'totals', 'pendingCount'] });
+                setStatusView('deactivated');
             },
             onFinish: () => {
                 actionLoadingId.value = null;
@@ -576,7 +582,7 @@ function reactivateUser() {
             preserveScroll: true,
             onSuccess: () => {
                 closeReactivateDialog();
-                router.reload({ only: ['users', 'filters', 'totals', 'pendingCount'] });
+                setStatusView('active');
             },
             onFinish: () => {
                 actionLoadingId.value = null;
@@ -711,27 +717,40 @@ watch(
         </div>
 
         <div class="rounded-xl border border-[#034485]/45 bg-white p-4">
-            <div class="relative mb-3 inline-flex items-center rounded-full border border-[#034485]/45 bg-white p-1">
+            <div class="mb-3 inline-flex w-full max-w-sm items-center rounded-full border border-[#034485]/45 bg-slate-50 p-1">
+                <button
+                    type="button"
+                    @click="setStatusView('active')"
+                    class="relative inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition"
+                    :class="statusFilter === 'active' ? 'bg-[#1f2937] text-white shadow-sm' : 'text-slate-700 hover:bg-white hover:text-slate-900'"
+                    :aria-pressed="statusFilter === 'active'"
+                >
+                    <span>Active</span>
+                    <span
+                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                        :class="statusFilter === 'active' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'"
+                    >
+                        {{ totalActive }}
+                    </span>
+                </button>
                 <span
-                    class="pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full transition-transform duration-200 ease-out"
-                    :class="statusFilter === 'active' ? 'translate-x-0 bg-[#1f2937]' : 'translate-x-full bg-amber-600'"
+                    class="mx-1 h-6 w-px bg-slate-200"
                     aria-hidden="true"
                 />
                 <button
                     type="button"
-                    @click="statusFilter = 'active'"
-                    class="relative z-10 rounded-full px-4 py-1.5 text-xs font-semibold transition"
-                    :class="statusFilter === 'active' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                    @click="setStatusView('deactivated')"
+                    class="relative inline-flex flex-1 items-center justify-center gap-2 rounded-full px-4 py-2 text-xs font-semibold transition"
+                    :class="statusFilter === 'deactivated' ? 'bg-amber-600 text-white shadow-sm' : 'text-slate-700 hover:bg-white hover:text-slate-900'"
+                    :aria-pressed="statusFilter === 'deactivated'"
                 >
-                    Active
-                </button>
-                <button
-                    type="button"
-                    @click="statusFilter = 'deactivated'"
-                    class="relative z-10 rounded-full px-4 py-1.5 text-xs font-semibold transition"
-                    :class="statusFilter === 'deactivated' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
-                >
-                    Deactivated
+                    <span>Deactivated</span>
+                    <span
+                        class="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                        :class="statusFilter === 'deactivated' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'"
+                    >
+                        {{ totalDeactivated }}
+                    </span>
                 </button>
             </div>
 

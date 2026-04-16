@@ -224,7 +224,8 @@ class StudentAthleteController extends Controller
                 ->where('student_id', $student->id)
                 ->orderByDesc('evaluated_at')
                 ->orderByDesc('id')
-                ->value('status');
+                ->first()
+                ?->status;
         }
 
         $upcomingSeries = [];
