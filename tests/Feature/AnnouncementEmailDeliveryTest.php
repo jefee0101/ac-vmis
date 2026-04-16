@@ -4,8 +4,9 @@ use App\Mail\AnnouncementNotificationMail;
 use App\Models\Announcement;
 use App\Models\User;
 use App\Models\UserSetting;
-use App\Services\AnnouncementService;
-use Illuminate\Support\Facades\Mail;
+use App\Services\BrevoTransactionalMailer;
+use App\Services\SystemNotificationService;
+use Mockery\MockInterface;
 
 function createNotificationSettings(User $user, array $overrides = []): void
 {
@@ -28,21 +29,28 @@ function createNotificationSettings(User $user, array $overrides = []): void
 }
 
 it('stores the announcement and emails the recipient when the preference is enabled', function () {
-    Mail::fake();
+    $sent = [];
+    app()->instance(BrevoTransactionalMailer::class, mock(BrevoTransactionalMailer::class, function (MockInterface $mock) use (&$sent) {
+        $mock->shouldReceive('sendMailable')
+            ->once()
+            ->andReturnUsing(function (string $email, AnnouncementNotificationMail $mailable, ?string $name = null) use (&$sent) {
+                $sent[] = compact('email', 'mailable', 'name');
+            });
+    }));
 
     $actor = User::factory()->create([
         'role' => 'admin',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     $recipient = User::factory()->create([
         'role' => 'coach',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     createNotificationSettings($recipient);
 
-    app(AnnouncementService::class)->announce(
+    app(SystemNotificationService::class)->announce(
         $recipient->id,
         'Roster Updated',
         '2 athletes were added to Team Falcons.',
@@ -52,31 +60,33 @@ it('stores the announcement and emails the recipient when the preference is enab
     );
 
     expect(Announcement::query()->count())->toBe(1);
-
-    Mail::assertSent(AnnouncementNotificationMail::class, function (AnnouncementNotificationMail $mail) use ($recipient) {
-        return $mail->hasTo($recipient->email)
-            && $mail->notificationTitle === 'Roster Updated';
-    });
+    expect($sent)->toHaveCount(1)
+        ->and($sent[0]['email'])->toBe($recipient->email)
+        ->and($sent[0]['name'])->toBe($recipient->name)
+        ->and($sent[0]['mailable'])->toBeInstanceOf(AnnouncementNotificationMail::class)
+        ->and($sent[0]['mailable']->notificationTitle)->toBe('Roster Updated');
 });
 
 it('does not send an email when the mapped preference is disabled', function () {
-    Mail::fake();
+    app()->instance(BrevoTransactionalMailer::class, mock(BrevoTransactionalMailer::class, function (MockInterface $mock) {
+        $mock->shouldNotReceive('sendMailable');
+    }));
 
     $actor = User::factory()->create([
         'role' => 'admin',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     $recipient = User::factory()->create([
         'role' => 'student-athlete',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     createNotificationSettings($recipient, [
         'notify_attendance_exceptions' => false,
     ]);
 
-    app(AnnouncementService::class)->announce(
+    app(SystemNotificationService::class)->announce(
         $recipient->id,
         'Team Assignment',
         'You were added to Team Falcons.',
@@ -86,20 +96,21 @@ it('does not send an email when the mapped preference is disabled', function () 
     );
 
     expect(Announcement::query()->count())->toBe(1);
-    Mail::assertNothingSent();
 });
 
 it('does not email self-authored notifications', function () {
-    Mail::fake();
+    app()->instance(BrevoTransactionalMailer::class, mock(BrevoTransactionalMailer::class, function (MockInterface $mock) {
+        $mock->shouldNotReceive('sendMailable');
+    }));
 
     $user = User::factory()->create([
         'role' => 'student-athlete',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     createNotificationSettings($user);
 
-    app(AnnouncementService::class)->announce(
+    app(SystemNotificationService::class)->announce(
         $user->id,
         'Attendance Status Updated',
         'Attendance marked: PRESENT for Morning Practice.',
@@ -109,23 +120,24 @@ it('does not email self-authored notifications', function () {
     );
 
     expect(Announcement::query()->count())->toBe(1);
-    Mail::assertNothingSent();
 });
 
 it('can skip the email delivery while still creating the in-app announcement', function () {
-    Mail::fake();
+    app()->instance(BrevoTransactionalMailer::class, mock(BrevoTransactionalMailer::class, function (MockInterface $mock) {
+        $mock->shouldNotReceive('sendMailable');
+    }));
 
     $actor = User::factory()->create([
         'role' => 'admin',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
     $recipient = User::factory()->create([
         'role' => 'coach',
-        'status' => 'approved',
+        'account_state' => 'active',
     ]);
 
-    app(AnnouncementService::class)->announce(
+    app(SystemNotificationService::class)->announce(
         $recipient->id,
         'Account Approved',
         'Your account has been approved.',
@@ -136,5 +148,4 @@ it('can skip the email delivery while still creating the in-app announcement', f
     );
 
     expect(Announcement::query()->count())->toBe(1);
-    Mail::assertNothingSent();
 });

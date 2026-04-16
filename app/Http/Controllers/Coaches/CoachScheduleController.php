@@ -11,12 +11,12 @@ use App\Models\Coach;
 use App\Models\TeamSchedule;
 use App\Models\TeamPlayer;
 use App\Models\Student;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use Carbon\Carbon;
 
 class CoachScheduleController extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(private SystemNotificationService $notifications)
     {
     }
 
@@ -357,7 +357,7 @@ class CoachScheduleController extends Controller
             ->all();
 
         $recipientIds = array_merge($studentUserIds, $coachUserIds);
-        $this->announcements->announceMany(
+        $this->notifications->announceMany(
             $recipientIds,
             $title,
             $message,

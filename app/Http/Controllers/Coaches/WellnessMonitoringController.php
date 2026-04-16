@@ -9,7 +9,7 @@ use App\Models\TeamSchedule;
 use App\Models\Student;
 use App\Models\User;
 use App\Models\WellnessLog;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +17,7 @@ use Inertia\Inertia;
 
 class WellnessMonitoringController extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(private SystemNotificationService $notifications)
     {
     }
 
@@ -174,7 +174,7 @@ class WellnessMonitoringController extends Controller
 
         $studentUserId = Student::where('id', (int) $validated['student_id'])->value('user_id');
         if ($studentUserId) {
-            $this->announcements->announce(
+            $this->notifications->announce(
                 (int) $studentUserId,
                 'Wellness Log Recorded',
                 sprintf(
@@ -196,7 +196,7 @@ class WellnessMonitoringController extends Controller
                 ->pluck('id')
                 ->all();
 
-            $this->announcements->announceMany(
+            $this->notifications->announceMany(
                 $adminUserIds,
                 'Injury Observation Alert',
                 "Injury was observed for a student in {$schedule->title}. Please review wellness monitoring.",

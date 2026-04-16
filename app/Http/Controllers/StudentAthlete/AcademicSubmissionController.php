@@ -11,7 +11,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
 use App\Services\AcademicHoldService;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +20,7 @@ use Inertia\Inertia;
 class AcademicSubmissionController extends Controller
 {
     public function __construct(
-        private AnnouncementService $announcements,
+        private SystemNotificationService $notifications,
         private SecureUploadService $secureUpload,
         private AcademicHoldService $holdService,
     )
@@ -204,7 +204,7 @@ class AcademicSubmissionController extends Controller
             ->values()
             ->all();
 
-        $this->announcements->announceMany(
+        $this->notifications->announceMany(
             array_merge($adminUserIds, $coachUserIds),
             'Academic Submission Received',
             $message,

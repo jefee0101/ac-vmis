@@ -9,7 +9,7 @@ use App\Models\AthleteHealthClearance;
 use App\Models\User;
 use App\Models\Team;
 use App\Models\WellnessAttachment;
-use App\Services\BrevoTransactionalMailer;
+use App\Services\SystemNotificationService;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -26,7 +26,12 @@ Artisan::command('mail:test-pending {email} {--name=Test User}', function (strin
     ]);
 
     try {
-        app(BrevoTransactionalMailer::class)->sendMailable($email, new AccountPendingApprovalMail($user), $name);
+        app(SystemNotificationService::class)->sendEmail($email, new AccountPendingApprovalMail($user), $name, [
+            'defer' => false,
+            'context' => [
+                'communication' => 'console_mail_test_pending',
+            ],
+        ]);
         $this->info("Pending approval test email sent to {$email}");
     } catch (\Throwable $e) {
         $this->error('Failed to send test email.');

@@ -8,7 +8,7 @@ use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
 use App\Models\Student;
 use App\Models\Team;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +16,7 @@ use Inertia\Inertia;
 
 class AcademicEligibilityController extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(private SystemNotificationService $notifications)
     {
     }
 
@@ -249,7 +249,7 @@ class AcademicEligibilityController extends Controller
             if (($computedStatus ?? '') === 'eligible') {
                 $message .= ' You are now eligible; further submissions for this period are locked.';
             }
-            $this->announcements->announce(
+            $this->notifications->announce(
                 $studentUserId,
                 'Academic Evaluation Result',
                 $message,
@@ -276,7 +276,7 @@ class AcademicEligibilityController extends Controller
 
         if (!empty($coachUserIds) && $student) {
             $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
-            $this->announcements->announceMany(
+            $this->notifications->announceMany(
                 $coachUserIds,
                 'Athlete Academic Evaluation',
                 "{$studentName} was evaluated as {$status} for {$periodLabel}.",

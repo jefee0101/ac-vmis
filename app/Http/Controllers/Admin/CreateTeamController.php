@@ -10,7 +10,7 @@ use App\Models\Student;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +24,7 @@ class CreateTeamController extends Controller
 {
     public function __construct(
         private SecureUploadService $secureUpload,
-        private AnnouncementService $announcements,
+        private SystemNotificationService $notifications,
     ) {
     }
 
@@ -940,7 +940,7 @@ class CreateTeamController extends Controller
         ?string $notificationPreference = null
     ): void
     {
-        $this->announcements->announce(
+        $this->notifications->announce(
             $userId,
             $title,
             $message,

@@ -16,8 +16,7 @@ use App\Models\StudentApprovalHistory;
 use App\Models\Student;
 use App\Models\Team;
 use App\Models\User;
-use App\Services\AnnouncementService;
-use App\Services\BrevoTransactionalMailer;
+use App\Services\SystemNotificationService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
@@ -36,8 +35,7 @@ use Inertia\Inertia;
 class AdminController extends Controller
 {
     public function __construct(
-        private AnnouncementService $announcements,
-        private BrevoTransactionalMailer $mailer,
+        private SystemNotificationService $notifications,
     )
     {
     }
@@ -142,7 +140,7 @@ class AdminController extends Controller
             ]);
         });
 
-        $this->announcements->announce(
+        $this->notifications->announce(
             $user->id,
             'Account Approved',
             'Your account has been approved. You may now log in and access the system.',
@@ -182,7 +180,7 @@ class AdminController extends Controller
             ]);
         });
 
-        $this->announcements->announce(
+        $this->notifications->announce(
             $user->id,
             'Account Rejected',
             'Your account registration was rejected.' . ($request->remarks ? " Remarks: {$request->remarks}" : ''),
@@ -237,7 +235,7 @@ class AdminController extends Controller
         }
 
         try {
-            $this->announcements->announce(
+            $this->notifications->announce(
                 $user->id,
                 'Account Deactivated',
                 'Your account has been temporarily deactivated. Contact administration for reactivation.',
@@ -296,7 +294,7 @@ class AdminController extends Controller
         }
 
         try {
-            $this->announcements->announce(
+            $this->notifications->announce(
                 $user->id,
                 'Account Reactivated',
                 'Your account has been reactivated. You may log in again.',
@@ -667,22 +665,13 @@ class AdminController extends Controller
             'token' => $plainToken,
         ]);
 
-        app()->terminating(function () use ($invite, $request, $acceptUrl) {
-            try {
-                $this->mailer->sendMailable($invite->email, new AdminInviteMail($invite, $request->user(), $acceptUrl), $invite->email);
-            } catch (\Throwable $e) {
-                Log::error('Admin invite email failed.', [
-                    'invite_id' => $invite->id,
-                    'email' => $invite->email,
-                    'admin_id' => Auth::id(),
-                    'exception' => $e::class,
-                    'error' => $e->getMessage(),
-                    'code' => $e->getCode(),
-                    'mail_provider' => 'brevo_api',
-                    'mail_timeout' => config('services.brevo.timeout'),
-                ]);
-            }
-        });
+        $this->notifications->sendEmail($invite->email, new AdminInviteMail($invite, $request->user(), $acceptUrl), $invite->email, [
+            'context' => [
+                'communication' => 'admin_invite',
+                'invite_id' => $invite->id,
+                'admin_id' => Auth::id(),
+            ],
+        ]);
 
         return back()->with('success', "Admin invitation created for {$invite->email}. Email delivery will continue in the background.");
     }
@@ -867,7 +856,7 @@ class AdminController extends Controller
             'token' => $activationToken,
         ]);
 
-        $this->announcements->announce(
+        $this->notifications->announce(
             $newUser->id,
             'Coach Account Created',
             'Your coach account has been provisioned by the administrator. Please sign in and update your profile details.',
@@ -877,21 +866,19 @@ class AdminController extends Controller
             false
         );
 
-        $emailSent = true;
-        try {
-            $this->mailer->sendMailable($newUser->email, new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl), $newUser->name);
-        } catch (\Throwable $e) {
-            $emailSent = false;
-            Log::error('Coach onboarding email failed.', [
-                'user_id' => $newUser->id,
-                'email' => $newUser->email,
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_provider' => 'brevo_api',
-                'mail_timeout' => config('services.brevo.timeout'),
-            ]);
-        }
+        $emailSent = $this->notifications->sendUserEmail(
+            $newUser,
+            new CoachOnboardingMail($newUser, $temporaryPassword, url('/Login'), $activationUrl),
+            [
+                'defer' => false,
+                'respect_preferences' => false,
+                'context' => [
+                    'communication' => 'coach_onboarding',
+                    'user_id' => $newUser->id,
+                    'admin_id' => Auth::id(),
+                ],
+            ]
+        );
 
         return back()
             ->with('success', 'Coach account created successfully.')
@@ -933,7 +920,7 @@ class AdminController extends Controller
             'token' => $activationToken,
         ]);
 
-        $this->announcements->announce(
+        $this->notifications->announce(
             $user->id,
             'Coach Credentials Updated',
             'Your coach onboarding credentials were refreshed by the administrator.',
@@ -943,21 +930,19 @@ class AdminController extends Controller
             false
         );
 
-        $emailSent = true;
-        try {
-            $this->mailer->sendMailable($user->email, new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl), $user->name);
-        } catch (\Throwable $e) {
-            $emailSent = false;
-            Log::error('Coach onboarding regeneration email failed.', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'exception' => $e::class,
-                'error' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'mail_provider' => 'brevo_api',
-                'mail_timeout' => config('services.brevo.timeout'),
-            ]);
-        }
+        $emailSent = $this->notifications->sendUserEmail(
+            $user,
+            new CoachOnboardingMail($user, $temporaryPassword, url('/Login'), $activationUrl),
+            [
+                'defer' => false,
+                'respect_preferences' => false,
+                'context' => [
+                    'communication' => 'coach_onboarding_regeneration',
+                    'user_id' => $user->id,
+                    'admin_id' => Auth::id(),
+                ],
+            ]
+        );
 
         return back()
             ->with('success', 'Coach onboarding credentials regenerated.')
@@ -1740,26 +1725,14 @@ class AdminController extends Controller
 
     private function sendAccountStatusMail(User $user, Mailable $mailable): void
     {
-        if (!$this->announcements->shouldSendEmailNotification($user, 'notify_approvals', Auth::id())) {
-            return;
-        }
-
-        app()->terminating(function () use ($user, $mailable) {
-            try {
-                $this->mailer->sendMailable($user->email, $mailable, $user->name);
-            } catch (\Throwable $e) {
-                Log::error('Account status email failed.', [
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                    'mailable' => $mailable::class,
-                    'exception' => $e::class,
-                    'error' => $e->getMessage(),
-                    'code' => $e->getCode(),
-                    'mail_provider' => 'brevo_api',
-                    'mail_timeout' => config('services.brevo.timeout'),
-                ]);
-            }
-        });
+        $this->notifications->sendUserEmail($user, $mailable, [
+            'notification_preference' => 'notify_approvals',
+            'created_by' => Auth::id(),
+            'context' => [
+                'communication' => 'account_status',
+                'user_id' => $user->id,
+            ],
+        ]);
     }
 
     private function resolveAdminInvite(string $email, string $token): ?AdminInvite

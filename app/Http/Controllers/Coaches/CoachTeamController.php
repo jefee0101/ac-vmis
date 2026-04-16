@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\User;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class CoachTeamController extends Controller
 {
-    public function __construct(private AnnouncementService $announcements)
+    public function __construct(private SystemNotificationService $notifications)
     {
     }
 
@@ -160,7 +160,7 @@ class CoachTeamController extends Controller
                 ? "Your team position in {$team->team_name} was cleared by your coach."
                 : "Your team position in {$team->team_name} was set to {$position}.";
 
-            $this->announcements->announce(
+            $this->notifications->announce(
                 (int) $studentUserId,
                 'Team Position Update',
                 $message,
@@ -264,7 +264,7 @@ class CoachTeamController extends Controller
             ->pluck('id')
             ->all();
 
-        $this->announcements->announceMany(
+        $this->notifications->announceMany(
             $adminUserIds,
             $title,
             implode("\n", $messageLines),

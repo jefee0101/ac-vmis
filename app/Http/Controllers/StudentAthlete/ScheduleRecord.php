@@ -12,7 +12,7 @@ use App\Models\TeamSchedule;
 use App\Models\ScheduleAttendance;
 use App\Models\ScheduleQrToken;
 use App\Services\AcademicHoldService;
-use App\Services\AnnouncementService;
+use App\Services\SystemNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Schema;
 class ScheduleRecord extends Controller
 {
     public function __construct(
-        private AnnouncementService $announcements,
+        private SystemNotificationService $notifications,
         private AcademicHoldService $holdService,
     )
     {
@@ -259,7 +259,7 @@ class ScheduleRecord extends Controller
 
         if ($previousStatus !== $attendance->status) {
             $status = strtoupper((string) $attendance->status);
-            $this->announcements->announce(
+            $this->notifications->announce(
                 Auth::id(),
                 'Attendance Status Updated',
                 sprintf(

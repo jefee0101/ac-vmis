@@ -11,13 +11,11 @@ use App\Models\AthleteHealthClearance;
 use App\Models\Coach;
 use App\Models\Student;
 use App\Models\User;
-use App\Services\AnnouncementService;
-use App\Services\BrevoTransactionalMailer;
+use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class RegisterController extends Controller
 {
@@ -33,8 +31,7 @@ class RegisterController extends Controller
 
     public function __construct(
         private SecureUploadService $secureUpload,
-        private AnnouncementService $announcements,
-        private BrevoTransactionalMailer $mailer,
+        private SystemNotificationService $notifications,
     ) {
     }
 
@@ -273,25 +270,13 @@ class RegisterController extends Controller
 
     private function sendPendingApprovalMail(User $user): void
     {
-        if (!$this->announcements->shouldSendEmailNotification($user, 'notify_approvals')) {
-            return;
-        }
-
-        app()->terminating(function () use ($user) {
-            try {
-                $this->mailer->sendMailable($user->email, new AccountPendingApprovalMail($user), $user->name);
-            } catch (\Throwable $e) {
-                Log::error('Pending approval email failed.', [
-                    'user_id' => $user->id,
-                    'email' => $user->email,
-                    'exception' => $e::class,
-                    'error' => $e->getMessage(),
-                    'code' => $e->getCode(),
-                    'mail_provider' => 'brevo_api',
-                    'mail_timeout' => config('services.brevo.timeout'),
-                ]);
-            }
-        });
+        $this->notifications->sendUserEmail($user, new AccountPendingApprovalMail($user), [
+            'notification_preference' => 'notify_approvals',
+            'context' => [
+                'communication' => 'pending_approval',
+                'user_id' => $user->id,
+            ],
+        ]);
     }
 
     private function notifyAdminsOfPendingAccount(User $user): void
@@ -312,7 +297,7 @@ class RegisterController extends Controller
 
         $roleLabel = ucwords(str_replace('-', ' ', (string) $user->role));
 
-        $this->announcements->announceMany(
+        $this->notifications->announceMany(
             $adminUserIds,
             'New Pending Account',
             "{$user->name} registered as {$roleLabel} and is waiting for approval.\nEmail: {$user->email}",
