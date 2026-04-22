@@ -18,20 +18,36 @@ type QueueUser = {
     email: string;
     role: 'student-athlete' | 'student';
     status: 'pending' | 'rejected';
+    avatar?: string | null;
     created_at: string | null;
     student?: {
         id: number;
         student_id_number: string | null;
         first_name: string | null;
+        middle_name?: string | null;
         last_name: string | null;
+        home_address?: string | null;
         course_or_strand: string | null;
         current_grade_level: string | null;
         academic_level_label?: string | null;
+        approval_status?: string | null;
+        phone_number?: string | null;
+        date_of_birth?: string | null;
+        gender?: string | null;
+        height?: string | null;
+        weight?: string | null;
+        emergency_contact_name?: string | null;
+        emergency_contact_relationship?: string | null;
+        emergency_contact_phone?: string | null;
         latest_health_clearance?: {
             id: number;
+            clearance_date?: string | null;
             clearance_status: string | null;
             valid_until: string | null;
             physician_name: string | null;
+            conditions?: string | null;
+            allergies?: string | null;
+            restrictions?: string | null;
         } | null;
         latest_academic_document?: {
             id: number;
@@ -88,6 +104,12 @@ const rejectingId = ref<number | null>(null);
 const approveTarget = ref<QueueUser | null>(null);
 const rejectTarget = ref<QueueUser | null>(null);
 const rejectRemarks = ref('');
+const selectedUserId = ref<number | null>(props.queue.data[0]?.id ?? null);
+const previewDocument = ref<{
+    title: string;
+    url: string;
+    subtitle?: string | null;
+} | null>(null);
 const topTab = ref<'active' | 'queue'>('queue');
 
 let searchDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -101,6 +123,23 @@ const stats = computed(() => ({
 }));
 const queue = computed(() => props.queue);
 const isRejectedView = computed(() => status.value === 'rejected');
+const selectedUser = computed(() => queue.value.data.find((user) => user.id === selectedUserId.value) ?? queue.value.data[0] ?? null);
+
+watch(
+    () => props.queue.data,
+    (users) => {
+        if (!users.length) {
+            selectedUserId.value = null;
+            return;
+        }
+
+        const stillVisible = users.some((user) => user.id === selectedUserId.value);
+        if (!stillVisible) {
+            selectedUserId.value = users[0].id;
+        }
+    },
+    { immediate: true },
+);
 
 function buildQuery(resetPage = true) {
     return {
@@ -204,6 +243,19 @@ function formatDate(value?: string | null) {
     return parsed.toLocaleDateString();
 }
 
+function formatDateTime(value?: string | null) {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
 function formatClearanceStatus(value?: string | null) {
     if (!value) return 'No clearance';
     return value.replaceAll('_', ' ');
@@ -214,6 +266,31 @@ function formatDocumentType(value?: string | null) {
     return value.replaceAll('_', ' ').toUpperCase();
 }
 
+function readinessTone(user: QueueUser) {
+    if (user.status === 'rejected') return 'bg-rose-100 text-rose-700 border border-rose-200';
+    return hasRequirements(user)
+        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+        : 'bg-amber-100 text-amber-700 border border-amber-200';
+}
+
+function readinessLabel(user: QueueUser) {
+    if (user.status === 'rejected') return 'Rejected';
+    return hasRequirements(user) ? 'Ready to approve' : 'Needs requirements';
+}
+
+function userInitials(user: QueueUser) {
+    return String(user.name ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || 'SA';
+}
+
+function infoValue(value?: string | null) {
+    return value && String(value).trim() ? String(value) : '-';
+}
+
 function clearanceFileUrl(id?: number | null) {
     if (!id) return null;
     return `/files/clearance/${id}`;
@@ -222,6 +299,14 @@ function clearanceFileUrl(id?: number | null) {
 function academicFileUrl(id?: number | null) {
     if (!id) return null;
     return `/files/academic/${id}`;
+}
+
+function openDocumentPreview(title: string, url: string, subtitle?: string | null) {
+    previewDocument.value = { title, url, subtitle };
+}
+
+function closeDocumentPreview() {
+    previewDocument.value = null;
 }
 
 function openApproveDialog(user: QueueUser) {
@@ -410,120 +495,294 @@ function rejectUser() {
             leave-to-class="opacity-0 -translate-y-1"
         >
             <section :key="status" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[1100px] text-sm">
-                        <thead class="bg-slate-50 text-slate-700">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold">#</th>
-                                <th class="px-4 py-3 text-left font-semibold">User</th>
-                                <th class="px-4 py-3 text-left font-semibold">Role</th>
-                                <th class="px-4 py-3 text-left font-semibold">Registered</th>
-                                <th class="px-4 py-3 text-left font-semibold">Readiness</th>
-                                <th class="px-4 py-3 text-left font-semibold">Requirements</th>
-                                <th class="px-4 py-3 text-left font-semibold">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="(user, index) in queue.data" :key="user.id" class="border-t border-slate-200 align-top">
-                                <td class="px-4 py-3 font-semibold text-slate-600">{{ queuePosition(index) }}</td>
-                                <td class="px-4 py-3">
-                                    <p class="font-semibold text-slate-900">{{ user.name }}</p>
-                                    <p class="text-xs text-slate-500">{{ user.email }}</p>
-                                    <p v-if="user.student?.student_id_number" class="text-xs text-slate-500">
-                                        ID: {{ user.student.student_id_number }}
-                                    </p>
-                                </td>
-                                <td class="px-4 py-3 text-slate-700 capitalize">{{ formatRole(user.role) }}</td>
-                                <td class="px-4 py-3 text-slate-700">{{ formatDate(user.created_at) }}</td>
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :class="
-                                            isRejectedView
-                                                ? 'bg-rose-100 text-rose-700'
-                                                : hasRequirements(user)
-                                                  ? 'bg-emerald-100 text-emerald-700'
-                                                  : 'bg-amber-100 text-amber-700'
-                                        "
+                <div v-if="queue.data.length" class="grid gap-0 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
+                    <div class="border-b border-slate-200 xl:border-r xl:border-b-0">
+                        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Applicants</p>
+                            <p class="mt-1 text-sm text-slate-600">Compact review cards for faster triage and fewer context switches.</p>
+                        </div>
+                        <div class="max-h-[calc(100vh-24rem)] overflow-y-auto">
+                            <button
+                                v-for="(user, index) in queue.data"
+                                :key="user.id"
+                                type="button"
+                                class="w-full border-b border-slate-200 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
+                                :class="selectedUser?.id === user.id ? 'bg-[#034485]' : 'hover:bg-slate-50'"
+                                @click="selectedUserId = user.id"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <div
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-sm font-bold transition-colors duration-200 ease-out"
+                                        :class="selectedUser?.id === user.id ? 'border-white/25 bg-white/15 text-white' : 'border-[#034485]/20 bg-[#e9f2ff] text-[#034485]'"
                                     >
-                                        {{ isRejectedView ? 'Rejected' : hasRequirements(user) ? 'Ready' : 'Incomplete' }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="space-y-1 text-xs">
-                                        <p :class="user.student?.latest_health_clearance ? 'text-emerald-700' : 'text-amber-700'">
-                                            {{
-                                                user.student?.latest_health_clearance
-                                                    ? `Health: ${formatClearanceStatus(user.student.latest_health_clearance.clearance_status)}`
-                                                    : 'Health: Missing'
-                                            }}
+                                        <img v-if="user.avatar" :src="user.avatar" :alt="user.name" class="h-full w-full object-cover">
+                                        <span v-else>{{ userInitials(user) }}</span>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="truncate text-sm font-semibold transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-white' : 'text-slate-900'">{{ user.name }}</p>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors duration-200 ease-out" :class="readinessTone(user)">
+                                                {{ readinessLabel(user) }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">
+                                            {{ infoValue(user.student?.student_id_number) }} • {{ infoValue(user.student?.course_or_strand) }}
                                         </p>
-                                        <p :class="user.student?.latest_academic_document ? 'text-emerald-700' : 'text-amber-700'">
-                                            {{
-                                                user.student?.latest_academic_document
-                                                    ? `Academic: ${formatDocumentType(user.student.latest_academic_document.document_type)}`
-                                                    : 'Academic: Missing'
-                                            }}
+                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">
+                                            {{ infoValue(user.student?.academic_level_label || user.student?.current_grade_level) }} • {{ user.email }}
                                         </p>
-                                        <div class="flex flex-wrap gap-2 pt-1">
-                                            <a
-                                                v-if="clearanceFileUrl(user.student?.latest_health_clearance?.id)"
-                                                :href="clearanceFileUrl(user.student?.latest_health_clearance?.id)!"
-                                                target="_blank"
-                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
+                                                :class="user.student?.latest_health_clearance ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
                                             >
-                                                View Clearance
-                                            </a>
-                                            <a
-                                                v-if="academicFileUrl(user.student?.latest_academic_document?.id)"
-                                                :href="academicFileUrl(user.student?.latest_academic_document?.id)!"
-                                                target="_blank"
-                                                class="text-[11px] font-semibold text-[#1f2937] hover:underline"
+                                                {{ user.student?.latest_health_clearance ? 'Health on file' : 'Health missing' }}
+                                            </span>
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
+                                                :class="user.student?.latest_academic_document ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
                                             >
-                                                View Academic
-                                            </a>
+                                                {{ user.student?.latest_academic_document ? 'Academic on file' : 'Academic missing' }}
+                                            </span>
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                            >
+                                                #{{ queuePosition(index) }} • {{ formatDate(user.created_at) }}
+                                            </span>
                                         </div>
                                     </div>
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div v-if="!isRejectedView" class="flex flex-wrap gap-2">
-                                        <button
-                                            type="button"
-                                            @click="openApproveDialog(user)"
-                                            :disabled="!hasRequirements(user) || approvingId === user.id || rejectingId === user.id"
-                                            class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Approve
-                                        </button>
-                                        <button
-                                            type="button"
-                                            @click="openRejectDialog(user)"
-                                            :disabled="approvingId === user.id || rejectingId === user.id"
-                                            class="rounded-md bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
-                                        >
-                                            Reject
-                                        </button>
-                                    </div>
-                                    <p v-if="!isRejectedView && requirementIssues(user).length" class="mt-2 text-[11px] font-medium text-amber-700">
-                                        {{ requirementIssues(user).join(' | ') }}
-                                    </p>
-                                    <p v-if="isRejectedView" class="text-[11px] font-medium text-slate-500">
-                                        Rejected account for historical review.
-                                    </p>
-                                </td>
-                            </tr>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
 
-                            <tr v-if="queue.data.length === 0">
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">
-                                    {{
-                                        isRejectedView
-                                            ? 'No rejected accounts for the selected filters.'
-                                            : 'No accounts in the queue for the selected filters.'
-                                    }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="bg-white">
+                        <div v-if="selectedUser" class="space-y-5 p-4 sm:p-5">
+                            <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-base font-bold text-[#034485]">
+                                        <img v-if="selectedUser.avatar" :src="selectedUser.avatar" :alt="selectedUser.name" class="h-full w-full object-cover">
+                                        <span v-else>{{ userInitials(selectedUser) }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h2 class="text-lg font-bold text-slate-900">{{ selectedUser.name }}</h2>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" :class="readinessTone(selectedUser)">
+                                                {{ readinessLabel(selectedUser) }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-600">
+                                            {{ infoValue(selectedUser.student?.student_id_number) }} • {{ formatRole(selectedUser.role) }}
+                                        </p>
+                                        <p class="text-sm text-slate-500">Submitted {{ formatDateTime(selectedUser.created_at) }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-if="!isRejectedView"
+                                        type="button"
+                                        @click="openApproveDialog(selectedUser)"
+                                        :disabled="!hasRequirements(selectedUser) || approvingId === selectedUser.id || rejectingId === selectedUser.id"
+                                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        Approve
+                                    </button>
+                                    <button
+                                        v-if="!isRejectedView"
+                                        type="button"
+                                        @click="openRejectDialog(selectedUser)"
+                                        :disabled="approvingId === selectedUser.id || rejectingId === selectedUser.id"
+                                        class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-if="!isRejectedView && requirementIssues(selectedUser).length" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                {{ requirementIssues(selectedUser).join(' | ') }}
+                            </div>
+
+                            <div class="grid gap-4 lg:grid-cols-2">
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Identity</p>
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Full Name</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.name }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Student ID</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.student_id_number) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Birth Date</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.student?.date_of_birth) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Gender</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.gender) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Academic</p>
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Course / Strand</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.course_or_strand) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Year Level</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.academic_level_label || selectedUser.student?.current_grade_level) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Height</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.height) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Weight</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.weight) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
+                                    <div class="mt-3 grid gap-3">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Email</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.email }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Phone Number</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.phone_number) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Home Address</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.home_address) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Emergency</p>
+                                    <div class="mt-3 grid gap-3">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Contact Name</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.emergency_contact_name) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Relationship</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.emergency_contact_relationship) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Emergency Phone</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ infoValue(selectedUser.student?.emergency_contact_phone) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <section class="rounded-2xl border border-[#034485]/20 bg-white p-4">
+                                <div>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Documents</p>
+                                    <p class="mt-1 text-sm text-slate-600">Preview supporting files in place so the review flow stays focused.</p>
+                                </div>
+                                <div class="mt-4 grid gap-3 lg:grid-cols-2">
+                                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-slate-900">Medical / Health Certificate</p>
+                                                <p class="mt-1 text-xs text-slate-500">
+                                                    {{
+                                                        selectedUser.student?.latest_health_clearance
+                                                            ? `Status: ${formatClearanceStatus(selectedUser.student.latest_health_clearance.clearance_status)}`
+                                                            : 'No health document on file.'
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                                                :class="selectedUser.student?.latest_health_clearance ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
+                                            >
+                                                {{ selectedUser.student?.latest_health_clearance ? 'Available' : 'Missing' }}
+                                            </span>
+                                        </div>
+                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
+                                            <p>Issued: {{ formatDate(selectedUser.student?.latest_health_clearance?.clearance_date) }}</p>
+                                            <p>Valid Until: {{ formatDate(selectedUser.student?.latest_health_clearance?.valid_until) }}</p>
+                                            <p>Physician: {{ infoValue(selectedUser.student?.latest_health_clearance?.physician_name) }}</p>
+                                        </div>
+                                        <div class="mt-4 flex flex-wrap gap-2">
+                                            <button
+                                                v-if="clearanceFileUrl(selectedUser.student?.latest_health_clearance?.id)"
+                                                type="button"
+                                                class="rounded-lg border border-[#034485]/30 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
+                                                @click="openDocumentPreview('Medical / Health Certificate', clearanceFileUrl(selectedUser.student?.latest_health_clearance?.id)!, selectedUser.name)"
+                                            >
+                                                Preview Document
+                                            </button>
+                                        </div>
+                                        <div
+                                            v-if="selectedUser.student?.latest_health_clearance?.conditions || selectedUser.student?.latest_health_clearance?.allergies || selectedUser.student?.latest_health_clearance?.restrictions"
+                                            class="mt-4 space-y-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"
+                                        >
+                                            <p><span class="font-semibold text-slate-800">Conditions:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.conditions) }}</p>
+                                            <p><span class="font-semibold text-slate-800">Allergies:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.allergies) }}</p>
+                                            <p><span class="font-semibold text-slate-800">Restrictions:</span> {{ infoValue(selectedUser.student?.latest_health_clearance?.restrictions) }}</p>
+                                        </div>
+                                    </article>
+
+                                    <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-slate-900">Academic Document</p>
+                                                <p class="mt-1 text-xs text-slate-500">
+                                                    {{
+                                                        selectedUser.student?.latest_academic_document
+                                                            ? `Type: ${formatDocumentType(selectedUser.student.latest_academic_document.document_type)}`
+                                                            : 'No academic document on file.'
+                                                    }}
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                                                :class="selectedUser.student?.latest_academic_document ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'"
+                                            >
+                                                {{ selectedUser.student?.latest_academic_document ? 'Available' : 'Missing' }}
+                                            </span>
+                                        </div>
+                                        <div class="mt-3 space-y-2 text-sm text-slate-700">
+                                            <p>Uploaded: {{ formatDateTime(selectedUser.student?.latest_academic_document?.uploaded_at) }}</p>
+                                            <p>Document Type: {{ selectedUser.student?.latest_academic_document ? formatDocumentType(selectedUser.student.latest_academic_document.document_type) : '-' }}</p>
+                                        </div>
+                                        <div class="mt-4 flex flex-wrap gap-2">
+                                            <button
+                                                v-if="academicFileUrl(selectedUser.student?.latest_academic_document?.id)"
+                                                type="button"
+                                                class="rounded-lg border border-[#034485]/30 bg-white px-3 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#eef5ff]"
+                                                @click="openDocumentPreview('Academic Document', academicFileUrl(selectedUser.student?.latest_academic_document?.id)!, selectedUser.name)"
+                                            >
+                                                Preview Document
+                                            </button>
+                                        </div>
+                                    </article>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="px-4 py-10 text-center text-sm text-slate-500">
+                    {{
+                        isRejectedView
+                            ? 'No rejected accounts for the selected filters.'
+                            : 'No accounts in the queue for the selected filters.'
+                    }}
                 </div>
 
                 <div
@@ -622,6 +881,31 @@ function rejectUser() {
                     >
                         Confirm Reject
                     </button>
+                </div>
+            </div>
+        </div>
+    </Transition>
+
+    <Transition name="modal-fade">
+        <div v-if="previewDocument" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 p-3 sm:p-6" @click.self="closeDocumentPreview">
+            <div class="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-[#034485]/30 bg-white shadow-2xl">
+                <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                    <div class="min-w-0">
+                        <h2 class="truncate text-base font-bold text-slate-900">{{ previewDocument.title }}</h2>
+                        <p v-if="previewDocument.subtitle" class="truncate text-xs text-slate-500">{{ previewDocument.subtitle }}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                            @click="closeDocumentPreview"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+                <div class="min-h-0 flex-1 bg-slate-100">
+                    <iframe :src="previewDocument.url" class="h-full w-full border-0" title="Document preview" />
                 </div>
             </div>
         </div>

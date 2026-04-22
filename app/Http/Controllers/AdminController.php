@@ -454,11 +454,12 @@ class AdminController extends Controller
         $queueQuery = (clone $baseQuery)
             ->select(['id', 'first_name', 'middle_name', 'last_name', 'email', 'role', 'account_state', 'avatar', 'created_at'])
             ->with([
-                'student:id,user_id,student_id_number,course_or_strand,current_grade_level,approval_status',
+                'student:id,user_id,student_id_number,home_address,course_or_strand,current_grade_level,approval_status,phone_number,date_of_birth,gender,height,weight,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone',
                 'student.latestHealthClearance' => function ($query) {
                     $query->select(
                         'athlete_health_clearances.id',
                         'athlete_health_clearances.student_id',
+                        'athlete_health_clearances.clearance_date',
                         'athlete_health_clearances.valid_until',
                         'athlete_health_clearances.physician_name',
                         'athlete_health_clearances.conditions',
@@ -502,16 +503,30 @@ class AdminController extends Controller
                         'id' => $user->student->id,
                         'student_id_number' => $user->student->student_id_number,
                         'first_name' => $user->student->first_name,
+                        'middle_name' => $user->student->middle_name,
                         'last_name' => $user->student->last_name,
+                        'home_address' => $user->student->home_address,
                         'course_or_strand' => $user->student->course_or_strand,
                         'current_grade_level' => $user->student->current_grade_level,
                         'academic_level_label' => $user->student->academic_level_label,
                         'approval_status' => $user->student->approval_status,
+                        'phone_number' => $user->student->phone_number,
+                        'date_of_birth' => $user->student->date_of_birth ? (string) $user->student->date_of_birth : null,
+                        'gender' => $user->student->gender,
+                        'height' => $user->student->height,
+                        'weight' => $user->student->weight,
+                        'emergency_contact_name' => $user->student->emergency_contact_name,
+                        'emergency_contact_relationship' => $user->student->emergency_contact_relationship,
+                        'emergency_contact_phone' => $user->student->emergency_contact_phone,
                         'latest_health_clearance' => $user->student->latestHealthClearance ? [
                             'id' => $user->student->latestHealthClearance->id,
+                            'clearance_date' => optional($user->student->latestHealthClearance->clearance_date)->toDateString(),
                             'clearance_status' => $user->student->latestHealthClearance->clearance_status,
                             'valid_until' => optional($user->student->latestHealthClearance->valid_until)->toDateString(),
                             'physician_name' => $user->student->latestHealthClearance->physician_name,
+                            'conditions' => $user->student->latestHealthClearance->conditions,
+                            'allergies' => $user->student->latestHealthClearance->allergies,
+                            'restrictions' => $user->student->latestHealthClearance->restrictions,
                         ] : null,
                         'latest_academic_document' => $user->student->latestAcademicDocument ? [
                             'id' => $user->student->latestAcademicDocument->id,

@@ -119,7 +119,7 @@ const props = defineProps<{
 }>();
 
 const defaultSort: SortOption = 'created_at:desc';
-const selectedUser = ref<UserRow | null>(null);
+const selectedUserId = ref<number | null>(props.users.data[0]?.id ?? null);
 const copiedUserId = ref<number | null>(null);
 const deactivateTarget = ref<UserRow | null>(null);
 const reactivateTarget = ref<UserRow | null>(null);
@@ -176,7 +176,8 @@ const hasActiveFilters = computed(
     () => search.value.trim() !== '' || roleFilter.value !== 'all' || statusFilter.value !== 'active' || sortOption.value !== defaultSort,
 );
 const isDeactivatedView = computed(() => statusFilter.value === 'deactivated');
-const hasBlockingModal = computed(() => Boolean(selectedUser.value || deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || coachOnboardingOpen.value || adminInviteOpen.value));
+const selectedUser = computed(() => props.users.data.find((user) => user.id === selectedUserId.value) ?? props.users.data[0] ?? null);
+const hasBlockingModal = computed(() => Boolean(deactivateTarget.value || reactivateTarget.value || createCoachOpen.value || coachOnboardingOpen.value || adminInviteOpen.value));
 const sportOptions = computed(() => props.sports ?? []);
 const assignableTeams = computed(() => props.assignableTeams ?? []);
 const filteredAssignableTeams = computed(() => {
@@ -238,8 +239,24 @@ watch(sortOption, () => {
     applyFilters({ resetPage: true });
 });
 
+watch(
+    () => props.users.data,
+    (users) => {
+        if (!users.length) {
+            selectedUserId.value = null;
+            return;
+        }
+
+        const stillVisible = users.some((user) => user.id === selectedUserId.value);
+        if (!stillVisible) {
+            selectedUserId.value = users[0].id;
+        }
+    },
+    { immediate: true },
+);
+
 function openInfo(user: UserRow) {
-    selectedUser.value = user;
+    selectedUserId.value = user.id;
 }
 
 function openCreateCoach() {
@@ -415,10 +432,6 @@ function regenerateCoachCredentials(user: UserRow) {
     );
 }
 
-function closeInfo() {
-    selectedUser.value = null;
-}
-
 function goToApprovalRequests() {
     if (topTab.value === 'queue') return;
     topTab.value = 'queue';
@@ -462,8 +475,42 @@ function formatDate(value?: string | null) {
     return parsed.toLocaleDateString();
 }
 
+function formatDateTime(value?: string | null) {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleString('en-PH', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+}
+
 function formatSimple(value?: string | null) {
     return value?.trim() ? value : '-';
+}
+
+function userInitials(user: UserRow) {
+    return String(user.name ?? '')
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || 'U';
+}
+
+function accountTone(user: UserRow) {
+    return user.status === 'active'
+        ? 'border border-emerald-200 bg-emerald-100 text-emerald-700'
+        : 'border border-amber-200 bg-amber-100 text-amber-700';
+}
+
+function roleTone(user: UserRow) {
+    return user.role === 'coach'
+        ? 'border border-indigo-200 bg-indigo-50 text-indigo-700'
+        : 'border border-sky-200 bg-sky-50 text-sky-700';
 }
 
 function getPrimaryPhone(user: UserRow) {
@@ -593,7 +640,6 @@ function reactivateUser() {
 
 function onModalEscape(event: KeyboardEvent) {
     if (event.key === 'Escape') {
-        closeInfo();
         closeDeactivateDialog();
         closeReactivateDialog();
         closeCreateCoach();
@@ -808,103 +854,278 @@ watch(
             leave-to-class="opacity-0 -translate-y-1"
         >
             <div :key="statusFilter" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-225 text-sm">
-                        <thead class="bg-slate-50 text-slate-700">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold">Avatar</th>
-                                <th class="px-4 py-3 text-left font-semibold">Name</th>
-                                <th class="px-4 py-3 text-left font-semibold">Email</th>
-                                <th class="px-4 py-3 text-left font-semibold">Role</th>
-                                <th class="px-4 py-3 text-left font-semibold">Account</th>
-                                <th class="px-4 py-3 text-left font-semibold">Registered</th>
-                                <th class="px-4 py-3 text-left font-semibold">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="user in users.data" :key="user.id" class="border-t border-slate-200">
-                                <td class="px-4 py-3">
-                                    <img
-                                        :src="user.avatar ? `/storage/${user.avatar}` : '/images/default-avatar.svg'"
-                                        :alt="`${user.name} avatar`"
-                                        class="h-10 w-10 rounded-full object-cover"
-                                    />
-                                </td>
-                                <td class="px-4 py-3">
-                                    <p class="font-semibold text-slate-900">{{ user.name }}</p>
-                                    <p v-if="user.student?.student_id_number" class="text-xs text-slate-500">
-                                        ID: {{ user.student.student_id_number }}
-                                    </p>
-                                </td>
-                                <td class="px-4 py-3 text-slate-700">{{ user.email }}</td>
-                                <td class="px-4 py-3 text-slate-700 capitalize">{{ formatRole(user.role) }}</td>
-                                <td class="px-4 py-3">
-                                    <span
-                                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :class="user.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                <div v-if="users.data.length" class="grid gap-0 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)]">
+                    <div class="border-b border-slate-200 xl:border-r xl:border-b-0">
+                        <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
+                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
+                            <p class="mt-1 text-sm text-slate-600">
+                                {{ isDeactivatedView ? 'Review and restore deactivated accounts without leaving the page.' : 'Scan active accounts quickly and open the full profile inline.' }}
+                            </p>
+                        </div>
+                        <div class="max-h-[calc(100vh-24rem)] overflow-y-auto">
+                            <button
+                                v-for="user in users.data"
+                                :key="user.id"
+                                type="button"
+                                class="w-full border-b border-slate-200 px-4 py-4 text-left transition-colors duration-200 ease-out last:border-b-0"
+                                :class="selectedUser?.id === user.id ? 'bg-[#034485]' : 'hover:bg-slate-50'"
+                                @click="openInfo(user)"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <div
+                                        class="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border text-sm font-bold transition-colors duration-200 ease-out"
+                                        :class="selectedUser?.id === user.id ? 'border-white/25 bg-white/15 text-white' : 'border-[#034485]/20 bg-[#e9f2ff] text-[#034485]'"
                                     >
-                                        {{ user.status }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 text-slate-700">
-                                    {{ user.created_at ? new Date(user.created_at).toLocaleDateString() : '-' }}
-                                </td>
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <button
-                                            type="button"
-                                            @click="openInfo(user)"
-                                            class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#334155]"
-                                        >
-                                            View Details
-                                        </button>
-                                        <button
-                                            type="button"
-                                            @click="copyEmail(user)"
-                                            class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
-                                        >
-                                            <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
-                                                <path
-                                                    d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
-                                                />
-                                            </svg>
-                                            {{ copiedUserId === user.id ? 'Copied' : 'Copy Email' }}
-                                        </button>
-                                        <button
-                                            v-if="user.role === 'coach'"
-                                            type="button"
-                                            @click="regenerateCoachCredentials(user)"
-                                            class="rounded-md border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                                        >
-                                            Regenerate Credentials
-                                        </button>
-                                        <button
-                                            v-if="user.status === 'active'"
-                                            type="button"
-                                            @click="openDeactivateDialog(user)"
-                                            :disabled="actionLoadingId === user.id"
-                                            class="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            Deactivate
-                                        </button>
-                                        <button
-                                            v-if="user.status === 'deactivated'"
-                                            type="button"
-                                            @click="openReactivateDialog(user)"
-                                            :disabled="actionLoadingId === user.id"
-                                            class="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            Reactivate
-                                        </button>
+                                        <img
+                                            v-if="user.avatar"
+                                            :src="`/storage/${user.avatar}`"
+                                            :alt="`${user.name} avatar`"
+                                            class="h-full w-full object-cover"
+                                        />
+                                        <span v-else>{{ userInitials(user) }}</span>
                                     </div>
-                                </td>
-                            </tr>
-                            <tr v-if="users.data.length === 0">
-                                <td colspan="7" class="px-4 py-10 text-center text-sm text-slate-500">No users match your filters.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="truncate text-sm font-semibold transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-white' : 'text-slate-900'">{{ user.name }}</p>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors duration-200 ease-out" :class="accountTone(user)">
+                                                {{ user.status }}
+                                            </span>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize transition-colors duration-200 ease-out" :class="roleTone(user)">
+                                                {{ formatRole(user.role) }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">{{ user.email }}</p>
+                                        <p class="mt-1 text-xs transition-colors duration-200 ease-out" :class="selectedUser?.id === user.id ? 'text-blue-100' : 'text-slate-500'">
+                                            {{
+                                                user.student
+                                                    ? `${formatSimple(user.student.student_id_number)} • ${formatSimple(user.student.course_or_strand)}`
+                                                    : `${formatSimple(coachDisplayName(user.coach))} • ${formatSimple(user.coach?.coach_status)}`
+                                            }}
+                                        </p>
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                            >
+                                                Registered {{ formatDate(user.created_at) }}
+                                            </span>
+                                            <span
+                                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors duration-200 ease-out"
+                                                :class="selectedUser?.id === user.id ? 'border-white/20 bg-white/10 text-blue-50' : 'border-slate-200 bg-white text-slate-600'"
+                                            >
+                                                Profile {{ profileCompleteness(user) }}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white">
+                        <div v-if="selectedUser" class="space-y-5 p-4 sm:p-5">
+                            <div class="flex flex-col gap-4 border-b border-slate-200 pb-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#034485]/20 bg-[#e9f2ff] text-base font-bold text-[#034485]">
+                                        <img
+                                            v-if="selectedUser.avatar"
+                                            :src="`/storage/${selectedUser.avatar}`"
+                                            :alt="`${selectedUser.name} avatar`"
+                                            class="h-full w-full object-cover"
+                                        />
+                                        <span v-else>{{ userInitials(selectedUser) }}</span>
+                                    </div>
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h2 class="text-lg font-bold text-slate-900">{{ selectedUser.name }}</h2>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="accountTone(selectedUser)">
+                                                {{ selectedUser.status }}
+                                            </span>
+                                            <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize" :class="roleTone(selectedUser)">
+                                                {{ formatRole(selectedUser.role) }}
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-600">{{ selectedUser.email }}</p>
+                                        <p class="text-sm text-slate-500">Joined {{ formatDateTime(selectedUser.created_at) }}</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        @click="copyEmail(selectedUser)"
+                                        class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                                    >
+                                        <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
+                                            <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
+                                        </svg>
+                                        {{ copiedUserId === selectedUser.id ? 'Copied' : 'Copy Email' }}
+                                    </button>
+                                    <button
+                                        v-if="selectedUser.role === 'coach'"
+                                        type="button"
+                                        @click="regenerateCoachCredentials(selectedUser)"
+                                        class="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                                    >
+                                        Regenerate Credentials
+                                    </button>
+                                    <button
+                                        v-if="selectedUser.status === 'active'"
+                                        type="button"
+                                        @click="openDeactivateDialog(selectedUser)"
+                                        :disabled="actionLoadingId === selectedUser.id"
+                                        class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        Deactivate
+                                    </button>
+                                    <button
+                                        v-if="selectedUser.status === 'deactivated'"
+                                        type="button"
+                                        @click="openReactivateDialog(selectedUser)"
+                                        :disabled="actionLoadingId === selectedUser.id"
+                                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                        Reactivate
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 lg:grid-cols-2">
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Account Overview</p>
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p class="text-xs text-slate-500">User ID</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.id }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Profile Completeness</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ profileCompleteness(selectedUser) }}%</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Account Status</p>
+                                            <p class="mt-1 text-sm font-medium capitalize text-slate-900">{{ selectedUser.status }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Registered</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.created_at) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contact</p>
+                                    <div class="mt-3 grid gap-3">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Email</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedUser.email }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Primary Phone</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(getPrimaryPhone(selectedUser)) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section v-if="selectedUser.student" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student Information</p>
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Student ID</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_id_number) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Course / Strand</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.course_or_strand) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Academic Level</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.academic_level_label || selectedUser.student.current_grade_level) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Enrollment Status</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.student_status) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Approval Status</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.approval_status) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Gender</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.gender) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Birth Date</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.student.date_of_birth) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Age</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ getAge(selectedUser.student.date_of_birth) ?? '-' }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Height</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.height) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Weight</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.weight) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section v-if="selectedUser.student" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Emergency Contact</p>
+                                    <div class="mt-3 grid gap-3">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Name</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_name) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Relationship</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_relationship) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Phone</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.student.emergency_contact_phone) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section v-if="selectedUser.coach" class="rounded-2xl border border-[#034485]/18 bg-[#f9fbff] p-4 lg:col-span-2">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Coach Information</p>
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p class="text-xs text-slate-500">Coach Name</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ coachDisplayName(selectedUser.coach) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Coach Status</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.coach_status) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Phone</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.phone_number) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Gender</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatSimple(selectedUser.coach.gender) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Birth Date</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ formatDate(selectedUser.coach.date_of_birth) }}</p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-slate-500">Age</p>
+                                            <p class="mt-1 text-sm font-medium text-slate-900">{{ getAge(selectedUser.coach.date_of_birth) ?? '-' }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <div v-else class="px-4 py-10 text-center text-sm text-slate-500">No users match your filters.</div>
 
                 <div
                     class="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"
@@ -1288,155 +1509,6 @@ watch(
                         class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#334155]"
                     >
                         Done
-                    </button>
-                </div>
-            </div>
-        </div>
-    </Transition>
-
-    <Transition name="modal-fade">
-        <div v-if="selectedUser" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" @click.self="closeInfo">
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="user-info-title"
-                class="modal-panel w-full max-w-3xl rounded-2xl border border-[#034485]/45 bg-white p-6 sm:p-7"
-            >
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 id="user-info-title" class="text-lg font-bold text-slate-900">{{ selectedUser.name }}</h2>
-                            <span class="rounded-full bg-[#1f2937]/10 px-2.5 py-1 text-xs font-semibold text-[#1f2937]">
-                                {{ formatRole(selectedUser.role) }}
-                            </span>
-                            <span
-                                class="rounded-full px-2.5 py-1 text-xs font-semibold"
-                                :class="selectedUser.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
-                            >
-                                {{ selectedUser.status }}
-                            </span>
-                        </div>
-                        <p class="mt-1 text-sm text-slate-600">{{ selectedUser.email }}</p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <a
-                                :href="`mailto:${selectedUser.email}`"
-                                class="rounded-md bg-[#1f2937] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#334155]"
-                            >
-                                Email User
-                            </a>
-                            <button
-                                type="button"
-                                @click="copyEmail(selectedUser)"
-                                class="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                            >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
-                                    <path
-                                        d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
-                                    />
-                                </svg>
-                                {{ copiedUserId === selectedUser.id ? 'Copied' : 'Copy Email' }}
-                            </button>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        @click="closeInfo"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                        aria-label="Close user information"
-                    >
-                        <svg
-                            class="h-4 w-4"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="mt-6 grid grid-cols-1 gap-5 text-sm text-slate-700 lg:grid-cols-2">
-                    <div class="space-y-4">
-                        <section class="rounded-lg border border-[#034485]/45 bg-slate-50 p-3">
-                            <h3 class="font-semibold text-slate-900">Account Overview</h3>
-                            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <p><span class="font-medium">User ID:</span> {{ selectedUser.id }}</p>
-                                <p><span class="font-medium">Joined:</span> {{ formatDate(selectedUser.created_at) }}</p>
-                                <p><span class="font-medium">Profile Completeness:</span> {{ profileCompleteness(selectedUser) }}%</p>
-                                <p><span class="font-medium">Status:</span> {{ selectedUser.status }}</p>
-                            </div>
-                        </section>
-
-                        <section class="rounded-lg border border-[#034485]/45 bg-slate-50 p-3">
-                            <h3 class="font-semibold text-slate-900">Contact</h3>
-                            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <p class="sm:col-span-2"><span class="font-medium">Email:</span> {{ selectedUser.email }}</p>
-                                <p class="sm:col-span-2">
-                                    <span class="font-medium">Primary Phone:</span> {{ formatSimple(getPrimaryPhone(selectedUser)) }}
-                                </p>
-                            </div>
-                        </section>
-                    </div>
-
-                    <div class="space-y-4">
-                        <section v-if="selectedUser.student" class="rounded-lg border border-[#034485]/45 bg-slate-50 p-3">
-                            <h3 class="font-semibold text-slate-900">Student Information</h3>
-                            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <p><span class="font-medium">Student ID:</span> {{ selectedUser.student.student_id_number || '-' }}</p>
-                                <p><span class="font-medium">Course/Strand:</span> {{ formatSimple(selectedUser.student.course_or_strand) }}</p>
-                                <p>
-                                    <span class="font-medium">Academic Level:</span> {{ formatSimple(selectedUser.student.academic_level_label) }}
-                                </p>
-                                <p><span class="font-medium">Enrollment Status:</span> {{ formatSimple(selectedUser.student.student_status) }}</p>
-                                <p><span class="font-medium">Approval Status:</span> {{ formatSimple(selectedUser.student.approval_status) }}</p>
-                                <p><span class="font-medium">Phone:</span> {{ formatSimple(selectedUser.student.phone_number) }}</p>
-                                <p><span class="font-medium">Gender:</span> {{ formatSimple(selectedUser.student.gender) }}</p>
-                                <p><span class="font-medium">Birth Date:</span> {{ formatDate(selectedUser.student.date_of_birth) }}</p>
-                                <p><span class="font-medium">Age:</span> {{ getAge(selectedUser.student.date_of_birth) ?? '-' }}</p>
-                                <p><span class="font-medium">Height:</span> {{ formatSimple(selectedUser.student.height) }}</p>
-                                <p><span class="font-medium">Weight:</span> {{ formatSimple(selectedUser.student.weight) }}</p>
-                            </div>
-                            <div class="mt-3 rounded-lg border border-[#034485]/30 bg-white/70 p-2.5">
-                                <h4 class="text-xs font-semibold tracking-wide text-slate-600 uppercase">Emergency Contact</h4>
-                                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    <p><span class="font-medium">Name:</span> {{ formatSimple(selectedUser.student.emergency_contact_name) }}</p>
-                                    <p>
-                                        <span class="font-medium">Relationship:</span>
-                                        {{ formatSimple(selectedUser.student.emergency_contact_relationship) }}
-                                    </p>
-                                    <p class="sm:col-span-2">
-                                        <span class="font-medium">Phone:</span> {{ formatSimple(selectedUser.student.emergency_contact_phone) }}
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section v-if="selectedUser.coach" class="rounded-lg border border-[#034485]/45 bg-slate-50 p-3">
-                            <h3 class="font-semibold text-slate-900">Coach Information</h3>
-                            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                <p><span class="font-medium">Name:</span> {{ coachDisplayName(selectedUser.coach) }}</p>
-                                <p><span class="font-medium">Status:</span> {{ formatSimple(selectedUser.coach.coach_status) }}</p>
-                                <p><span class="font-medium">Phone:</span> {{ formatSimple(selectedUser.coach.phone_number) }}</p>
-                                <p><span class="font-medium">Gender:</span> {{ formatSimple(selectedUser.coach.gender) }}</p>
-                                <p><span class="font-medium">Birth Date:</span> {{ formatDate(selectedUser.coach.date_of_birth) }}</p>
-                                <p><span class="font-medium">Age:</span> {{ getAge(selectedUser.coach.date_of_birth) ?? '-' }}</p>
-                            </div>
-                        </section>
-                    </div>
-                </div>
-
-                <div class="mt-5 flex justify-end">
-                    <button
-                        type="button"
-                        @click="closeInfo"
-                        class="rounded-md bg-slate-700 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                    >
-                        Close
                     </button>
                 </div>
             </div>
