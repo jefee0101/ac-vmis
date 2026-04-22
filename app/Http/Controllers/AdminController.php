@@ -7,6 +7,7 @@ use App\Mail\AccountApprovedMail;
 use App\Mail\AdminInviteMail;
 use App\Mail\AccountRejectedMail;
 use App\Mail\CoachOnboardingMail;
+use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AccountActionLog;
 use App\Models\AdminInvite;
 use App\Models\Announcement;
@@ -92,6 +93,87 @@ class AdminController extends Controller
             });
 
         return Inertia::render('Admin/AdminDashboard', $payload);
+    }
+
+    public function auditTrail()
+    {
+        $approvalHistory = StudentApprovalHistory::query()
+            ->with([
+                'student.user:id,first_name,middle_name,last_name',
+                'admin:id,first_name,middle_name,last_name',
+            ])
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(function (StudentApprovalHistory $history) {
+                return [
+                    'id' => $history->id,
+                    'student_name' => $history->student?->user?->name ?? 'Unknown student',
+                    'decision' => $history->decision,
+                    'remarks' => $history->remarks,
+                    'admin_name' => $history->admin?->name ?? 'System',
+                    'created_at' => optional($history->created_at)?->toIso8601String(),
+                ];
+            })
+            ->values();
+
+        $accountActions = AccountActionLog::query()
+            ->with([
+                'user:id,first_name,middle_name,last_name,role',
+                'admin:id,first_name,middle_name,last_name',
+            ])
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(function (AccountActionLog $log) {
+                return [
+                    'id' => $log->id,
+                    'user_name' => $log->user?->name ?? 'Unknown user',
+                    'user_role' => $log->user?->role ?? 'unknown',
+                    'action' => $log->action,
+                    'remarks' => $log->remarks,
+                    'admin_name' => $log->admin?->name ?? 'System',
+                    'created_at' => optional($log->created_at)?->toIso8601String(),
+                ];
+            })
+            ->values();
+
+        $academicEvaluations = AcademicEligibilityEvaluation::query()
+            ->with([
+                'student.user:id,first_name,middle_name,last_name',
+                'academicPeriod:id,school_year,term',
+                'evaluator:id,first_name,middle_name,last_name',
+            ])
+            ->whereNotNull('evaluated_at')
+            ->latest('evaluated_at')
+            ->limit(20)
+            ->get()
+            ->map(function (AcademicEligibilityEvaluation $evaluation) {
+                return [
+                    'id' => $evaluation->id,
+                    'student_name' => $evaluation->student?->user?->name ?? 'Unknown student',
+                    'status' => $evaluation->status,
+                    'gpa' => $evaluation->gpa !== null ? (float) $evaluation->gpa : null,
+                    'remarks' => $evaluation->remarks,
+                    'period_label' => $evaluation->academicPeriod
+                        ? trim($evaluation->academicPeriod->school_year . ' ' . $evaluation->academicPeriod->term)
+                        : null,
+                    'evaluator_name' => $evaluation->evaluator?->name ?? 'System',
+                    'evaluated_at' => optional($evaluation->evaluated_at)?->toIso8601String(),
+                ];
+            })
+            ->values();
+
+        return Inertia::render('Admin/AuditTrail', [
+            'summary' => [
+                'approval_events' => $approvalHistory->count(),
+                'account_actions' => $accountActions->count(),
+                'academic_evaluations' => $academicEvaluations->count(),
+            ],
+            'approvalHistory' => $approvalHistory,
+            'accountActions' => $accountActions,
+            'academicEvaluations' => $academicEvaluations,
+        ]);
     }
 
     public function approve(User $user)

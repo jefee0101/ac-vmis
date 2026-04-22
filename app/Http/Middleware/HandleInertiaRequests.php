@@ -451,6 +451,27 @@ class HandleInertiaRequests extends Middleware
                         }
                     })()
                     : null,
+                'student_context' => fn () => $request->user() && in_array($request->user()->role, ['student', 'student-athlete'], true) && $request->user()->student
+                    ? (function () use ($request) {
+                        try {
+                            return [
+                                'has_team_assignment' => TeamPlayer::query()
+                                    ->where('student_id', $request->user()->student->id)
+                                    ->exists(),
+                            ];
+                        } catch (\Throwable $e) {
+                            Log::warning('Student context share payload failed.', [
+                                'user_id' => $request->user()?->id,
+                                'student_id' => $request->user()?->student?->id,
+                                'message' => $e->getMessage(),
+                            ]);
+
+                            return [
+                                'has_team_assignment' => false,
+                            ];
+                        }
+                    })()
+                    : null,
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Coaches;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccountActionLog;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\User;
@@ -150,11 +151,24 @@ class CoachTeamController extends Controller
         ]);
 
         $position = trim((string) ($validated['athlete_position'] ?? ''));
+        $previousPosition = trim((string) ($teamPlayer->athlete_position ?? ''));
         $teamPlayer->update([
             'athlete_position' => $position === '' ? null : $position,
         ]);
 
         $studentUserId = $teamPlayer->student?->user_id;
+        if ($studentUserId) {
+            $before = $previousPosition !== '' ? $previousPosition : 'none';
+            $after = $position !== '' ? $position : 'none';
+
+            AccountActionLog::create([
+                'user_id' => (int) $studentUserId,
+                'admin_id' => $request->user()?->id,
+                'action' => 'roster_position_updated',
+                'remarks' => "Roster position updated for {$teamPlayer->student?->full_name} in {$team->team_name}: {$before} -> {$after}.",
+            ]);
+        }
+
         if ($studentUserId) {
             $message = $position === ''
                 ? "Your team position in {$team->team_name} was cleared by your coach."
@@ -190,9 +204,20 @@ class CoachTeamController extends Controller
             'player_status' => 'required|in:active,injured,suspended',
         ]);
 
+        $previousStatus = (string) ($teamPlayer->player_status ?? 'active');
         $teamPlayer->update([
             'player_status' => $validated['player_status'],
         ]);
+
+        $studentUserId = $teamPlayer->student?->user_id;
+        if ($studentUserId) {
+            AccountActionLog::create([
+                'user_id' => (int) $studentUserId,
+                'admin_id' => $request->user()?->id,
+                'action' => 'roster_status_updated',
+                'remarks' => "Roster status updated for {$teamPlayer->student?->full_name} in {$team->team_name}: {$previousStatus} -> {$validated['player_status']}.",
+            ]);
+        }
 
         return back()->with('success', 'Player status updated.');
     }

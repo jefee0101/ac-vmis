@@ -33,6 +33,7 @@ const props = defineProps<{
     accessLocked?: boolean;
     lockStatus?: string | null;
     lockMessage?: string | null;
+    noTeamAssigned?: boolean;
 }>();
 
 const search = ref('');
@@ -106,6 +107,10 @@ function toggleDetails(id: number) {
 
         <template v-else>
             <div v-if="!student" class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-600">Student profile not found.</div>
+
+            <div v-else-if="noTeamAssigned" class="rounded-3xl border border-[#034485]/35 bg-white p-6 text-slate-600">
+                You are not assigned to a team yet.
+            </div>
 
             <template v-else>
                 <section class="grid grid-cols-1 gap-3 sm:grid-cols-4">

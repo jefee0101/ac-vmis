@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CreateTeamController;
 use App\Http\Controllers\Admin\OperationsWorkspaceController;
 use App\Http\Controllers\Admin\HealthWorkspaceController;
 use App\Http\Controllers\Admin\AcademicEligibilityController;
+use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Coaches\CoachTeamController;
 use App\Http\Controllers\StudentAthlete\StudentAthleteController;
 use App\Http\Controllers\Coaches\CoachScheduleController;
@@ -228,6 +229,34 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('/academics', [AcademicEligibilityController::class, 'index'])
         ->name('admin.academics.index');
+    Route::get('/audit-trail', [AdminController::class, 'auditTrail'])
+        ->name('admin.audit-trail.index');
+    Route::redirect('/reports', '/reports/attendance')
+        ->name('admin.reports.index');
+    Route::get('/reports/attendance', [ReportsController::class, 'attendance'])
+        ->name('admin.reports.attendance');
+    Route::get('/reports/roster', [ReportsController::class, 'roster'])
+        ->name('admin.reports.roster');
+    Route::get('/reports/academics', [ReportsController::class, 'academics'])
+        ->name('admin.reports.academics');
+    Route::get('/reports/health', [ReportsController::class, 'health'])
+        ->name('admin.reports.health');
+    Route::get('/reports/attendance/export.csv', [ReportsController::class, 'exportAttendanceCsv'])
+        ->name('admin.reports.attendance.csv');
+    Route::get('/reports/attendance/print', [ReportsController::class, 'printAttendanceSummary'])
+        ->name('admin.reports.attendance.print');
+    Route::get('/reports/roster/export.csv', [ReportsController::class, 'exportRosterCsv'])
+        ->name('admin.reports.roster.csv');
+    Route::get('/reports/roster/print', [ReportsController::class, 'printRosterSummary'])
+        ->name('admin.reports.roster.print');
+    Route::get('/reports/academics/export.csv', [ReportsController::class, 'exportAcademicCsv'])
+        ->name('admin.reports.academics.csv');
+    Route::get('/reports/academics/print', [ReportsController::class, 'printAcademicSummary'])
+        ->name('admin.reports.academics.print');
+    Route::get('/reports/health/export.csv', [ReportsController::class, 'exportHealthCsv'])
+        ->name('admin.reports.health.csv');
+    Route::get('/reports/health/print', [ReportsController::class, 'printHealthSummary'])
+        ->name('admin.reports.health.print');
     Route::get('/academics/submissions', [AcademicEligibilityController::class, 'submissions'])
         ->name('admin.academics.submissions');
     Route::get('/academics/past-periods', [AcademicEligibilityController::class, 'pastPeriods'])

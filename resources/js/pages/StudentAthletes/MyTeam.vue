@@ -163,7 +163,7 @@ function statusTone(status?: string | null) {
 
         <!-- No team assigned -->
         <div v-if="!showTeam" class="bg-white rounded-3xl p-6 border border-[#034485]/35">
-            <p class="text-slate-600 font-medium">You are not assigned to any team yet.</p>
+            <p class="text-slate-600 font-medium">You are not assigned to a team yet.</p>
             <p class="text-sm text-slate-500 mt-1">Once assigned, your team, schedule, and wellness logs will appear here.</p>
         </div>
 

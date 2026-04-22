@@ -144,6 +144,9 @@ const mobileNavOpen = ref(false);
 const sidebarCollapsed = ref(false);
 const notificationsOpen = ref(false);
 const notificationsCloseTimer = ref<number | null>(null);
+const reportsHoverCloseTimer = ref<number | null>(null);
+const reportsTriggerRef = ref<HTMLElement | null>(null);
+const reportsHoverStyle = ref<Record<string, string>>({});
 
 const adminNotifications = ref<
     Array<{
@@ -188,8 +191,12 @@ function logout() {
 
 type NavEntry = {
     name: string;
-    route: string;
     iconPaths: string[];
+    route?: string;
+    children?: Array<{
+        name: string;
+        route: string;
+    }>;
 };
 
 const pages: NavEntry[] = [
@@ -217,6 +224,21 @@ const pages: NavEntry[] = [
         route: '/academics',
         iconPaths: ['M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z', 'M14 4v5h5', 'M8 13h8', 'M8 17h5'],
     },
+    {
+        name: 'Audit Trail',
+        route: '/audit-trail',
+        iconPaths: ['M12 8v5l3 2', 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0', 'M12 3v2', 'M12 19v2'],
+    },
+    {
+        name: 'Reports',
+        iconPaths: ['M4 19h16', 'M7 16V8', 'M12 16V5', 'M17 16v-3'],
+        children: [
+            { name: 'Attendance', route: '/reports/attendance' },
+            { name: 'Roster', route: '/reports/roster' },
+            { name: 'Academics', route: '/reports/academics' },
+            { name: 'Health', route: '/reports/health' },
+        ],
+    },
 ];
 
 const footerLinks = [
@@ -226,6 +248,8 @@ const footerLinks = [
     { label: 'Operations', href: '/operations' },
     { label: 'Health', href: '/health' },
     { label: 'Academics', href: '/academics' },
+    { label: 'Audit Trail', href: '/audit-trail' },
+    { label: 'Reports', href: '/reports/attendance' },
     { label: 'Announcements', href: '/announcements' },
     { label: 'Profile', href: '/account/profile' },
     { label: 'Settings', href: '/account/settings' },
@@ -263,7 +287,13 @@ const currentPageName = computed(() => {
         return 'Announcements';
     }
 
-    const match = pages.find((item) => currentPath.value === item.route || currentPath.value.startsWith(`${item.route}/`));
+    const match = pages.find((item) => {
+        if (item.route) {
+            return currentPath.value === item.route || currentPath.value.startsWith(`${item.route}/`);
+        }
+
+        return item.children?.some((child) => currentPath.value === child.route || currentPath.value.startsWith(`${child.route}/`)) ?? false;
+    });
     return match?.name ?? 'Dashboard';
 });
 
@@ -291,6 +321,8 @@ const isHelpRoute = computed(() => {
 
 const selectedPeriod = computed(() => dashboard.value?.filters.period ?? 'week');
 const actionCenter = computed(() => dashboard.value?.action_center ?? null);
+const reportsExpanded = ref(false);
+const reportsHoverOpen = ref(false);
 
 const attendanceMax = computed(() => {
     const values = dashboard.value
@@ -335,17 +367,118 @@ function goTo(route: string) {
     router.get(route);
 }
 
+function goToNavTarget(route: string) {
+    mobileNavOpen.value = false;
+    reportsHoverOpen.value = false;
+    router.get(route);
+}
+
 function isActive(route: string): boolean {
     return currentPath.value === route || currentPath.value.startsWith(`${route}/`);
+}
+
+function isChildActive(route: string): boolean {
+    return isActive(route);
+}
+
+function isEntryActive(entry: NavEntry): boolean {
+    if (entry.route) {
+        return isActive(entry.route);
+    }
+
+    if (entry.children?.some((child) => isActive(child.route))) {
+        return true;
+    }
+
+    return entry.children?.some((child) => isChildActive(child.route)) ?? false;
+}
+
+function toggleReportsNav() {
+    reportsExpanded.value = !reportsExpanded.value;
+}
+
+function setReportsTriggerRef(el: Element | null) {
+    reportsTriggerRef.value = el instanceof HTMLElement ? el : null;
+}
+
+function updateReportsHoverPosition() {
+    if (!reportsTriggerRef.value) return;
+
+    const rect = reportsTriggerRef.value.getBoundingClientRect();
+    const menuWidth = 224;
+    const menuHeight = 220;
+    const viewportPadding = 12;
+    const idealTop = rect.top + rect.height / 2 - menuHeight / 2;
+    const maxTop = window.innerHeight - menuHeight - viewportPadding;
+    const clampedTop = Math.min(Math.max(viewportPadding, idealTop), Math.max(viewportPadding, maxTop));
+    const maxLeft = window.innerWidth - menuWidth - viewportPadding;
+    const clampedLeft = Math.min(rect.right + 8, Math.max(viewportPadding, maxLeft));
+
+    reportsHoverStyle.value = {
+        position: 'fixed',
+        top: `${clampedTop}px`,
+        left: `${clampedLeft}px`,
+    };
+}
+
+function clearReportsHoverCloseTimer() {
+    if (reportsHoverCloseTimer.value) {
+        window.clearTimeout(reportsHoverCloseTimer.value);
+        reportsHoverCloseTimer.value = null;
+    }
+}
+
+function openReportsHoverMenu() {
+    if (sidebarCollapsed.value && !mobileNavOpen.value) {
+        clearReportsHoverCloseTimer();
+        updateReportsHoverPosition();
+        reportsHoverOpen.value = true;
+    }
+}
+
+function closeReportsHoverMenu() {
+    clearReportsHoverCloseTimer();
+    reportsHoverOpen.value = false;
+}
+
+function scheduleReportsHoverClose() {
+    if (!sidebarCollapsed.value || mobileNavOpen.value) {
+        closeReportsHoverMenu();
+        return;
+    }
+
+    clearReportsHoverCloseTimer();
+    reportsHoverCloseTimer.value = window.setTimeout(() => {
+        reportsHoverOpen.value = false;
+        reportsHoverCloseTimer.value = null;
+    }, 140);
+}
+
+function handleReportsEntryClick() {
+    if (sidebarCollapsed.value && !mobileNavOpen.value) {
+        updateReportsHoverPosition();
+        reportsHoverOpen.value = !reportsHoverOpen.value;
+        return;
+    }
+
+    toggleReportsNav();
 }
 
 function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value;
     localStorage.setItem(SIDEBAR_PREF_KEY, sidebarCollapsed.value ? '1' : '0');
+
+    if (!sidebarCollapsed.value) {
+        closeReportsHoverMenu();
+        return;
+    }
+
+    updateReportsHoverPosition();
 }
 
 function closeMobileNav() {
     mobileNavOpen.value = false;
+    closeReportsHoverMenu();
 }
 
 function openNotifications() {
@@ -394,6 +527,7 @@ function markBellRead(item: { id: number; is_read: boolean }) {
 function onEscape(event: KeyboardEvent) {
     if (event.key === 'Escape') {
         closeMobileNav();
+        closeReportsHoverMenu();
     }
 }
 
@@ -483,17 +617,33 @@ function urgencyTone(level: 'critical' | 'high' | 'medium') {
 
 onMounted(() => {
     sidebarCollapsed.value = localStorage.getItem(SIDEBAR_PREF_KEY) === '1';
+    reportsExpanded.value = currentPath.value.startsWith('/reports');
     window.addEventListener('keydown', onEscape);
+    window.addEventListener('resize', updateReportsHoverPosition);
+    window.addEventListener('scroll', updateReportsHoverPosition, true);
 });
 
 onUnmounted(() => {
     window.removeEventListener('keydown', onEscape);
+    window.removeEventListener('resize', updateReportsHoverPosition);
+    window.removeEventListener('scroll', updateReportsHoverPosition, true);
+    clearReportsHoverCloseTimer();
     document.body.style.overflow = '';
 });
 
 watch(mobileNavOpen, (isOpen) => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
 });
+
+watch(
+    () => currentPath.value,
+    (value) => {
+        if (value.startsWith('/reports')) {
+            reportsExpanded.value = true;
+        }
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -503,7 +653,7 @@ watch(mobileNavOpen, (isOpen) => {
         <div v-if="mobileNavOpen" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" @click="closeMobileNav" />
 
         <aside
-            class="fixed left-0 z-30 border-r border-slate-200/80 bg-white/92 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
+            class="fixed left-0 z-30 border-r border-[#bfd4eb]/90 bg-[#eaf3ff]/95 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
             :class="[
                 mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
                 'top-18 h-[calc(100vh-72px)]',
@@ -512,53 +662,132 @@ watch(mobileNavOpen, (isOpen) => {
             ]"
         >
             <div class="flex h-full flex-col">
-                <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">                    <button
+                <nav class="flex-1 space-y-1 overflow-y-auto overflow-x-visible px-3 py-4">
+                    <div
                         v-for="entry in pages"
                         :key="entry.name"
-                        type="button"
-                        @click="goTo(entry.route)"
-                        class="group flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color,transform] duration-200 ease-out"
-                        :class="[
-                            isActive(entry.route)
-                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100',
-                            sidebarCollapsed && !mobileNavOpen ? 'justify-center px-2' : '',
-                        ]"
-                        :title="sidebarCollapsed ? entry.name : ''"
+                        class="relative space-y-1"
+                        @mouseenter="entry.children ? openReportsHoverMenu() : undefined"
+                        @mouseleave="entry.children ? scheduleReportsHoverClose() : undefined"
+                        @focusin="entry.children ? openReportsHoverMenu() : undefined"
+                        @focusout="entry.children ? scheduleReportsHoverClose() : undefined"
                     >
-                        <svg
-                            class="h-4.5 w-4.5 shrink-0"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
+                        <button
+                            type="button"
+                            :ref="entry.children ? setReportsTriggerRef : undefined"
+                            @click="entry.children ? handleReportsEntryClick() : goTo(entry.route!)"
+                            class="group flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color,transform] duration-200 ease-out"
+                            :class="[
+                                isEntryActive(entry)
+                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                    : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                sidebarCollapsed && !mobileNavOpen ? 'justify-center px-2' : '',
+                            ]"
+                            :title="sidebarCollapsed ? entry.name : ''"
+                            :aria-expanded="entry.children ? (sidebarCollapsed && !mobileNavOpen ? reportsHoverOpen : reportsExpanded) : undefined"
+                            :aria-haspopup="entry.children ? 'menu' : undefined"
                         >
-                            <path v-for="(path, idx) in entry.iconPaths" :key="`${entry.route}-icon-${idx}`" :d="path" />
-                        </svg>
-                        <span
-                            class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
-                            :class="
-                                sidebarCollapsed
-                                    ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0'
-                                    : 'ml-2 max-w-45 scale-100 opacity-100'
-                            "
+                            <svg
+                                class="h-4.5 w-4.5 shrink-0"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path
+                                    v-for="(path, idx) in entry.iconPaths"
+                                    :key="`${entry.name}-icon-${idx}`"
+                                    :d="path"
+                                />
+                            </svg>
+                            <span
+                                class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
+                                :class="
+                                    sidebarCollapsed
+                                        ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0'
+                                        : 'ml-2 max-w-45 scale-100 opacity-100'
+                                "
+                            >
+                                {{ entry.name }}
+                            </span>
+                            <svg
+                                v-if="entry.children && (!sidebarCollapsed || mobileNavOpen)"
+                                class="ml-auto h-4 w-4 shrink-0 transition-transform duration-200"
+                                :class="reportsExpanded ? 'rotate-180' : ''"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </button>
+
+                        <div
+                            v-if="entry.children && reportsExpanded && (!sidebarCollapsed || mobileNavOpen)"
+                            class="space-y-1 pl-4"
                         >
-                            {{ entry.name }}
-                        </span>
-                    </button>
+                            <button
+                                v-for="child in entry.children"
+                                :key="`${entry.name}-${child.name}`"
+                                type="button"
+                                @click="goToNavTarget(child.route)"
+                                class="flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
+                                :class="[
+                                    isChildActive(child.route)
+                                        ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                : 'border-transparent text-slate-600 hover:border-[#bfd4eb] hover:bg-white/75 hover:text-slate-900',
+                                ]"
+                            >
+                                <span class="truncate">{{ child.name }}</span>
+                            </button>
+                        </div>
+
+                        <div
+                            v-if="entry.children && reportsHoverOpen && sidebarCollapsed && !mobileNavOpen"
+                            :style="reportsHoverStyle"
+                            class="z-[60] w-56 overflow-hidden rounded-xl border border-[#bfd4eb] bg-[#f7fbff] shadow-[0_24px_60px_-24px_rgba(15,23,42,0.45)]"
+                            @mouseenter="openReportsHoverMenu"
+                            @mouseleave="scheduleReportsHoverClose"
+                        >
+                            <div class="border-b border-[#d6e4f4] px-4 py-3">
+                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Reports</p>
+                            </div>
+                            <div class="space-y-1 p-2">
+                                <button
+                                    v-for="child in entry.children"
+                                    :key="`${entry.name}-hover-${child.name}`"
+                                    type="button"
+                                    @click="goToNavTarget(child.route)"
+                                    role="menuitem"
+                                    class="flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-[background-color,color,border-color] duration-200"
+                                    :class="[
+                                        isChildActive(child.route)
+                                            ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                            : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/80',
+                                    ]"
+                                >
+                                    <span class="truncate">{{ child.name }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </nav>
 
-                <div class="border-t border-slate-200 px-3 py-3">
+                <div class="border-t border-[#d6e4f4] px-3 py-3">
                     <button
                         type="button"
                         class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
                         :class="[
                             isSettingsRoute
                                 ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100',
+                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
                             sidebarCollapsed && !mobileNavOpen ? 'justify-center' : '',
                         ]"
                         @click="goTo('/account/settings')"
@@ -586,7 +815,7 @@ watch(mobileNavOpen, (isOpen) => {
                         :class="[
                             isHelpRoute
                                 ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100',
+                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
                             sidebarCollapsed && !mobileNavOpen ? 'justify-center' : '',
                         ]"
                         @click="goTo('/account/help')"
@@ -650,7 +879,7 @@ watch(mobileNavOpen, (isOpen) => {
                     </button>
 
                     <div class="min-w-0 flex items-center gap-2">
-                        <div class="min-w-0 rounded-2xl bg-[#034485] px-3 py-2 shadow-[0_14px_28px_-20px_rgba(3,68,133,0.55)]">
+                        <div class="inline-flex max-w-full flex-col rounded-2xl bg-[#034485] px-3 py-2 shadow-[0_14px_28px_-20px_rgba(3,68,133,0.55)]">
                             <p class="admin-shell__kicker truncate text-[11px] font-semibold tracking-[0.18em] text-white uppercase">AC VMIS Admin</p>
                             <div class="flex min-w-0 items-center gap-2">
                                 <h2 class="admin-shell__title truncate text-sm font-semibold text-white sm:text-base">{{ currentPageName }}</h2>

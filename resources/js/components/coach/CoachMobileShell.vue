@@ -296,7 +296,7 @@ watch(isNavCollapsed, (collapsed) => {
 
         <div class="transition-all duration-300 ease-out pt-18" :class="isNavCollapsed ? 'md:pl-20' : 'md:pl-64'">
             <aside
-                class="hidden border-r border-slate-200/80 bg-white/92 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:flex-col"
+                class="hidden border-r border-[#bfd4eb]/90 bg-[#eaf3ff]/95 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:z-30 md:flex md:flex-col"
                 :class="[isNavCollapsed ? 'md:w-20' : 'md:w-64', 'md:top-18 md:h-[calc(100vh-72px)]']"
             >
                 <nav class="flex-1 space-y-1 px-3 py-4" aria-label="Primary">
@@ -326,7 +326,7 @@ watch(isNavCollapsed, (collapsed) => {
                     </button>
                 </nav>
 
-                <div class="border-t border-slate-200 px-3 py-3">
+                <div class="border-t border-[#d6e4f4] px-3 py-3">
                     <div v-if="hasSecondaryItems">
                         <p class="mb-2 px-2 text-[11px] font-bold tracking-wider text-slate-400 uppercase">More</p>
                         <button
@@ -427,7 +427,7 @@ watch(isNavCollapsed, (collapsed) => {
             </aside>
 
             <aside
-                class="fixed inset-y-0 left-0 z-50 w-[82vw] max-w-xs border-r border-slate-200 bg-white p-4 transition md:hidden"
+                class="fixed inset-y-0 left-0 z-50 w-[82vw] max-w-xs border-r border-[#bfd4eb] bg-[#eef5ff] p-4 transition md:hidden"
                 :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
             >
                 <div class="mb-4 flex items-center justify-between">
@@ -549,7 +549,7 @@ watch(isNavCollapsed, (collapsed) => {
 }
 
 .coach-side-link:hover {
-    background: #f8fbff;
+    background: rgba(255, 255, 255, 0.78);
     color: #034485;
 }
 

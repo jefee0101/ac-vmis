@@ -26,6 +26,10 @@ class WellnessHistoryController extends Controller
             ]);
         }
 
+        $hasTeamAssignment = \App\Models\Team::query()
+            ->whereHas('players', fn ($q) => $q->where('student_id', $student->id))
+            ->exists();
+
         $holdState = $this->holdService->evaluate($student);
         if ($holdState['status']) {
             $teamName = \App\Models\Team::whereHas('players', fn ($q) => $q->where('student_id', $student->id))
@@ -42,6 +46,18 @@ class WellnessHistoryController extends Controller
                     'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
                 ],
                 'logs' => [],
+            ]);
+        }
+
+        if (!$hasTeamAssignment) {
+            return Inertia::render('StudentAthletes/WellnessHistory', [
+                'student' => [
+                    'id' => $student->id,
+                    'student_id_number' => $student->student_id_number,
+                    'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
+                ],
+                'logs' => [],
+                'noTeamAssigned' => true,
             ]);
         }
 

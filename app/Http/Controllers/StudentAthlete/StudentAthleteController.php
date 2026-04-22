@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Models\AccountActionLog;
 use App\Models\AcademicDocument;
 use App\Models\AcademicEligibilityEvaluation;
 use App\Models\AcademicPeriod;
@@ -146,8 +147,23 @@ class StudentAthleteController extends Controller
         ]);
 
         $jerseyNumber = trim((string) ($validated['jersey_number'] ?? ''));
+        $previousJerseyNumber = trim((string) ($teamPlayer->jersey_number ?? ''));
         $teamPlayer->update([
             'jersey_number' => $jerseyNumber === '' ? null : $jerseyNumber,
+        ]);
+
+        $teamPlayer->loadMissing('team');
+        AccountActionLog::create([
+            'user_id' => Auth::id(),
+            'admin_id' => Auth::id(),
+            'action' => 'desired_jersey_updated',
+            'remarks' => sprintf(
+                'Desired jersey number updated for %s in %s: %s -> %s.',
+                $student->full_name ?: "Student #{$student->id}",
+                $teamPlayer->team?->team_name ?? "Team #{$teamPlayer->team_id}",
+                $previousJerseyNumber !== '' ? $previousJerseyNumber : 'none',
+                $jerseyNumber !== '' ? $jerseyNumber : 'none'
+            ),
         ]);
 
         return back()->with('success', 'Desired jersey number updated.');

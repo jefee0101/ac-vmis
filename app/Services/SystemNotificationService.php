@@ -85,13 +85,6 @@ class SystemNotificationService
             return;
         }
 
-        $emailOptions = $this->buildAnnouncementEmailOptions(
-            $title,
-            $normalizedType,
-            $notificationPreference,
-            $createdBy
-        );
-
         $this->findNotificationUsers($uniqueIds)
             ->each(function (User $user) use ($title, $message, $normalizedType, $createdBy, $notificationPreference) {
                 $this->sendUserEmail(
@@ -203,7 +196,11 @@ class SystemNotificationService
 
     private function shouldDeliverImmediately(): bool
     {
-        return app()->runningUnitTests();
+        if (app()->runningUnitTests()) {
+            return true;
+        }
+
+        return !(bool) config('notifications.defer_email_delivery', true);
     }
 
     private function createAnnouncementEvent(
@@ -293,7 +290,7 @@ class SystemNotificationService
             $title,
             $message,
             Announcement::labelForType($type),
-            url('/announcements'),
+            url((string) config('notifications.announcement_action_url', '/announcements')),
         );
     }
 

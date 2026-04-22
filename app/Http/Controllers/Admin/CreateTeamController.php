@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccountActionLog;
 use App\Models\Announcement;
 use App\Models\Coach;
 use App\Models\Sport;
@@ -103,6 +104,7 @@ class CreateTeamController extends Controller
         });
 
         $team->load('sport');
+        $this->logRosterMembershipChanges($team, $playerIds->all(), 'roster_added_to_team');
         $this->notifyTeamAssignmentAdded($team, (int) $validated['coach_id'], 'head coach');
         $this->notifyTeamAssignmentAdded($team, $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null, 'assistant coach');
         $this->notifyPlayersAdded($team, $playerIds->all());
@@ -217,6 +219,8 @@ class CreateTeamController extends Controller
             $this->notifyTeamAssignmentAdded($team, $newAssistantCoachId, 'assistant coach');
         }
 
+        $this->logRosterMembershipChanges($team, $addedPlayerIds, 'roster_added_to_team');
+        $this->logRosterMembershipChanges($team, $removedPlayerIds, 'roster_removed_from_team');
         $this->notifyPlayersAdded($team, $addedPlayerIds);
         $this->notifyPlayersRemoved($team, $removedPlayerIds);
 
@@ -930,6 +934,39 @@ class CreateTeamController extends Controller
                     'notify_attendance_exceptions'
                 );
             }
+        }
+    }
+
+    private function logRosterMembershipChanges(Team $team, array $studentIds, string $action): void
+    {
+        if (empty($studentIds) || !auth()->id()) {
+            return;
+        }
+
+        $students = Student::query()
+            ->with('user:id,first_name,middle_name,last_name,email')
+            ->whereIn('id', $studentIds)
+            ->get(['id', 'user_id', 'student_id_number'])
+            ->keyBy('id');
+
+        foreach ($studentIds as $studentId) {
+            $student = $students->get((int) $studentId);
+            $userId = $student?->user_id ? (int) $student->user_id : null;
+
+            if (!$userId) {
+                continue;
+            }
+
+            $playerLabel = $student ? $this->resolveStudentDisplayName($student) : "Student #{$studentId}";
+            $studentNumber = $student?->student_id_number ? " ({$student->student_id_number})" : '';
+            $verb = $action === 'roster_removed_from_team' ? 'removed from' : 'added to';
+
+            AccountActionLog::create([
+                'user_id' => $userId,
+                'admin_id' => auth()->id(),
+                'action' => $action,
+                'remarks' => "{$playerLabel}{$studentNumber} was {$verb} {$this->teamLabel($team)}.",
+            ]);
         }
     }
 

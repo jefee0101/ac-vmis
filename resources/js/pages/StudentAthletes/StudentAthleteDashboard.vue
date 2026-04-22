@@ -253,7 +253,7 @@ watch(mobileMenuOpen, (open) => {
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" @click="mobileMenuOpen = false" />
 
         <aside
-            class="fixed left-0 z-30 border-r border-slate-200/80 bg-white/92 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
+            class="fixed left-0 z-30 border-r border-[#bfd4eb]/90 bg-[#eaf3ff]/95 backdrop-blur transition-[transform,width] duration-300 ease-out will-change-[transform,width]"
             :class="[
                 mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
                 'top-18 h-[calc(100vh-72px)]',
@@ -272,7 +272,7 @@ watch(mobileMenuOpen, (open) => {
                         :class="[
                             isActive(item.route)
                                 ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100',
+                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
                             sidebarCollapsed && !mobileMenuOpen ? 'justify-center px-2' : '',
                         ]"
                         :title="sidebarCollapsed ? item.label : ''"
@@ -298,7 +298,7 @@ watch(mobileMenuOpen, (open) => {
                     </button>
                 </nav>
 
-                <div class="border-t border-slate-200 px-3 py-3">
+                <div class="border-t border-[#d6e4f4] px-3 py-3">
                     <button
                         v-for="item in secondaryItems"
                         :key="item.key"
@@ -307,7 +307,7 @@ watch(mobileMenuOpen, (open) => {
                         :class="[
                             isActive(item.route)
                                 ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-slate-200 hover:bg-slate-100',
+                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
                             sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : '',
                         ]"
                         @click="go(item.route)"
@@ -585,7 +585,11 @@ watch(mobileMenuOpen, (open) => {
                                 <span class="text-xs text-slate-500">Primary student workflows</span>
                             </div>
 
-                            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                            <div v-if="!hasTeamAssignment" class="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+                                You are not assigned to a team yet.
+                            </div>
+
+                            <div v-else class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                                 <button
                                     type="button"
                                     @click="go('/MySchedule')"
