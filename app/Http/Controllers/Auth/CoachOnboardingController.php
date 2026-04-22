@@ -35,6 +35,7 @@ class CoachOnboardingController extends Controller
             'email' => ['required', 'email'],
             'token' => ['required', 'string'],
             'password' => ['required', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+            'password_confirmation' => ['required', 'string'],
         ]);
 
         $status = Password::broker()->reset(
