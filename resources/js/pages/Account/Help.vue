@@ -462,6 +462,8 @@ function toggleFaq(index: number) {
     width: auto;
   }
 }
+
+.task-link {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
