@@ -132,7 +132,7 @@ function submitSettings() {
             "
             @click="form.theme_preference = theme.value"
           >
-            <div class="flex items-center gap-2">
+            <div class="flex items-start gap-2">
               <svg v-if="theme.icon === 'sun'" class="theme-option__icon h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="4" />
                 <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
@@ -153,7 +153,7 @@ function submitSettings() {
           <div
             v-for="(item, index) in navOrder"
             :key="item"
-            class="nav-item flex items-center justify-between rounded-xl border border-[#034485] bg-[#034485] px-4 py-3"
+            class="nav-item flex flex-col gap-3 rounded-xl border border-[#034485] bg-[#034485] px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <span class="text-sm font-semibold text-white">{{ item }}</span>
             <div class="flex items-center gap-2">
@@ -178,7 +178,7 @@ function submitSettings() {
         </div>
         </section>
 
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <button type="submit" class="rounded-lg bg-[#1f2937] px-4 py-2 text-white font-semibold hover:bg-[#334155] transition" :disabled="form.processing">
             {{ form.processing ? 'Saving...' : 'Save Preferences' }}
           </button>

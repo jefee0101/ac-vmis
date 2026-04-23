@@ -75,7 +75,7 @@ function toggleDetails(id: number) {
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Wellness History</h1>
-                <p class="mt-1 text-sm text-slate-500">Your coach-recorded post-session wellness logs.</p>
+                <p class="mt-1 text-sm text-slate-500">Review your coach-recorded post-training condition records.</p>
             </div>
             <div v-if="!accessLocked" class="flex flex-wrap gap-2">
                 <button
@@ -83,7 +83,7 @@ function toggleDetails(id: number) {
                     class="rounded-full border border-[#034485]/40 bg-white px-4 py-2 text-xs font-semibold"
                     :class="showInjuryOnly ? 'border-[#034485] bg-[#034485] text-white' : 'text-[#034485] hover:bg-[#034485]/10'"
                 >
-                    {{ showInjuryOnly ? 'Showing Injury Only' : 'Filter Injury Only' }}
+                    {{ showInjuryOnly ? 'Showing Injury Records Only' : 'Show Injury Records Only' }}
                 </button>
             </div>
         </div>
@@ -101,7 +101,7 @@ function toggleDetails(id: number) {
                 href="/AcademicSubmissions"
                 class="mt-4 inline-flex rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] hover:bg-[#034485]/10"
             >
-                Go to Academic Submissions
+                Open Academic Submissions
             </Link>
         </div>
 
@@ -129,7 +129,7 @@ function toggleDetails(id: number) {
                     <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
                         <p class="text-xs text-slate-500">Latest log</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ latestLog?.log_date || '—' }}</p>
-                        <p class="text-xs text-slate-500">{{ latestLog?.schedule_title || 'No entries yet' }}</p>
+                        <p class="text-xs text-slate-500">{{ latestLog?.schedule_title || 'No records available' }}</p>
                     </div>
                 </section>
 
@@ -180,7 +180,7 @@ function toggleDetails(id: number) {
                 </section>
 
                 <div v-else-if="filteredLogs.length === 0" class="rounded-3xl border border-[#034485]/35 bg-white p-6 text-center text-slate-500">
-                    No wellness logs available yet.
+                    No post-training condition records are available at this time.
                 </div>
 
                 <div class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
@@ -213,7 +213,7 @@ function toggleDetails(id: number) {
                                     <td class="px-4 py-3">{{ row.logged_by || '-' }}</td>
                                 </tr>
                                 <tr v-if="filteredLogs.length === 0">
-                                    <td colspan="4" class="px-4 py-8 text-center text-slate-500">No wellness logs available yet.</td>
+                                    <td colspan="4" class="px-4 py-8 text-center text-slate-500">No post-training condition records are available at this time.</td>
                                 </tr>
                             </tbody>
                         </table>

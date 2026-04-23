@@ -320,7 +320,7 @@ class AdminController extends Controller
             $this->notifications->announce(
                 $user->id,
                 'Account Deactivated',
-                'Your account has been temporarily deactivated. Contact administration for reactivation.',
+                'Your account has been temporarily deactivated. Please contact the system administrator or varsity office for assistance.',
                 Announcement::TYPE_SYSTEM,
                 Auth::id(),
                 'notify_approvals'
@@ -333,7 +333,7 @@ class AdminController extends Controller
             ]);
         }
 
-        return back()->with('success', 'User deactivated.');
+        return back()->with('success', 'The account has been deactivated.');
     }
 
     public function reactivate(User $user)
@@ -836,7 +836,7 @@ class AdminController extends Controller
             ]);
         });
 
-        return redirect('/Login')->with('success', 'Administrator account created successfully. You can now sign in.');
+        return redirect('/Login')->with('success', 'The administrator account has been created successfully. You may now sign in.');
     }
 
     public function storeCoach(Request $request)
@@ -978,7 +978,7 @@ class AdminController extends Controller
         );
 
         return back()
-            ->with('success', 'Coach account created successfully.')
+            ->with('success', 'The coach account has been created successfully.')
             ->with('coach_onboarding', [
                 'email' => $newUser->email,
                 'temporary_password' => $temporaryPassword,
@@ -991,7 +991,7 @@ class AdminController extends Controller
     {
         if ($user->role !== 'coach') {
             return back()->withErrors([
-                'user_action' => 'Onboarding credentials can only be regenerated for coach accounts.',
+                'user_action' => 'Access credentials may only be regenerated for coach accounts.',
             ]);
         }
 
@@ -1042,7 +1042,7 @@ class AdminController extends Controller
         );
 
         return back()
-            ->with('success', 'Coach onboarding credentials regenerated.')
+            ->with('success', 'Coach access credentials have been regenerated.')
             ->with('coach_onboarding', [
                 'email' => $user->email,
                 'temporary_password' => $temporaryPassword,

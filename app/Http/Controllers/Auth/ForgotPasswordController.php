@@ -44,7 +44,7 @@ class ForgotPasswordController extends Controller
 
         if ($token === '' || $email === '') {
             return redirect('/Login')->withErrors([
-                'message' => 'Invalid password reset link.',
+                'message' => 'The password reset link is invalid.',
             ]);
         }
 
@@ -86,6 +86,6 @@ class ForgotPasswordController extends Controller
             ]);
         }
 
-        return redirect('/Login')->with('success', 'Password reset successfully. You can now sign in.');
+        return redirect('/Login')->with('success', 'Your password has been reset successfully. You may now sign in.');
     }
 }

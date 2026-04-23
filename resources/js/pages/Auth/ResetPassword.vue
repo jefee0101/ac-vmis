@@ -37,13 +37,13 @@ function toLogin() {
 </script>
 
 <template>
-    <PublicLayout title="Reset Password" page-title="Reset Password" page-description="Set a new password to recover your account securely.">
+    <PublicLayout title="Reset Password" page-title="Reset Password" page-description="Set a new password to restore access to your account.">
         <section class="login-shell">
             <div class="login-grid">
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Account Recovery</p>
-                    <h1>Create New Password</h1>
-                    <p>Enter your new password and confirm it to finish resetting your account credentials.</p>
+                    <h1>Create a New Password</h1>
+                    <p>Enter and confirm your new password to complete the password reset process.</p>
                 </section>
 
                 <section class="public-card login-card">
@@ -114,8 +114,8 @@ function toLogin() {
                         </button>
 
                         <p class="register-note">
-                            Back to account access?
-                            <button type="button" @click="toLogin" class="register-link">Go to Login</button>
+                            Return to account access:
+                            <button type="button" @click="toLogin" class="register-link">Go to Sign In</button>
                         </p>
                     </form>
                 </section>
@@ -136,7 +136,7 @@ function toLogin() {
     width: 100%;
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: center;
 }
 
@@ -165,12 +165,13 @@ function toLogin() {
     margin-top: 0.35rem;
     color: rgba(255, 255, 255, 0.86);
     line-height: 1.65;
-    max-width: 52ch;
+    max-width: 56ch;
 }
 
 .login-card {
     display: grid;
     gap: 0.75rem;
+    min-width: 0;
 }
 
 .login-card h2 {
@@ -231,6 +232,7 @@ function toLogin() {
     text-align: center;
     color: rgba(255, 255, 255, 0.82);
     font-size: 0.9rem;
+    line-height: 1.6;
 }
 
 .register-link {
@@ -253,10 +255,20 @@ function toLogin() {
 @media (max-width: 900px) {
     .login-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
 @media (max-width: 640px) {
+    .login-shell {
+        padding: 0.85rem 0 1.8rem;
+    }
+
+    .login-copy,
+    .login-card {
+        padding-inline: 1.15rem;
+    }
+
     .login-copy h1 {
         font-size: 1.6rem;
     }

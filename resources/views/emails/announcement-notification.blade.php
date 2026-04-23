@@ -9,7 +9,7 @@
     <h2 style="margin-bottom: 8px;">Hello {{ $user->name }},</h2>
 
     <p style="margin-top: 0;">
-        You have a new <strong>{{ strtolower($notificationTypeLabel) }}</strong> notification in AC-VMIS.
+        You have received a new <strong>{{ strtolower($notificationTypeLabel) }}</strong> notice in AC-VMIS.
     </p>
 
     <div style="margin: 20px 0; padding: 16px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc;">
@@ -19,7 +19,7 @@
 
     <p>
         Review the full details in your account:
-        <a href="{{ $actionUrl }}" style="color: #0f766e;">Open AC-VMIS notifications</a>
+        <a href="{{ $actionUrl }}" style="color: #0f766e;">Open AC-VMIS Notifications</a>
     </p>
 
     <p style="margin-top: 24px;">Thank you,<br>{{ config('app.name') }}</p>

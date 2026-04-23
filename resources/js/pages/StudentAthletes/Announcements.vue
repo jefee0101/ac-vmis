@@ -98,11 +98,11 @@ function markRead(item: Announcement) {
 
     router.put(`/announcements/${item.id}/read`, {}, {
         preserveScroll: true,
-        onSuccess: () => setMessage('Marked as read.'),
+        onSuccess: () => setMessage('The announcement has been marked as read.'),
         onError: () => {
             item.is_read = previousIsRead
             item.read_at = previousReadAt
-            setMessage('Unable to mark as read.', 'error')
+            setMessage('The announcement could not be marked as read.', 'error')
         },
         onFinish: () => {
             processingIds.value = processingIds.value.filter((id) => id !== item.id)
@@ -123,10 +123,10 @@ function markAllRead() {
 
     router.put('/announcements/read-all', {}, {
         preserveScroll: true,
-        onSuccess: () => setMessage('All announcements marked as read.'),
+        onSuccess: () => setMessage('All announcements have been marked as read.'),
         onError: () => {
             localAnnouncements.value = snapshot
-            setMessage('Unable to mark all as read.', 'error')
+            setMessage('The announcements could not be marked as read.', 'error')
         },
         onFinish: () => {
             processingAll.value = false
@@ -169,7 +169,7 @@ function formatRelative(value: string | null) {
     const diffMs = date.getTime() - Date.now()
     const diffMinutes = Math.round(diffMs / 60000)
     const absMinutes = Math.abs(diffMinutes)
-    if (absMinutes < 1) return 'just now'
+    if (absMinutes < 1) return 'moments ago'
     if (absMinutes < 60) {
         return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(diffMinutes, 'minute')
     }
@@ -194,10 +194,10 @@ function formatRelative(value: string | null) {
                     href="/StudentAthleteDashboard"
                     class="inline-flex items-center rounded-full bg-[#034485] px-4 py-1 text-xs font-semibold text-white hover:bg-[#033a70]"
                 >
-                    Back to Dashboard
+                    Return to Dashboard
                 </Link>
                 <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
-                <p class="text-sm text-slate-500">Stay updated with admin and system notices.</p>
+                <p class="text-sm text-slate-500">Review official notices from administrators and the system.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center gap-2 rounded-full border border-slate-200 bg-white p-1 text-xs font-semibold">
@@ -224,7 +224,7 @@ function formatRelative(value: string | null) {
                     :disabled="processingAll || unreadCount === 0"
                     @click="markAllRead"
                 >
-                    {{ processingAll ? 'Marking...' : 'Mark All Read' }}
+                    {{ processingAll ? 'Updating...' : 'Mark All as Read' }}
                 </button>
             </div>
         </div>
@@ -234,7 +234,7 @@ function formatRelative(value: string | null) {
         </p>
 
         <div v-if="localAnnouncements.length === 0" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
-            No announcements yet.
+            No announcements are available at this time.
         </div>
 
         <div
@@ -255,7 +255,7 @@ function formatRelative(value: string | null) {
                     :disabled="isProcessing(item.id) || processingAll"
                     @click="markRead(item)"
                 >
-                    {{ isProcessing(item.id) ? 'Marking...' : 'Mark Read' }}
+                    {{ isProcessing(item.id) ? 'Updating...' : 'Mark as Read' }}
                 </button>
             </div>
             <p class="mt-2 text-sm text-slate-600">{{ item.message }}</p>

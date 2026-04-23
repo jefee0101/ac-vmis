@@ -31,18 +31,18 @@ function toLogin() {
     <PublicLayout
         title="Forgot Password"
         page-title="Forgot Password"
-        page-description="Enter your email and we will send a reset link if your account exists."
+        page-description="Enter your email address to request a password reset link."
     >
         <section class="login-shell">
             <div class="login-grid">
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Account Recovery</p>
-                    <h1>Reset Password</h1>
-                    <p>Use your registered email address to receive a secure reset link and regain access.</p>
+                    <h1>Password Assistance</h1>
+                    <p>Enter your registered email address to receive a secure password reset link.</p>
                 </section>
 
                 <section class="public-card login-card">
-                    <h2>Send Reset Link</h2>
+                    <h2>Request Password Reset</h2>
 
                     <form @submit.prevent="submit" class="login-form">
                         <FormAlert tone="success" :message="status" />
@@ -65,13 +65,13 @@ function toLogin() {
                         <button type="submit" class="login-btn mt-3" :disabled="form.processing">
                             <span class="inline-flex items-center gap-2">
                                 <Spinner v-if="form.processing" class="h-4 w-4 text-[#034485]" />
-                                {{ form.processing ? 'Sending...' : 'Email Reset Link' }}
+                                {{ form.processing ? 'Sending...' : 'Send Reset Link' }}
                             </span>
                         </button>
 
                         <p class="register-note">
-                            Remembered your password?
-                            <button type="button" @click="toLogin" class="register-link">Back to Login</button>
+                            Return to account access:
+                            <button type="button" @click="toLogin" class="register-link">Back to Sign In</button>
                         </p>
                     </form>
                 </section>
@@ -92,7 +92,7 @@ function toLogin() {
     width: 100%;
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: center;
 }
 
@@ -121,12 +121,13 @@ function toLogin() {
     margin-top: 0.35rem;
     color: rgba(255, 255, 255, 0.86);
     line-height: 1.65;
-    max-width: 52ch;
+    max-width: 56ch;
 }
 
 .login-card {
     display: grid;
     gap: 0.75rem;
+    min-width: 0;
 }
 
 .login-card h2 {
@@ -178,6 +179,7 @@ function toLogin() {
     text-align: center;
     color: rgba(255, 255, 255, 0.82);
     font-size: 0.9rem;
+    line-height: 1.6;
 }
 
 .register-link {
@@ -196,10 +198,20 @@ function toLogin() {
 @media (max-width: 900px) {
     .login-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
 @media (max-width: 640px) {
+    .login-shell {
+        padding: 0.85rem 0 1.8rem;
+    }
+
+    .login-copy,
+    .login-card {
+        padding-inline: 1.15rem;
+    }
+
     .login-copy h1 {
         font-size: 1.6rem;
     }

@@ -10,14 +10,13 @@
 
     <p style="margin-top: 0;">
         Your AC-VMIS account registration has been received and is currently
-        <strong>pending admin approval</strong>.
+        <strong>pending administrative review</strong>.
     </p>
 
     <p>
-        We will notify you again once your account has been reviewed.
+        You will receive another notification once the review process has been completed.
     </p>
 
     <p style="margin-top: 24px;">Thank you,<br>Asian College Varsity MIS</p>
 </body>
 </html>
-

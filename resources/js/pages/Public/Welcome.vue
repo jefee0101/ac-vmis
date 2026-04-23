@@ -8,109 +8,109 @@ const currentYear = new Date().getFullYear();
 const fallbackLogo = '/images/ac-vmis.logo.png';
 const publicNavItems = [
     { id: 'home', label: 'Home' },
-    { id: 'how-it-works', label: 'How It Works' },
-    { id: 'about', label: 'About Us' },
-    { id: 'features', label: 'Features' },
+    { id: 'how-it-works', label: 'Process Overview' },
+    { id: 'about', label: 'About' },
+    { id: 'features', label: 'System Services' },
     { id: 'policies', label: 'Policies' },
     { id: 'faq', label: 'FAQ' },
-    { id: 'contact', label: 'Contact' },
+    { id: 'contact', label: 'Support' },
 ];
 const howItWorksSteps = [
-    'Join tryouts first. Student-athletes can register only after a coach confirms they are part of the varsity roster.',
-    'Once selected, create your student-athlete account.',
-    'Submit the required documents during signup.',
-    'Wait for account approval before full access.',
-    'Use daily features for schedules, attendance, wellness, and academic updates in one place.',
+    'Participate in the appropriate tryout or selection process. A student-athlete may register only after the coach confirms official inclusion in the varsity pool.',
+    'Create your student-athlete account using the required personal and school information.',
+    'Submit the required supporting documents during registration.',
+    'Wait for administrative review and account approval before using restricted system features.',
+    'After approval, use the system regularly for schedules, attendance confirmation, post-training condition records, and academic updates.',
 ];
 const aboutHighlights = [
     {
-        title: 'What Problem It Solves',
+        title: 'Institutional Purpose',
         description:
-            'Varsity updates are often scattered across chats, paper logs, and separate files. AC-VMIS puts core tasks in one place so users can act faster and avoid missed updates.',
+            'AC-VMIS centralizes varsity-related records and communication so that schedules, attendance, health submissions, and academic requirements are managed in one organized system.',
     },
     {
-        title: 'Who Benefits',
+        title: 'Primary Users',
         items: [
-            'Student-athletes who need one place for schedules, attendance, wellness, and academic status',
-            'Coaches who need clear team records and consistent session monitoring',
-            'School staff who need structured approval and compliance visibility',
+            'Student-athletes who need clear access to schedules, attendance records, post-training condition reporting, and academic status',
+            'Coaches who need accurate team records, attendance confirmation, and compliance visibility',
+            'Administrators who manage approvals, monitoring, and institutional reporting',
         ],
     },
     {
-        title: 'Scope Note',
-        description: 'AC-VMIS is a management and tracking system. It does not provide medical diagnosis, treatment management, or legal advice.',
+        title: 'System Scope',
+        description: 'AC-VMIS is an institutional management and record-keeping platform. It does not replace medical, legal, or disciplinary processes.',
     },
 ];
 const featureCards = [
     {
-        title: 'Account Onboarding',
-        description: 'Create an account, submit required files, and wait for approval before full access.',
+        title: 'Account Registration and Approval',
+        description: 'Supports account creation, submission of required documents, and administrative approval before full system access is granted.',
     },
     {
         title: 'Team Management',
-        description: 'Assign players and coaches to teams so everyone is connected to the correct roster.',
+        description: 'Organizes student-athletes and coaches under the correct team roster for proper record management.',
     },
     {
         title: 'Schedule Management',
-        description: 'Post practice and game schedules so students and coaches always see the latest plan.',
+        description: 'Publishes training sessions, competitions, and related schedule updates for student-athletes and coaches.',
     },
     {
-        title: 'QR Attendance',
-        description: 'Scan QR codes to verify sessions and keep clear attendance records for each schedule.',
+        title: 'Attendance Confirmation',
+        description: 'Records attendance through approved methods and maintains clear session-based attendance records.',
     },
     {
-        title: 'Wellness Monitoring',
-        description: 'Record post-session condition updates to monitor fatigue, injuries, and readiness.',
+        title: 'Post-Training Condition Records',
+        description: 'Allows student-athletes to record their physical condition after training or competition for ongoing monitoring.',
     },
     {
         title: 'Academic Eligibility',
-        description: 'Track academic submissions and eligibility status for each student-athlete.',
+        description: 'Tracks academic submissions and eligibility decisions for each student-athlete.',
     },
     {
         title: 'Announcements & Alerts',
-        description: 'Send important updates to users so they do not miss schedule and status changes.',
+        description: 'Provides timely notices regarding schedules, approvals, and other varsity-related updates.',
     },
     {
         title: 'Email Notifications',
-        description: 'Deliver approval and system updates through email for faster user communication.',
+        description: 'Delivers important account and process updates through official email communication.',
     },
     {
         title: 'Reports & Printing',
-        description: 'Generate printable summaries for attendance, wellness, and academic monitoring.',
+        description: 'Produces printable records for attendance, post-training condition reporting, and academic monitoring.',
     },
 ];
 const faqs = [
     {
         question: 'How do I register as a student-athlete?',
-        answer: 'Open Register, complete the student-athlete form, then submit the required details and files.',
+        answer: 'Select Register, complete the student-athlete registration form, and submit the required information and supporting documents.',
     },
     {
         question: 'How long does account approval take?',
-        answer: 'Approval time depends on review workload. Keep your documents complete to avoid delays.',
+        answer: 'Approval time depends on the volume of applications under review. Please ensure that all required documents are complete to avoid delays.',
     },
     {
         question: 'How are coach accounts created?',
-        answer: 'Coach accounts are created by administrators, then onboarding details are sent through email.',
+        answer: 'Coach accounts are created by an administrator, and onboarding instructions are sent through the registered email address.',
     },
     {
         question: 'Where do I check schedules and attendance?',
-        answer: 'After login, use your schedule page to view sessions and attendance status.',
+        answer: 'After signing in, open the schedule page to review sessions and confirm your attendance records.',
     },
     {
-        question: 'What is Attendance Verification?',
-        answer: 'It records who attended each session and keeps attendance history per schedule.',
+        question: 'How is attendance recorded?',
+        answer: 'Attendance is recorded for each scheduled session so that student-athletes, coaches, and administrators can review attendance history accurately.',
     },
     {
-        question: 'What is Wellness Monitoring used for?',
-        answer: 'It tracks post-session condition updates such as fatigue and injury observations.',
+        question: 'Why do I need to record my post-training condition?',
+        answer: 'Post-training condition records help the varsity program monitor fatigue, discomfort, and other health-related observations after training or competition.',
     },
     {
         question: 'How does Academic Eligibility work?',
-        answer: 'Students submit academic documents per period, then reviewers post eligibility results.',
+        answer: 'Student-athletes submit the required academic documents for each review period, and authorized personnel record the eligibility result.',
     },
     {
         question: 'Where can I ask for help?',
-        answer: 'Use the contact section for official email, phone support, and office hours.',
+        answer: 'Use the Support section to access official contact information, office assistance, and communication channels for system concerns.',
     },
 ];
 const privacyPolicyItems = [
@@ -121,10 +121,10 @@ const privacyPolicyItems = [
     'System announcements and notification logs',
 ];
 const termsOfUseItems = [
-    'Use AC-VMIS only for valid varsity and school-related activities.',
-    'Do not upload false or misleading records.',
-    'Do not access data that is outside your role permissions.',
-    'Do not misuse personal information or uploaded files.',
+    'Use AC-VMIS only for legitimate school and varsity-related purposes.',
+    'Submit only accurate, complete, and truthful records.',
+    'Access only the information and functions assigned to your role.',
+    'Handle personal information and uploaded documents responsibly and confidentially.',
 ];
 const prefersReducedMotion = ref(false);
 let motionQuery: MediaQueryList | null = null;
@@ -241,37 +241,55 @@ watch(mobileMenuOpen, (open) => {
                     <span></span>
                 </button>
 
-                <div class="header-actions flex items-center gap-3">
-                    <button @click="toLogin" class="btn-outline" :disabled="isLoading">Login</button>
-                    <button @click="toRegister" class="btn-fill" :disabled="isLoading">Register</button>
-                </div>
+                <div class="header-desktop">
+                    <div class="header-actions-desktop">
+                        <button @click="toLogin" class="header-link header-link-outline" :disabled="isLoading">Sign In</button>
+                        <button @click="toRegister" class="header-link header-link-outline" :disabled="isLoading">Register</button>
+                    </div>
 
-                <div class="header-logo-slot" aria-hidden="true">
-                    <div class="corner-badge">
-                        <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                    <div class="header-logo-slot" aria-hidden="true">
+                        <div class="corner-badge">
+                            <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
                             <path
                                 d="M46 12H214
                                    Q222 12 226 18
-                                   L170 124
-                                   Q166 128 160 128
-                                   H100
-                                   Q94 128 90 124
+                                   L178 124
+                                   Q172 128 164 128
+                                   H96
+                                   Q88 128 82 124
                                    L34 18
                                    Q38 12 46 12Z"
                             />
-                        </svg>
-                        <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                            </svg>
+                            <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                        </div>
                     </div>
+
+                    <nav class="header-links-desktop" aria-label="Public pages">
+                        <button v-for="item in publicNavItems" :key="item.id" type="button" class="header-link" @click="handleSectionNavigation(item.id)">
+                            {{ item.label }}
+                        </button>
+                    </nav>
                 </div>
 
-                <nav class="header-links header-actions" aria-label="Public pages">
-                    <button v-for="item in publicNavItems" :key="item.id" type="button" class="header-link" @click="handleSectionNavigation(item.id)">
-                        {{ item.label }}
-                    </button>
-                </nav>
-
-                <div class="mobile-brand">
-                    <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="mobile-brand-logo" />
+                <div class="mobile-notch" aria-hidden="true">
+                    <div class="header-logo-slot mobile-header-logo-slot">
+                        <div class="corner-badge">
+                            <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                                <path
+                                    d="M46 12H214
+                                       Q222 12 226 18
+                                       L178 124
+                                       Q172 128 164 128
+                                       H96
+                                       Q88 128 82 124
+                                       L34 18
+                                       Q38 12 46 12Z"
+                                />
+                            </svg>
+                            <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
@@ -290,7 +308,7 @@ watch(mobileMenuOpen, (open) => {
                     "
                     class="btn-outline w-full"
                 >
-                    Login
+                    Sign In
                 </button>
                 <button
                     @click="
@@ -328,10 +346,10 @@ watch(mobileMenuOpen, (open) => {
                 <div class="strip-overlay">
                     <div class="strip-overlay-inner">
                         <span class="strip-kicker">Asian College Varsity Management Information System</span>
-                        <h1>Manage Your Varsity Day in One Place</h1>
+                        <h1>Official Varsity Management in One Institutional Platform</h1>
                         <p>
-                            AC-VMIS helps student-athletes and coaches handle daily varsity work faster. Use one system to check schedules, verify
-                            attendance, monitor wellness, submit academic requirements, and receive updates.
+                            AC-VMIS provides student-athletes, coaches, and administrators with a centralized system for schedules, attendance
+                            confirmation, post-training condition records, academic requirements, and official updates.
                         </p>
                     </div>
                 </div>
@@ -343,10 +361,10 @@ watch(mobileMenuOpen, (open) => {
                 <div class="info-panel how-it-works-panel mx-auto max-w-6xl">
                     <div class="info-intro how-it-works-intro">
                         <p class="how-it-works-title-wrap">
-                            <span class="how-it-works-title">How It Works</span>
+                            <span class="how-it-works-title">Process Overview</span>
                         </p>
-                        <h2><span class="title-chip title-chip-blue">Five simple steps from tryouts to daily varsity use.</span></h2>
-                        <p class="section-copy">AC-VMIS is designed to be easy for first-time student-athletes and coaches to follow.</p>
+                        <h2><span class="title-chip title-chip-blue">A clear step-by-step process from selection to regular system use.</span></h2>
+                        <p class="section-copy">The system follows a structured process so that first-time users can complete each requirement with confidence.</p>
                     </div>
 
                     <div class="steps-grid how-it-works-grid">
@@ -364,8 +382,8 @@ watch(mobileMenuOpen, (open) => {
                     <article class="info-card info-card-wide how-it-works-summary">
                         <h3>After Approval</h3>
                         <p>
-                            Log in and use your role-based pages right away. Student-athletes stay linked to their coach’s roster so schedules,
-                            attendance, and wellness updates flow in one place.
+                            Once approved, sign in and use the pages assigned to your role. Student-athletes remain connected to their official team roster so
+                            schedules, attendance records, post-training condition reports, and updates remain properly organized.
                         </p>
                     </article>
                 </div>
@@ -377,15 +395,15 @@ watch(mobileMenuOpen, (open) => {
                         <div class="role-icon student-icon" aria-hidden="true"></div>
                         <div>
                             <h3>Student-Athletes</h3>
-                            <p>Check your schedule, verify attendance, submit requirements, and track your wellness after every session.</p>
+                            <p>Review schedules, confirm attendance, submit requirements, and record post-training condition updates after each session.</p>
                         </div>
                     </article>
                     <div class="coach-card-wrap">
                         <article class="role-card role-card-right">
                             <div class="role-icon coach-icon" aria-hidden="true"></div>
                             <div>
-                                <h3>Coaches</h3>
-                                <p>Manage team schedules, verify attendance, monitor player condition, and review athlete compliance status.</p>
+                            <h3>Coaches</h3>
+                            <p>Manage team schedules, confirm attendance, review student-athlete condition reports, and monitor compliance requirements.</p>
                             </div>
                         </article>
                     </div>
@@ -394,12 +412,12 @@ watch(mobileMenuOpen, (open) => {
 
             <section class="mobile-first-wrap section-shell welcome-reveal">
                 <div class="mobile-first mx-auto max-w-6xl">
-                    <p class="mobile-first-kicker"><span class="title-chip">Mobile-First Experience</span></p>
-                    <h2><span class="title-chip title-chip-blue">Built for quick use on your phone during training days.</span></h2>
+                    <p class="mobile-first-kicker"><span class="title-chip">Mobile Access</span></p>
+                    <h2><span class="title-chip title-chip-blue">Designed for convenient use on mobile devices during training and competition days.</span></h2>
                     <div class="mobile-first-media" aria-hidden="true"></div>
                     <p>
-                        Open AC-VMIS from your mobile browser to view sessions, verify attendance, and log wellness right after practice or games. The
-                        same flow also works on tablet and desktop.
+                        Access AC-VMIS from your mobile browser to review sessions, confirm attendance, and submit post-training condition entries after practice or competition. The
+                        same workflow is also available on tablet and desktop devices.
                     </p>
                 </div>
             </section>
@@ -409,8 +427,8 @@ watch(mobileMenuOpen, (open) => {
             <section class="pathway-wrap section-shell welcome-reveal">
                 <div class="pathway-grid mx-auto max-w-6xl">
                     <div class="departments-showcase">
-                        <p class="pathway-kicker"><span class="title-chip">Department Pathway</span></p>
-                        <h2><span class="title-chip">From Senior High to College, managed in one unified varsity platform.</span></h2>
+                    <p class="pathway-kicker"><span class="title-chip">Academic Coverage</span></p>
+                    <h2><span class="title-chip">Supports varsity management from Senior High School to the college level in one unified platform.</span></h2>
 
                         <div class="department-logos" role="list" aria-label="Asian College Departments">
                             <div class="dept-item" role="listitem" tabindex="0">
@@ -441,8 +459,8 @@ watch(mobileMenuOpen, (open) => {
                         </div>
 
                         <p class="departments-desc">
-                            Students from Senior High to College use the same platform, so schedules, attendance, wellness, and academic status stay
-                            clear and updated in one place.
+                            Student-athletes from Senior High School through college use the same platform, helping the institution maintain clear schedules,
+                            attendance records, post-training condition reports, and academic status in one place.
                         </p>
                     </div>
                 </div>
@@ -451,9 +469,9 @@ watch(mobileMenuOpen, (open) => {
                     <div class="pathway-footer-inner">
                         <div class="pathway-divider" aria-hidden="true"></div>
                         <div class="pathway-note">
-                            <h3><span class="title-chip title-chip-blue">Eligibility Checklist</span></h3>
+                            <h3><span class="title-chip title-chip-blue">Eligibility Overview</span></h3>
                             <div class="eligibility-media" aria-hidden="true"></div>
-                            <p>Required docs, grades, and attendance thresholds—tracked in one place.</p>
+                            <p>Required documents, academic standing, and attendance expectations are recorded in one system.</p>
                         </div>
                     </div>
                 </div>
@@ -461,11 +479,10 @@ watch(mobileMenuOpen, (open) => {
 
             <section id="features" class="features-wrap welcome-reveal public-anchor-section">
                 <div class="section-shell features-minimal mx-auto max-w-6xl">
-                    <p class="features-kicker"><span class="title-chip">Core Features</span></p>
-                    <h2><span class="title-chip">Daily varsity tools built for speed, visibility, and fewer missed updates.</span></h2>
+                    <p class="features-kicker"><span class="title-chip">System Services</span></p>
+                    <h2><span class="title-chip">Core services that support daily varsity operations and institutional monitoring.</span></h2>
                     <p class="features-copy">
-                        Each feature is designed to help student-athletes and coaches complete daily varsity tasks faster without jumping between
-                        scattered tools.
+                        Each service is designed to support routine varsity responsibilities through a single, organized system.
                     </p>
 
                     <div class="features-interactive-shell">
@@ -493,7 +510,7 @@ watch(mobileMenuOpen, (open) => {
                                     role="tabpanel"
                                     :aria-label="featureCards[selectedFeatureIndex].title"
                                 >
-                                    <p class="feature-detail-kicker">Selected Feature</p>
+                                    <p class="feature-detail-kicker">Selected Service</p>
                                     <h3>{{ featureCards[selectedFeatureIndex].title }}</h3>
                                     <p>{{ featureCards[selectedFeatureIndex].description }}</p>
                                 </article>
@@ -509,17 +526,17 @@ watch(mobileMenuOpen, (open) => {
                         <div class="about-intro">
                             <p class="section-kicker"><span class="title-chip">About AC-VMIS</span></p>
                             <h2>
-                                <span class="title-chip title-chip-blue">A cleaner way to manage varsity work across teams and departments.</span>
+                                <span class="title-chip title-chip-blue">An institutional system for organized varsity administration across teams and departments.</span>
                             </h2>
                             <p class="section-copy">
-                                AC-VMIS keeps varsity work simple, organized, and easy to follow for student-athletes, coaches, and school staff.
+                                AC-VMIS supports structured varsity operations for student-athletes, coaches, and administrators through clear records and consistent processes.
                             </p>
                         </div>
 
                         <div class="about-spotlight">
-                            <p class="about-spotlight-label">Built For Everyday Use</p>
+                            <p class="about-spotlight-label">Designed for Daily Institutional Use</p>
                             <p class="about-spotlight-copy">
-                                One connected space for schedules, attendance, wellness, academic monitoring, and team coordination.
+                                One connected space for schedules, attendance records, post-training condition reports, academic monitoring, and team coordination.
                             </p>
                         </div>
                     </div>
@@ -546,9 +563,9 @@ watch(mobileMenuOpen, (open) => {
                 <div class="info-panel mx-auto max-w-6xl">
                     <div class="info-intro policies-intro">
                         <p class="section-kicker"><span class="title-chip">Policies</span></p>
-                        <h2><span class="title-chip title-chip-blue">Privacy, acceptable use, and user responsibility in one place.</span></h2>
+                        <h2><span class="title-chip title-chip-blue">Privacy, responsible use, and user obligations in one section.</span></h2>
                         <p class="section-copy">
-                            These policy notes explain what data is collected, why it is used, and what users are expected to follow.
+                            These policy notes explain what information is collected, how it is used, and what standards all users are expected to follow.
                         </p>
                     </div>
 
@@ -556,24 +573,24 @@ watch(mobileMenuOpen, (open) => {
                         <article id="privacy-policy" class="policy-card policy-card-privacy public-anchor-section">
                             <p class="policy-card-label">Trust &amp; Data</p>
                             <h3>Privacy Policy</h3>
-                            <p>How AC-VMIS collects, uses, and protects user data.</p>
+                            <p>Summary of how AC-VMIS collects, uses, stores, and protects user information.</p>
                             <ul class="policy-chip-list">
                                 <li v-for="item in privacyPolicyItems" :key="item">{{ item }}</li>
                             </ul>
                             <p class="policy-note">
-                                Access is limited by role and login permissions. The institution should maintain secure storage, backups, and proper
-                                account control.
+                                Access is limited according to user role and account permissions. The institution is expected to maintain secure storage,
+                                appropriate backup practices, and responsible account control.
                             </p>
                         </article>
 
                         <article id="terms-of-use" class="policy-card policy-card-terms public-anchor-section">
                             <p class="policy-card-label">Compliance &amp; Use</p>
                             <h3>Terms of Use</h3>
-                            <p>User responsibilities and acceptable use of AC-VMIS.</p>
+                            <p>Standards for appropriate use and user responsibility within AC-VMIS.</p>
                             <ul class="policy-chip-list">
                                 <li v-for="item in termsOfUseItems" :key="item">{{ item }}</li>
                             </ul>
-                            <p class="policy-note">Accounts may be restricted, rejected, or suspended when policies or security rules are violated.</p>
+                            <p class="policy-note">Accounts may be restricted, denied, or suspended when institutional policies or security requirements are violated.</p>
                         </article>
                     </div>
                 </div>
@@ -582,8 +599,8 @@ watch(mobileMenuOpen, (open) => {
             <section id="faq" class="section-shell welcome-reveal public-anchor-section info-section">
                 <div class="faq-section mx-auto max-w-4xl">
                     <div class="info-intro faq-intro">
-                        <p class="section-kicker"><span class="title-chip">FAQ</span></p>
-                        <h2><span class="title-chip title-chip-blue">Quick answers for first-time student-athletes and coaches.</span></h2>
+                        <p class="section-kicker"><span class="title-chip">Frequently Asked Questions</span></p>
+                        <h2><span class="title-chip title-chip-blue">Guidance for student-athletes, coaches, and first-time users.</span></h2>
                     </div>
 
                     <div class="faq-accordion">
@@ -609,16 +626,15 @@ watch(mobileMenuOpen, (open) => {
 
             <section class="register-cta-wrap section-shell welcome-reveal">
                 <div class="register-cta mx-auto max-w-6xl">
-                    <p class="cta-kicker"><span class="title-chip">Ready To Start?</span></p>
-                    <h2><span class="title-chip title-chip-blue">Create your account and start using AC-VMIS today.</span></h2>
+                    <p class="cta-kicker"><span class="title-chip">Account Access</span></p>
+                    <h2><span class="title-chip title-chip-blue">Begin the registration process and complete the required steps for system access.</span></h2>
                     <p>
-                        Register as a student-athlete, submit your required documents, then wait for approval. Coach accounts are provisioned by
-                        administrators.
+                        Student-athletes may register, submit the required documents, and wait for administrative approval. Coach accounts are created by an administrator.
                     </p>
 
                     <div class="cta-actions">
-                        <button @click="toRegister" class="btn-fill">Register Now</button>
-                        <button @click="toLogin" class="btn-outline">I Already Have An Account</button>
+                        <button @click="toRegister" class="btn-fill">Register</button>
+                        <button @click="toLogin" class="btn-outline">I Already Have an Account</button>
                     </div>
                 </div>
             </section>
@@ -626,17 +642,17 @@ watch(mobileMenuOpen, (open) => {
             <section id="contact" class="section-shell welcome-reveal public-anchor-section info-section">
                 <div class="info-panel mx-auto max-w-6xl">
                     <div class="info-intro">
-                        <p class="section-kicker"><span class="title-chip">Contact</span></p>
-                        <h2><span class="title-chip title-chip-blue">Official support channels for account and system concerns.</span></h2>
+                        <p class="section-kicker"><span class="title-chip">Support</span></p>
+                        <h2><span class="title-chip title-chip-blue">Official support channels for account, access, and system concerns.</span></h2>
                     </div>
 
                     <div class="support-hub-grid">
                         <article class="support-card support-primary-card">
-                            <p class="support-card-kicker">Support Hub</p>
-                            <h3>Contact and Support</h3>
-                            <p class="support-card-copy">For faster support, include your full name, role, and the issue you are reporting.</p>
+                            <p class="support-card-kicker">Support Services</p>
+                            <h3>Contact and Assistance</h3>
+                            <p class="support-card-copy">For faster assistance, include your full name, user role, and a clear description of the concern.</p>
 
-                            <p class="support-best-chip">Best way to reach us: Email support first, then call during office hours.</p>
+                            <p class="support-best-chip">Recommended contact method: Send an email first, then call during office hours when necessary.</p>
 
                             <div class="support-contact-list">
                                 <p class="support-contact-item">
@@ -670,14 +686,14 @@ watch(mobileMenuOpen, (open) => {
                             </div>
 
                             <div class="support-cta-row">
-                                <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Email Support</a>
+                                <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Send Email</a>
                                 <a href="tel:+630000000000" class="support-btn support-btn-outline">Call Office</a>
                             </div>
                         </article>
 
                         <div class="support-hub-side">
                             <article class="support-card support-side-card support-form-card">
-                                <h3>Send a Message</h3>
+                                <h3>Submit an Inquiry</h3>
                                 <form class="support-form" @submit.prevent>
                                     <input type="text" class="support-input" placeholder="Full name" />
                                     <input type="email" class="support-input" placeholder="Email address" />
@@ -687,8 +703,8 @@ watch(mobileMenuOpen, (open) => {
                                         <option>Schedule Concern</option>
                                         <option>Other Concern</option>
                                     </select>
-                                    <textarea class="support-input support-textarea" rows="3" placeholder="Write your message..."></textarea>
-                                    <button type="submit" class="support-btn support-btn-fill support-submit">Send Message</button>
+                                    <textarea class="support-input support-textarea" rows="3" placeholder="Provide a brief summary of your concern."></textarea>
+                                    <button type="submit" class="support-btn support-btn-fill support-submit">Submit Inquiry</button>
                                 </form>
                             </article>
                         </div>
@@ -703,8 +719,7 @@ watch(mobileMenuOpen, (open) => {
                     <section class="footer-col footer-col-brand">
                         <p class="footer-brand">Asian College Varsity Management Information System</p>
                         <p class="footer-copy">
-                            One platform for student-athletes and coaches to handle schedules, attendance, wellness, academic eligibility, and
-                            announcements.
+                            An institutional platform for managing schedules, attendance records, post-training condition reports, academic eligibility, and official varsity communications.
                         </p>
                         <p class="footer-contact">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="contact-icon" aria-hidden="true">
@@ -740,7 +755,7 @@ watch(mobileMenuOpen, (open) => {
                                 class="footer-link footer-link-btn"
                                 @click="handleSectionNavigation(item.id)"
                             >
-                                {{ item.label === 'About Us' ? 'About' : item.label }}
+                                {{ item.label }}
                             </button>
                         </div>
                     </nav>
@@ -762,7 +777,7 @@ watch(mobileMenuOpen, (open) => {
                         <p class="footer-heading"><span class="title-chip">Access</span></p>
                         <div class="footer-link-list">
                             <button @click="toRegister" class="footer-link footer-link-btn">Register</button>
-                            <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
+                            <button @click="toLogin" class="footer-link footer-link-btn">Sign In</button>
                         </div>
                     </nav>
 
@@ -917,12 +932,12 @@ watch(mobileMenuOpen, (open) => {
 
 .corner-badge {
     position: absolute;
-    top: -60px;
+    top: -8px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
-    width: 290px;
-    height: 118px;
+    width: 272px;
+    height: 94px;
     pointer-events: none;
 }
 
@@ -938,14 +953,14 @@ watch(mobileMenuOpen, (open) => {
 
 .logo-inside-triangle {
     position: absolute;
-    top: 45px;
+    top: 23px;
     left: 50%;
     transform: translateX(-50%);
-    width: 66px;
-    height: 66px;
+    width: 60px;
+    height: 60px;
     border-radius: 999px;
     background: #fff;
-    padding: 5px;
+    padding: 3px;
     object-fit: contain;
     box-shadow: none;
 }
@@ -957,20 +972,27 @@ watch(mobileMenuOpen, (open) => {
     background: #ffffff;
     border-bottom: none;
     backdrop-filter: blur(2px);
+    overflow: visible;
 }
 
 .nav-shell {
     position: relative;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 4px 14px;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 66px;
+    padding: 2px 14px 1px;
+    overflow: visible;
 }
 
 .mobile-brand {
     display: none;
     align-items: center;
     gap: 0.5rem;
+}
+
+.mobile-notch {
+    display: none;
 }
 
 .mobile-brand-logo {
@@ -985,6 +1007,7 @@ watch(mobileMenuOpen, (open) => {
 
 .header-actions {
     display: flex;
+    flex-wrap: wrap;
 }
 
 .mobile-menu-toggle {
@@ -1007,21 +1030,44 @@ watch(mobileMenuOpen, (open) => {
     border-radius: 999px;
 }
 
-.header-logo-slot {
-    position: relative;
-    flex: 0 0 260px;
-    height: 0;
+.header-desktop {
     display: flex;
-    justify-content: center;
-    pointer-events: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    width: 100%;
+    overflow: visible;
 }
 
-.header-links {
+.header-actions-desktop {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px 18px;
+    align-items: center;
+    gap: 0.85rem;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.header-logo-slot {
+    position: relative;
+    flex: 0 0 236px;
+    width: 236px;
+    height: 58px;
+    display: flex;
+    align-items: center;
     justify-content: center;
-    width: auto;
+    pointer-events: none;
+    z-index: 4;
+    overflow: visible;
+}
+
+.header-links-desktop {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .header-link {
@@ -1033,13 +1079,44 @@ watch(mobileMenuOpen, (open) => {
     border: none;
     border-radius: 999px;
     background: var(--brand-blue);
+    line-height: 1.35;
+    text-align: center;
     white-space: nowrap;
     cursor: pointer;
+}
+
+.header-link-outline {
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid rgba(3, 68, 133, 0.42);
 }
 
 .header-link:hover {
     color: #ffffff;
     background: var(--page-accent-strong);
+}
+
+.header-link-outline:hover {
+    color: var(--brand-blue);
+    background: rgba(3, 68, 133, 0.08);
+}
+
+.header-actions-desktop .header-link {
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid rgba(3, 68, 133, 0.42);
+}
+
+.header-actions-desktop .header-link:hover {
+    color: var(--brand-blue);
+    background: rgba(3, 68, 133, 0.08);
+}
+
+.header-actions-desktop .header-link:active,
+.header-actions-desktop .header-link.is-active {
+    color: var(--brand-blue);
+    background: rgba(147, 197, 253, 0.55);
+    border-color: rgba(59, 130, 246, 0.55);
 }
 
 .mobile-menu-overlay {
@@ -1126,13 +1203,18 @@ watch(mobileMenuOpen, (open) => {
 
 .btn-fill,
 .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 6px 10px;
+    min-height: 38px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
     color: var(--brand-blue);
     background: #ffffff;
     border: 1px solid var(--brand-blue);
+    text-align: center;
 }
 
 .btn-fill {
@@ -3078,28 +3160,29 @@ watch(mobileMenuOpen, (open) => {
 
 @media (max-width: 768px) {
     .nav-shell {
-        flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        min-height: 64px;
+        min-height: 45px;
+        padding: 2px 14px 0;
     }
 
-    .header-actions {
+    .header-desktop,
+    .header-links-desktop {
         display: none;
     }
 
-    .header-logo-slot {
+    .mobile-notch {
         display: flex;
         position: absolute;
         left: 50%;
-        top: 64%;
-        transform: translate(-50%, -50%);
-        height: 98px;
-        width: min(264px, 74vw);
-    }
-
-    .mobile-brand {
-        display: none;
+        bottom: -36px;
+        transform: translateX(-50%);
+        width: min(236px, 68vw);
+        height: 76px;
+        align-items: flex-start;
+        justify-content: center;
+        pointer-events: none;
+        overflow: visible;
     }
 
     .mobile-menu-toggle {
@@ -3107,20 +3190,30 @@ watch(mobileMenuOpen, (open) => {
     }
 
     .corner-badge {
-        top: 6px;
-        width: 242px;
-        height: 99px;
+        top: 3px;
+        width: 226px;
+        height: 79px;
     }
 
     .header-logo-slot {
-        flex-basis: 220px;
+        flex-basis: 202px;
     }
 
     .logo-inside-triangle {
-        top: 32px;
-        width: 52px;
-        height: 52px;
-        padding: 4px;
+        top: 20px;
+        width: 50px;
+        height: 50px;
+        padding: 3px;
+    }
+
+    .mobile-header-logo-slot {
+        position: relative;
+        width: min(236px, 68vw);
+        height: 76px;
+        left: auto;
+        top: auto;
+        transform: none;
+        flex: 0 0 auto;
     }
 
     .image-strip-hero,
@@ -3222,8 +3315,8 @@ watch(mobileMenuOpen, (open) => {
 
     .site-footer {
         border-radius: 16px 16px 0 0;
-        margin-left: 1.25rem;
-        margin-right: 1.25rem;
+        margin-left: 1rem;
+        margin-right: 1rem;
     }
 
     .mobile-divider {
@@ -3235,13 +3328,13 @@ watch(mobileMenuOpen, (open) => {
         margin-bottom: 1.1rem;
     }
     .corner-badge {
-        top: 8px;
-        width: 220px;
-        height: 90px;
+        top: 4px;
+        width: 212px;
+        height: 74px;
     }
 
     .header-logo-slot {
-        flex-basis: 205px;
+        flex-basis: 190px;
     }
 
     .nav-shell {
@@ -3249,10 +3342,15 @@ watch(mobileMenuOpen, (open) => {
     }
 
     .logo-inside-triangle {
-        top: 29px;
-        width: 46px;
-        height: 46px;
-        padding: 4px;
+        top: 20px;
+        width: 44px;
+        height: 44px;
+        padding: 3px;
+    }
+
+    .mobile-header-logo-slot {
+        width: min(206px, 66vw);
+        height: 70px;
     }
 
     .dept-item {
@@ -3340,6 +3438,7 @@ watch(mobileMenuOpen, (open) => {
     .btn-outline {
         padding: 9px 10px;
         font-size: 13px;
+        width: 100%;
     }
 
     .strip-overlay-inner p,

@@ -164,7 +164,7 @@ function statusTone(status?: string | null) {
         <!-- No team assigned -->
         <div v-if="!showTeam" class="bg-white rounded-3xl p-6 border border-[#034485]/35">
             <p class="text-slate-600 font-medium">You are not assigned to a team yet.</p>
-            <p class="text-sm text-slate-500 mt-1">Once assigned, your team, schedule, and wellness logs will appear here.</p>
+            <p class="text-sm text-slate-500 mt-1">Once your assignment is confirmed, your team information, schedule, and post-training condition records will appear here.</p>
         </div>
 
         <!-- Team card -->
@@ -228,7 +228,7 @@ function statusTone(status?: string | null) {
                                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                     <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                 </svg>
-                                <span>{{ copiedField === 'coach-email' ? 'Copied Email' : 'Email' }}</span>
+                                <span>{{ copiedField === 'coach-email' ? 'Email Copied' : 'Email Address' }}</span>
                             </button>
                             <button
                                 v-if="props.team.coach?.phone_number"
@@ -239,13 +239,13 @@ function statusTone(status?: string | null) {
                                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                     <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                 </svg>
-                                <span>{{ copiedField === 'coach-phone' ? 'Copied Phone' : 'Phone' }}</span>
+                                <span>{{ copiedField === 'coach-phone' ? 'Phone Number Copied' : 'Phone Number' }}</span>
                             </button>
                             <span
                                 v-if="!props.team.coach?.email && !props.team.coach?.phone_number"
                                 class="text-slate-400"
                             >
-                                Contact via admin
+                                Contact the administrator for assistance
                             </span>
                         </div>
                     </div>
@@ -267,7 +267,7 @@ function statusTone(status?: string | null) {
                                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                     <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                 </svg>
-                                <span>{{ copiedField === 'assistant-email' ? 'Copied Email' : 'Email' }}</span>
+                                <span>{{ copiedField === 'assistant-email' ? 'Email Copied' : 'Email Address' }}</span>
                             </button>
                             <button
                                 v-if="props.team.assistantCoach?.phone_number"
@@ -278,13 +278,13 @@ function statusTone(status?: string | null) {
                                 <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
                                     <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                 </svg>
-                                <span>{{ copiedField === 'assistant-phone' ? 'Copied Phone' : 'Phone' }}</span>
+                                <span>{{ copiedField === 'assistant-phone' ? 'Phone Number Copied' : 'Phone Number' }}</span>
                             </button>
                             <span
                                 v-if="!props.team.assistantCoach?.email && !props.team.assistantCoach?.phone_number"
                                 class="text-slate-400"
                             >
-                                Contact via admin
+                                Contact the administrator for assistance
                             </span>
                         </div>
                     </div>
@@ -454,7 +454,7 @@ function statusTone(status?: string | null) {
                                             <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
                                                 <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                             </svg>
-                                            <span v-if="copiedField === 'student-email'" class="text-[10px]">Copied</span>
+                                            <span v-if="copiedField === 'student-email'" class="text-[10px]">Email Copied</span>
                                         </button>
                                     </span>
                                 </p>
@@ -472,7 +472,7 @@ function statusTone(status?: string | null) {
                                             <svg aria-hidden="true" viewBox="0 0 24 24" class="h-4 w-4" fill="currentColor">
                                                 <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
                                             </svg>
-                                            <span v-if="copiedField === 'student-phone'" class="text-[10px]">Copied</span>
+                                            <span v-if="copiedField === 'student-phone'" class="text-[10px]">Phone Number Copied</span>
                                         </button>
                                     </span>
                                 </p>

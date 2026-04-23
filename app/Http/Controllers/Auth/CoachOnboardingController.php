@@ -19,7 +19,7 @@ class CoachOnboardingController extends Controller
 
         if ($email === '' || $token === '') {
             return redirect('/Login')->withErrors([
-                'message' => 'Invalid activation link.',
+                'message' => 'The account activation link is invalid.',
             ]);
         }
 
@@ -59,6 +59,6 @@ class CoachOnboardingController extends Controller
             ]);
         }
 
-        return redirect('/Login')->with('success', 'Password set successfully. You can now sign in.');
+        return redirect('/Login')->with('success', 'Your password has been set successfully. You may now sign in.');
     }
 }

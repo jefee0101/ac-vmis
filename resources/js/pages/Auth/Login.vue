@@ -88,7 +88,7 @@ function login() {
                 if (typeof payload.password === 'string') {
                     fieldErrors.password = payload.password;
                 }
-                error.value = resolved || 'Login failed. Please check your credentials and try again.';
+                error.value = resolved || 'Sign-in could not be completed. Please verify your credentials and try again.';
             },
         },
     );
@@ -96,17 +96,17 @@ function login() {
 </script>
 
 <template>
-    <PublicLayout title="Login" page-title="Login" page-description="Sign in to access your varsity tools and updates.">
+    <PublicLayout title="Sign In" page-title="Sign In" page-description="Sign in to access your varsity information and system services.">
         <section class="login-shell">
             <div class="login-grid">
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Account Access</p>
-                    <h1>Welcome Back</h1>
-                    <p>Sign in to continue with schedules, attendance, wellness monitoring, academic tracking, and varsity announcements.</p>
+                    <h1>Welcome</h1>
+                    <p>Sign in to access schedules, attendance, wellness records, academic updates, and varsity announcements.</p>
                 </section>
 
                 <section class="public-card login-card">
-                    <h2>Login</h2>
+                    <h2>Sign In</h2>
 
                     <form @submit.prevent="login" class="login-form">
                         <FormAlert tone="success" :message="flashSuccess" />
@@ -185,12 +185,12 @@ function login() {
                         <button type="submit" class="login-btn" :disabled="isSubmitting">
                             <span class="inline-flex items-center gap-2">
                                 <Spinner v-if="isSubmitting" class="h-4 w-4 text-[#034485]" />
-                                {{ isSubmitting ? 'Signing in...' : 'Login' }}
+                                {{ isSubmitting ? 'Signing in...' : 'Sign In' }}
                             </span>
                         </button>
 
                         <p class="register-note">
-                            Don’t have an account?
+                            Need to create an account?
                             <button type="button" @click="toRegister" class="register-link" :disabled="isSubmitting">Register</button>
                         </p>
                     </form>
@@ -212,7 +212,7 @@ function login() {
     width: 100%;
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: center;
 }
 
@@ -241,12 +241,13 @@ function login() {
     margin-top: 0.35rem;
     color: rgba(255, 255, 255, 0.86);
     line-height: 1.65;
-    max-width: 52ch;
+    max-width: 56ch;
 }
 
 .login-card {
     display: grid;
     gap: 0.75rem;
+    min-width: 0;
 }
 
 .login-card h2 {
@@ -334,6 +335,7 @@ function login() {
     text-align: center;
     color: rgba(255, 255, 255, 0.82);
     font-size: 0.9rem;
+    line-height: 1.6;
 }
 
 .register-link {
@@ -356,10 +358,20 @@ function login() {
 @media (max-width: 900px) {
     .login-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
 @media (max-width: 640px) {
+    .login-shell {
+        padding: 0.85rem 0 1.8rem;
+    }
+
+    .login-copy,
+    .login-card {
+        padding-inline: 1.15rem;
+    }
+
     .login-copy h1 {
         font-size: 1.6rem;
     }

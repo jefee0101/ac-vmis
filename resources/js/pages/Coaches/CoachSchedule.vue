@@ -291,8 +291,8 @@ function isLocked(item: any) {
 function attendanceActionLabel(item: any) {
     const status = scheduleStatus(item)
     const hasAttendance = Number(item.attendance_count ?? 0) > 0
-    if (status === 'completed') return hasAttendance ? 'View Attendance' : 'Take Attendance'
-    return 'Take Attendance'
+    if (status === 'completed') return hasAttendance ? 'View Attendance Record' : 'Record Attendance'
+    return 'Record Attendance'
 }
 
 const groupedSchedules = computed(() => {
@@ -606,7 +606,7 @@ onBeforeUnmount(() => {
 
                 <button @click="openCreateModal" :disabled="!canManage"
                     class="w-full rounded-lg bg-[#1f2937] px-4 py-2 text-sm font-medium text-white hover:bg-[#111827] sm:w-auto">
-                    + Add Schedule
+                    + Create Schedule
                 </button>
             </div>
         </div>
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
         <transition name="view-slide" mode="out-in">
             <div v-if="layout === 'list' && props.teams.length" key="list" class="space-y-6">
                 <div v-if="ownerSchedules.length === 0" class="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
-                    No schedules created yet.
+                    No schedules have been created yet.
                 </div>
 
                 <div v-else class="space-y-6">
@@ -667,7 +667,7 @@ onBeforeUnmount(() => {
                                     </span>
                                     <span v-if="scheduleStatus(item) === 'completed' && Number(item.attendance_count ?? 0) === 0"
                                         class="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                                        Needs attendance
+                                        Attendance required
                                     </span>
                                     <span v-if="isLocked(item)" class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
                                         Locked
@@ -733,7 +733,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
                 <p class="mb-3 text-xs text-slate-500">
-                    Tip: Drag on an empty calendar time slot to quickly create a schedule.
+                    Select an open time slot on the calendar to create a schedule.
                 </p>
                 <div ref="calendarContainer" class="flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
                     <VueCal sm style="height: 500px; width: 100%; max-width: 1150px;" :events="calendarEvents"
@@ -774,7 +774,7 @@ onBeforeUnmount(() => {
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule</p>
                         <h2 class="text-lg font-semibold" :class="modalMode === 'view' ? 'text-[#034485]' : 'text-slate-900'">
-                            {{ modalMode === 'view' ? 'Schedule Details' : (editingId ? 'Edit Schedule' : 'Add Schedule') }}
+                            {{ modalMode === 'view' ? 'Schedule Details' : (editingId ? 'Edit Schedule' : 'Create Schedule') }}
                         </h2>
                     </div>
 
@@ -837,7 +837,7 @@ onBeforeUnmount(() => {
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</p>
-                        <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">{{ selectedSchedule?.notes || 'No notes' }}</p>
+                        <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">{{ selectedSchedule?.notes || 'No additional notes provided.' }}</p>
                     </div>
                 </div>
 

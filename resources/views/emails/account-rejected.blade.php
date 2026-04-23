@@ -5,12 +5,12 @@
 </head>
 <body>
     <h1>Hello {{ $user->name }},</h1>
-    <p>Unfortunately, your account has been rejected by the admin.</p>
+    <p>Your account application has not been approved by the administrator.</p>
 
     @if($remarks)
         <p><strong>Remarks:</strong> {{ $remarks }}</p>
     @endif
 
-    <p>If you believe this is an error, please contact support.</p>
+    <p>If you believe this decision requires clarification, please contact the appropriate support office.</p>
 </body>
 </html>

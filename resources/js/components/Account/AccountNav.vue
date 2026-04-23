@@ -101,6 +101,7 @@ function goTo(href: string) {
   font-size: 1.15rem;
   font-weight: 700;
   color: #0f172a;
+  line-height: 1.25;
 }
 
 .account-nav__items {
@@ -112,7 +113,7 @@ function goTo(href: string) {
 .nav-link {
   display: flex;
   width: 100%;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.8rem;
   border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -153,6 +154,9 @@ function goTo(href: string) {
 .nav-link__label {
   font-size: 0.88rem;
   font-weight: 700;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .nav-link--active {

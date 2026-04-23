@@ -238,7 +238,7 @@ function printAcademicSummary() {
 
                 <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Latest Submission</p>
-                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ latestSubmission?.period_label || 'No submissions yet' }}</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ latestSubmission?.period_label || 'No submissions on record' }}</div>
                     <div class="text-xs text-slate-500">{{ latestSubmission?.uploaded_at || '-' }}</div>
                     <div class="mt-2 text-xs text-slate-600">
                         {{ latestSubmission ? docLabel(latestSubmission.document_type) : '—' }}
@@ -260,7 +260,7 @@ function printAcademicSummary() {
                     <span class="text-xs text-slate-500">{{ openPeriods.length }} open</span>
                 </div>
                 <div v-if="openPeriods.length === 0" class="text-sm text-slate-500">
-                    No active submission window yet. Wait for admin announcement.
+                    No active submission period is available at this time. Please wait for an administrator's announcement.
                 </div>
                 <div v-else class="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <Link
@@ -306,7 +306,7 @@ function printAcademicSummary() {
                             {{
                                 submissionHoldStatus
                                     ? (hasTeam ? 'Team access is paused until submissions are completed.' : 'Access resumes after you submit.')
-                                    : 'Submission received. Schedule and wellness access stays active.'
+                                    : 'Your submission has been received. Schedule and wellness access remains available.'
                             }}
                         </span>
                     </div>
@@ -339,7 +339,7 @@ function printAcademicSummary() {
             </section>
 
             <div v-else-if="completedSubmissions.length === 0" class="bg-white border border-[#034485]/35 rounded-xl p-6 text-slate-500 text-center">
-                No completed submissions yet.
+                No completed submissions are available at this time.
             </div>
 
             <section class="bg-white border border-[#034485]/35 rounded-xl overflow-x-auto">
@@ -375,7 +375,7 @@ function printAcademicSummary() {
                             </td>
                         </tr>
                         <tr v-if="completedSubmissions.length === 0">
-                            <td colspan="4" class="px-3 py-8 text-center text-slate-500">No submissions yet.</td>
+                            <td colspan="4" class="px-3 py-8 text-center text-slate-500">No submissions are on record at this time.</td>
                         </tr>
                     </tbody>
                 </table>

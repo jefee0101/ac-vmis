@@ -23,12 +23,12 @@ const layoutRef = ref<HTMLElement | null>(null);
 const currentYear = new Date().getFullYear();
 const publicSectionLinks = [
     { id: 'home', label: 'Home', title: 'Overview of AC-VMIS' },
-    { id: 'how-it-works', label: 'How It Works', title: 'Step-by-step flow of using the platform' },
-    { id: 'about', label: 'About Us', title: 'What AC-VMIS is and who it serves' },
-    { id: 'features', label: 'Features', title: 'Core features and tools in AC-VMIS' },
-    { id: 'faq', label: 'FAQ', title: 'Quick answers to common questions' },
-    { id: 'policies', label: 'Policies', title: 'Policies, privacy, and terms' },
-    { id: 'contact', label: 'Contact', title: 'Contact details and support' },
+    { id: 'how-it-works', label: 'Process Overview', title: 'Step-by-step guidance for using the platform' },
+    { id: 'about', label: 'About', title: 'Overview of AC-VMIS and its intended users' },
+    { id: 'features', label: 'System Services', title: 'Main AC-VMIS functions and services' },
+    { id: 'faq', label: 'FAQ', title: 'Answers to common questions' },
+    { id: 'policies', label: 'Policies', title: 'Privacy, usage, and institutional policies' },
+    { id: 'contact', label: 'Support', title: 'Official contact and support information' },
 ];
 const isAuthed = computed(() => Boolean(page.props.auth?.user));
 const userRole = computed(() => String(page.props.auth?.user?.role ?? ''));
@@ -101,54 +101,76 @@ watch(mobileMenuOpen, (open) => {
                     <span></span>
                 </button>
 
-                <div class="header-actions flex items-center gap-3">
-                    <template v-if="!isStatusPage">
-                        <button v-if="isAuthed" @click="router.visit(dashboardPath)" class="btn-outline" :disabled="isLoading">
-                            Back to Dashboard
-                        </button>
-                        <template v-else>
-                            <button @click="toLogin" class="btn-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
-                                Login
+                <div class="header-desktop">
+                    <div class="header-actions-desktop">
+                        <template v-if="!isStatusPage">
+                            <button v-if="isAuthed" @click="router.visit(dashboardPath)" class="header-link header-link-outline" :disabled="isLoading">
+                                Back to Dashboard
                             </button>
-                            <button @click="toRegister" class="btn-fill" :class="{ 'is-active': isRegisterPage }" :disabled="isLoading">
-                                Register
-                            </button>
+                            <template v-else>
+                                <button @click="toLogin" class="header-link header-link-outline" :class="{ 'is-active': isLoginPage }" :disabled="isLoading">
+                                    Sign In
+                                </button>
+                                <button @click="toRegister" class="header-link" :class="{ 'is-active': isRegisterPage }" :disabled="isLoading">
+                                    Register
+                                </button>
+                            </template>
                         </template>
-                    </template>
+                    </div>
+
+                    <div class="header-logo-slot" aria-hidden="true">
+                        <div class="corner-badge">
+                            <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                                <path
+                                    d="M46 12H214
+                                       Q222 12 226 18
+                                       L178 124
+                                       Q172 128 164 128
+                                       H96
+                                       Q88 128 82 124
+                                       L34 18
+                                       Q38 12 46 12Z"
+                                />
+                            </svg>
+                            <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                        </div>
+                    </div>
+
+                    <nav v-if="!isStatusPage" class="header-links-desktop" aria-label="Public pages">
+                        <Link
+                            v-for="item in publicSectionLinks"
+                            :key="item.id"
+                            :href="sectionHref(item.id)"
+                            class="header-link"
+                            :class="{ 'is-active': item.id === 'home' && (currentPath === '/' || currentPath === '') }"
+                            :title="item.title"
+                            :aria-label="`${item.label}: ${item.title}`"
+                        >
+                            {{ item.label }}
+                        </Link>
+                    </nav>
+                    <div v-else class="header-system-title" aria-label="System Title">Asian College Varsity Management Information System</div>
                 </div>
 
-                <div class="header-logo-slot" aria-hidden="true">
-                    <div class="corner-badge">
-                        <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
-                            <path
-                                d="M46 12H214
-                                   Q222 12 226 18
-                                   L170 124
-                                   Q166 128 160 128
-                                   H100
-                                   Q94 128 90 124
-                                   L34 18
-                                   Q38 12 46 12Z"
-                            />
-                        </svg>
-                        <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                <div class="mobile-notch" aria-hidden="true">
+                    <div class="header-logo-slot mobile-header-logo-slot">
+                        <div class="corner-badge">
+                            <svg class="logo-triangle" viewBox="0 0 260 130" aria-hidden="true" focusable="false">
+                                <path
+                                    d="M46 12H214
+                                       Q222 12 226 18
+                                       L178 124
+                                       Q172 128 164 128
+                                       H96
+                                       Q88 128 82 124
+                                       L34 18
+                                       Q38 12 46 12Z"
+                                />
+                            </svg>
+                            <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
+                        </div>
                     </div>
                 </div>
-
-                <nav v-if="!isStatusPage" class="header-links" aria-label="Public pages">
-                    <Link
-                        v-for="item in publicSectionLinks"
-                        :key="item.id"
-                        :href="sectionHref(item.id)"
-                        class="header-link"
-                        :class="{ 'is-active': item.id === 'home' && (currentPath === '/' || currentPath === '') }"
-                        :title="item.title"
-                        :aria-label="`${item.label}: ${item.title}`"
-                    >
-                        {{ item.label }}
-                    </Link>
-                </nav>
-                <div v-else class="header-system-title" aria-label="System Title">Asian College Varsity Management Information System</div>
             </div>
         </header>
 
@@ -178,7 +200,7 @@ watch(mobileMenuOpen, (open) => {
                         "
                         class="btn-outline w-full"
                     >
-                        Login
+                        Sign In
                     </button>
                     <button
                         @click="
@@ -194,7 +216,7 @@ watch(mobileMenuOpen, (open) => {
             <nav class="mobile-menu-links">
                 <template v-if="isStatusPage">
                     <Link href="/" class="mobile-menu-link" @click="mobileMenuOpen = false">Home</Link>
-                    <Link href="/Login" class="mobile-menu-link" @click="mobileMenuOpen = false">Login</Link>
+                    <Link href="/Login" class="mobile-menu-link" @click="mobileMenuOpen = false">Sign In</Link>
                     <Link href="/Register" class="mobile-menu-link" @click="mobileMenuOpen = false">Register</Link>
                 </template>
                 <template v-else>
@@ -263,7 +285,7 @@ watch(mobileMenuOpen, (open) => {
                                 :href="sectionHref(item.id)"
                                 class="footer-link"
                             >
-                                {{ item.label === 'About Us' ? 'About' : item.label }}
+                                {{ item.label }}
                             </Link>
                         </div>
                     </nav>
@@ -281,7 +303,7 @@ watch(mobileMenuOpen, (open) => {
                         <p class="footer-heading"><span class="title-chip">Access</span></p>
                         <div class="footer-link-list">
                             <button @click="toRegister" class="footer-link footer-link-btn">Register</button>
-                            <button @click="toLogin" class="footer-link footer-link-btn">Login</button>
+                            <button @click="toLogin" class="footer-link footer-link-btn">Sign In</button>
                         </div>
                     </nav>
 
@@ -310,7 +332,7 @@ watch(mobileMenuOpen, (open) => {
                 </div>
 
                 <div class="footer-bottom-row">
-                    <p>v1.0 • © {{ currentYear }} Asian College</p>
+                    <p>© {{ currentYear }} Asian College</p>
                 </div>
             </div>
         </footer>
@@ -334,7 +356,7 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .public-content {
-    max-width: 1100px;
+    max-width: 1140px;
     margin: 0 auto;
     display: grid;
     gap: 1.25rem;
@@ -458,9 +480,10 @@ watch(mobileMenuOpen, (open) => {
     margin-top: 0.45rem;
     color: rgba(255, 255, 255, 0.72);
     font-size: 0.84rem;
-    display: inline-flex;
-    align-items: center;
+    display: flex;
+    align-items: flex-start;
     gap: 0.35rem;
+    line-height: 1.5;
 }
 
 .contact-icon {
@@ -567,21 +590,41 @@ watch(mobileMenuOpen, (open) => {
     background: #ffffff !important;
     border-bottom: none !important;
     backdrop-filter: blur(2px);
+    overflow: visible;
 }
 
 .nav-shell {
     position: relative;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 4px 14px;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 66px;
+    padding: 2px 14px 1px;
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
+    overflow: visible;
 }
 
-.header-actions {
+.header-desktop {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    width: 100%;
+    overflow: visible;
+}
+
+.header-actions-desktop {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.mobile-notch {
+    display: none;
 }
 
 .mobile-menu-toggle {
@@ -606,21 +649,25 @@ watch(mobileMenuOpen, (open) => {
 
 .header-logo-slot {
     position: relative;
-    flex: 0 0 290px;
-    height: 0;
+    flex: 0 0 236px;
+    width: 236px;
+    height: 58px;
     display: flex;
+    align-items: center;
     justify-content: center;
     pointer-events: none;
+    z-index: 4;
+    overflow: visible;
 }
 
 .corner-badge {
     position: absolute;
-    top: -60px;
+    top: -8px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
-    width: 290px;
-    height: 118px;
+    width: 272px;
+    height: 94px;
     pointer-events: none;
 }
 
@@ -637,23 +684,26 @@ watch(mobileMenuOpen, (open) => {
 
 .logo-inside-triangle {
     position: absolute;
-    top: 45px;
+    top: 23px;
     left: 50%;
     transform: translateX(-50%);
-    width: 66px;
-    height: 66px;
+    width: 60px;
+    height: 60px;
     border-radius: 999px;
     background: #fff;
-    padding: 5px;
+    padding: 3px;
     object-fit: contain;
     box-shadow: none;
 }
 
-.header-links {
+.header-links-desktop {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px 18px;
-    justify-content: center;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .header-system-title {
@@ -675,11 +725,43 @@ watch(mobileMenuOpen, (open) => {
     border: none;
     border-radius: 999px;
     background: var(--brand-blue);
+    line-height: 1.35;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .header-link:hover {
     color: #ffffff;
     background: var(--page-accent-strong);
+}
+
+.header-link-outline {
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid rgba(3, 68, 133, 0.42);
+}
+
+.header-link-outline:hover {
+    color: var(--brand-blue);
+    background: rgba(3, 68, 133, 0.08);
+}
+
+.header-actions-desktop .header-link {
+    color: var(--brand-blue);
+    background: #ffffff;
+    border: 1px solid rgba(3, 68, 133, 0.42);
+}
+
+.header-actions-desktop .header-link:hover {
+    color: var(--brand-blue);
+    background: rgba(3, 68, 133, 0.08);
+}
+
+.header-actions-desktop .header-link:active,
+.header-actions-desktop .header-link.is-active {
+    color: var(--brand-blue);
+    background: rgba(147, 197, 253, 0.55);
+    border-color: rgba(59, 130, 246, 0.55);
 }
 
 .header-link.is-active {
@@ -690,13 +772,18 @@ watch(mobileMenuOpen, (open) => {
 
 .btn-fill,
 .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 6px 10px;
+    min-height: 38px;
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
     color: var(--brand-blue);
     background: #ffffff;
     border: 1px solid var(--brand-blue);
+    text-align: center;
 }
 
 .mobile-menu-overlay {
@@ -818,20 +905,6 @@ watch(mobileMenuOpen, (open) => {
         padding: 0 1.4rem 3rem;
     }
 
-    .nav-shell {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding: 4px 18px;
-    }
-
-    .header-links {
-        justify-content: flex-end;
-        margin: 0;
-    }
-
     .footer-bottom-row {
         display: flex;
         justify-content: flex-end;
@@ -840,28 +913,29 @@ watch(mobileMenuOpen, (open) => {
 
 @media (max-width: 768px) {
     .nav-shell {
-        flex-direction: row;
         justify-content: space-between;
         align-items: center;
-        min-height: 64px;
+        min-height: 45px;
+        padding: 2px 14px 0;
     }
 
-    .header-actions {
+    .header-desktop,
+    .header-links-desktop {
         display: none;
     }
 
-    .header-links {
-        display: none;
-    }
-
-    .header-logo-slot {
+    .mobile-notch {
         display: flex;
         position: absolute;
         left: 50%;
-        top: 64%;
-        transform: translate(-50%, -50%);
-        height: 98px;
-        width: min(264px, 74vw);
+        bottom: -36px;
+        transform: translateX(-50%);
+        width: min(236px, 68vw);
+        height: 76px;
+        align-items: flex-start;
+        justify-content: center;
+        pointer-events: none;
+        overflow: visible;
     }
 
     .header-system-title {
@@ -872,21 +946,36 @@ watch(mobileMenuOpen, (open) => {
         display: inline-flex;
     }
 
+    .mobile-menu-actions .btn-fill,
+    .mobile-menu-actions .btn-outline {
+        width: 100%;
+    }
+
     .corner-badge {
-        top: 6px;
-        width: 242px;
-        height: 99px;
+        top: 3px;
+        width: 226px;
+        height: 79px;
     }
 
     .header-logo-slot {
-        flex-basis: 220px;
+        flex-basis: 202px;
     }
 
     .logo-inside-triangle {
-        top: 32px;
-        width: 52px;
-        height: 52px;
-        padding: 4px;
+        top: 20px;
+        width: 50px;
+        height: 50px;
+        padding: 3px;
+    }
+
+    .mobile-header-logo-slot {
+        position: relative;
+        width: min(236px, 68vw);
+        height: 76px;
+        left: auto;
+        top: auto;
+        transform: none;
+        flex: 0 0 auto;
     }
 
     .footer-grid {
@@ -900,26 +989,31 @@ watch(mobileMenuOpen, (open) => {
     }
 
     .corner-badge {
-        top: 8px;
-        width: 220px;
-        height: 90px;
+        top: 4px;
+        width: 212px;
+        height: 74px;
     }
 
     .header-logo-slot {
-        flex-basis: 205px;
+        flex-basis: 190px;
     }
 
     .logo-inside-triangle {
-        top: 29px;
-        width: 46px;
-        height: 46px;
-        padding: 4px;
+        top: 20px;
+        width: 44px;
+        height: 44px;
+        padding: 3px;
+    }
+
+    .mobile-header-logo-slot {
+        width: min(206px, 66vw);
+        height: 70px;
     }
 
     .site-footer {
         border-radius: 16px 16px 0 0;
-        margin-left: 1.25rem;
-        margin-right: 1.25rem;
+        margin-left: 1rem;
+        margin-right: 1rem;
     }
 
     .footer-grid {
@@ -945,6 +1039,7 @@ watch(mobileMenuOpen, (open) => {
     .btn-outline {
         padding: 9px 10px;
         font-size: 13px;
+        width: 100%;
     }
 }
 

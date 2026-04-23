@@ -48,7 +48,7 @@ const submissionProgress = computed(() => {
     return Math.round((Number(academicSubmissions.value.submitted || 0) / submissionTotal.value) * 100)
 })
 const academicStatusLabel = computed(() => {
-    if (!kpis.value.academic_status) return 'No record yet'
+    if (!kpis.value.academic_status) return 'No record available'
 
     return String(kpis.value.academic_status)
         .replace(/_/g, ' ')
@@ -76,7 +76,7 @@ const heroSummary = computed(() => {
     }
 
     if (parts.length === 0) {
-        return 'You are caught up for now. Keep an eye on your schedule, academics, and wellness updates.'
+        return 'There are no immediate pending items. Please continue to monitor your schedule, academic requirements, and post-training condition updates.'
     }
 
     return `${parts.join(' • ')}.`
@@ -149,7 +149,7 @@ const currentPageName = computed(() => {
         return 'Preferences'
     }
     if (currentPath.value === '/account/help' || currentPath.value.startsWith('/account/help/')) {
-        return 'Help & Support'
+        return 'Support'
     }
 
     return activeLabel.value
@@ -382,9 +382,9 @@ watch(mobileMenuOpen, (open) => {
 
                     <div class="min-w-0 flex items-center gap-2">
                         <div class="min-w-0 ml-1 px-1 py-1 sm:ml-2">
-                            <p class="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-white">AC VMIS Student</p>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white">AC VMIS Student</p>
                             <div class="flex min-w-0 items-center gap-2">
-                                <h2 class="truncate text-sm font-semibold text-white sm:text-base">{{ currentPageName }}</h2>
+                                <h2 class="text-sm font-semibold leading-tight text-white sm:text-base">{{ currentPageName }}</h2>
                             </div>
                         </div>
 
@@ -441,7 +441,7 @@ watch(mobileMenuOpen, (open) => {
                             v-if="notificationsOpen"
                             class="absolute right-0 mt-2 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
                         >
-                            <div class="flex items-center justify-between border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                                 Announcements
                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ notificationsCount }}</span>
                             </div>
@@ -462,7 +462,7 @@ watch(mobileMenuOpen, (open) => {
                                     <span class="ml-auto text-[10px] font-semibold" :class="item.is_read ? 'text-slate-400' : 'text-white/70'">{{ item.published_at ?? '' }}</span>
                                 </button>
                                 <div v-if="studentNotifications.length === 0" class="px-3 py-4 text-xs text-slate-500">
-                                    No announcements right now.
+                                    No announcements are available at this time.
                                 </div>
                             </div>
                             <div class="border-t border-slate-200 px-3 py-2">
@@ -471,7 +471,7 @@ watch(mobileMenuOpen, (open) => {
                                     class="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
                                     @click="go('/announcements')"
                                 >
-                                    View all
+                                    View All Announcements
                                 </button>
                             </div>
                         </div>
@@ -580,8 +580,8 @@ watch(mobileMenuOpen, (open) => {
                         </section>
 
                         <section class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                            <div class="flex items-center justify-between">
-                                <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Action Board</h2>
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Primary Actions</h2>
                                 <span class="text-xs text-slate-500">Primary student workflows</span>
                             </div>
 
@@ -593,15 +593,15 @@ watch(mobileMenuOpen, (open) => {
                                 <button
                                     type="button"
                                     @click="go('/MySchedule')"
-                                    class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+                                    class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-start gap-3">
                                         <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M8 2v3M16 2v3M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z" />
                                             </svg>
                                         </span>
-                                        <div>
+                                        <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-900">My Schedule</p>
                                             <p class="text-xs text-slate-500">View activities, times, venues, and attendance prompts.</p>
                                         </div>
@@ -614,15 +614,15 @@ watch(mobileMenuOpen, (open) => {
                                 <button
                                     type="button"
                                     @click="go('/AcademicSubmissions')"
-                                    class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+                                    class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-start gap-3">
                                         <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M2 9l10-5 10 5-10 5-10-5zM6 11v5c0 1.6 2.7 3 6 3s6-1.4 6-3v-5" />
                                             </svg>
                                         </span>
-                                        <div>
+                                        <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-900">Academics</p>
                                             <p class="text-xs text-slate-500">Submit academic requirements and review your current standing.</p>
                                         </div>
@@ -637,15 +637,15 @@ watch(mobileMenuOpen, (open) => {
                                 <button
                                     type="button"
                                     @click="go('/WellnessHistory')"
-                                    class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+                                    class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-start gap-3">
                                         <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M22 12h-4l-3 8-4-16-3 8H2" />
                                             </svg>
                                         </span>
-                                        <div>
+                                        <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-900">Wellness</p>
                                             <p class="text-xs text-slate-500">Review recent check-ins and keep your readiness record updated.</p>
                                         </div>
@@ -658,9 +658,9 @@ watch(mobileMenuOpen, (open) => {
                                 <button
                                     type="button"
                                     @click="go('/MyTeam')"
-                                    class="group flex h-full flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+                                    class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
                                 >
-                                    <div class="flex items-center gap-3">
+                                    <div class="flex items-start gap-3">
                                         <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
                                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                                                 <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -669,7 +669,7 @@ watch(mobileMenuOpen, (open) => {
                                                 <path d="M23 11h-6" />
                                             </svg>
                                         </span>
-                                        <div>
+                                        <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-900">My Team</p>
                                             <p class="text-xs text-slate-500">Check roster details, jersey status, and team information.</p>
                                         </div>
@@ -681,7 +681,7 @@ watch(mobileMenuOpen, (open) => {
 
                         <section class="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Upcoming Sessions</h3>
                                         <p class="mt-1 text-sm text-slate-500">Your scheduled team activities for the next seven days.</p>
@@ -712,7 +712,7 @@ watch(mobileMenuOpen, (open) => {
                             </div>
 
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Status Summary</h3>
                                         <p class="mt-1 text-sm text-slate-500">Your current academics, wellness, and submission standing.</p>
@@ -732,7 +732,7 @@ watch(mobileMenuOpen, (open) => {
                                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                                         <p class="text-xs text-slate-500">Wellness Activity</p>
                                         <p class="mt-1 text-lg font-semibold text-slate-900">{{ kpis.wellness_logs_30d ?? 0 }}</p>
-                                        <p class="mt-1 text-xs text-slate-500">Recent wellness logs in the last 30 days.</p>
+                                        <p class="mt-1 text-xs text-slate-500">Recent post-training condition records from the last 30 days.</p>
                                     </div>
                                 </div>
                             </div>
@@ -740,20 +740,20 @@ watch(mobileMenuOpen, (open) => {
 
                         <section class="grid gap-4 lg:grid-cols-2">
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Action Needed</h3>
                                     <span
                                         class="rounded-full px-2.5 py-1 text-[11px] font-semibold"
                                         :class="hasActionItems ? 'border border-amber-200 bg-amber-50 text-amber-700' : 'border border-emerald-200 bg-emerald-50 text-emerald-700'"
                                     >
-                                        {{ hasActionItems ? 'Needs attention' : 'All clear' }}
+                                        {{ hasActionItems ? 'Action Required' : 'Up to Date' }}
                                     </span>
                                 </div>
 
                                 <div class="mt-4 space-y-3">
                                     <div class="rounded-lg border border-slate-200 p-3">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
+                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div class="min-w-0">
                                                 <p class="text-sm font-semibold text-slate-900">Attendance Response</p>
                                                 <p class="mt-1 text-xs text-slate-500">
                                                     {{ Number(kpis.pending_responses || 0) > 0
@@ -763,7 +763,7 @@ watch(mobileMenuOpen, (open) => {
                                             </div>
                                             <button
                                                 type="button"
-                                                class="rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155]"
+                                                class="w-full rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155] sm:w-auto"
                                                 @click="go('/MySchedule')"
                                             >
                                                 Open
@@ -772,8 +772,8 @@ watch(mobileMenuOpen, (open) => {
                                     </div>
 
                                     <div class="rounded-lg border border-slate-200 p-3">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
+                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div class="min-w-0">
                                                 <p class="text-sm font-semibold text-slate-900">Academic Submission Status</p>
                                                 <p class="mt-1 text-xs text-slate-500">
                                                     {{ Number(academicSubmissions.pending || 0) > 0
@@ -783,7 +783,7 @@ watch(mobileMenuOpen, (open) => {
                                             </div>
                                             <button
                                                 type="button"
-                                                class="rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155]"
+                                                class="w-full rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155] sm:w-auto"
                                                 @click="go('/AcademicSubmissions')"
                                             >
                                                 Open
@@ -792,18 +792,18 @@ watch(mobileMenuOpen, (open) => {
                                     </div>
 
                                     <div class="rounded-lg border border-slate-200 p-3">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
+                                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div class="min-w-0">
                                                 <p class="text-sm font-semibold text-slate-900">Wellness Check-In</p>
                                                 <p class="mt-1 text-xs text-slate-500">
                                                     {{ Number(kpis.wellness_logs_30d || 0) === 0
-                                                        ? 'No recent wellness logs found. Add one to keep your readiness record current.'
-                                                        : 'Continue maintaining your wellness and recovery updates.' }}
+                                                        ? 'No recent post-training condition records are available. Please continue submitting updates as required.'
+                                                        : 'Continue maintaining your post-training condition and recovery updates.' }}
                                                 </p>
                                             </div>
                                             <button
                                                 type="button"
-                                                class="rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155]"
+                                                class="w-full rounded-md bg-[#1f2937] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#334155] sm:w-auto"
                                                 @click="go('/WellnessHistory')"
                                             >
                                                 Open
@@ -814,7 +814,7 @@ watch(mobileMenuOpen, (open) => {
                             </div>
 
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Attendance Breakdown</h3>
                                     <span class="text-xs text-slate-500">{{ attendanceTotal }} total</span>
                                 </div>
@@ -837,7 +837,7 @@ watch(mobileMenuOpen, (open) => {
 
                         <section class="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Academic Submission Progress</h3>
                                         <p class="mt-1 text-sm text-slate-500">Track how many active academic requirements you have already completed.</p>
@@ -852,14 +852,14 @@ watch(mobileMenuOpen, (open) => {
                                 </div>
 
                                 <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                    <div class="flex items-end justify-between gap-3">
+                                    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                                         <div>
                                             <p class="text-3xl font-semibold text-slate-900">{{ submissionProgress }}%</p>
                                             <p class="mt-1 text-sm text-slate-500">
                                                 You have completed {{ academicSubmissions.submitted }} of {{ submissionTotal || 0 }} required submissions.
                                             </p>
                                         </div>
-                                        <div class="text-right text-xs text-slate-500">
+                                        <div class="text-left text-xs text-slate-500 sm:text-right">
                                             <p>Submitted: {{ academicSubmissions.submitted }}</p>
                                             <p>Pending: {{ academicSubmissions.pending }}</p>
                                         </div>
@@ -872,7 +872,7 @@ watch(mobileMenuOpen, (open) => {
                             </div>
 
                             <div class="rounded-xl border border-[#034485]/30 bg-white p-5">
-                                <div class="flex items-center justify-between">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Wellness Trend</h3>
                                         <p class="mt-1 text-sm text-slate-500">Recent wellness entries over the last seven days.</p>
@@ -902,7 +902,7 @@ watch(mobileMenuOpen, (open) => {
 
             <RoleFooter
                 title="Student-Athlete Workspace"
-                description="Stay on top of schedules, attendance, wellness logs, and academic submissions."
+                description="Review schedules, attendance, post-training condition records, and academic submissions."
                 :links="footerLinks"
             />
         </div>

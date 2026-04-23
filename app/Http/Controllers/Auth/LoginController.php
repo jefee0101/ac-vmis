@@ -43,16 +43,16 @@ class LoginController extends Controller
 
         if ($user->must_change_password) {
             return redirect('/account/account-settings?force=1')
-                ->with('error', 'Please update your password before accessing other pages.');
+                ->with('error', 'Please update your password before accessing the rest of the system.');
         }
 
         // Redirect by role
         if ($user->role === 'admin') {
-            return redirect('/AdminDashboard')->with('login_success', 'Login successful');
+            return redirect('/AdminDashboard')->with('login_success', 'Sign-in successful.');
         } elseif ($user->role === 'coach') {
-            return redirect('/coach/dashboard')->with('login_success', 'Login successful');
+            return redirect('/coach/dashboard')->with('login_success', 'Sign-in successful.');
         } elseif (in_array($user->role, ['student-athlete', 'student'], true)) {
-            return redirect('/StudentAthleteDashboard')->with('login_success', 'Login successful');
+            return redirect('/StudentAthleteDashboard')->with('login_success', 'Sign-in successful.');
         } else {
             Auth::logout();
             return redirect('/Login')->withErrors([

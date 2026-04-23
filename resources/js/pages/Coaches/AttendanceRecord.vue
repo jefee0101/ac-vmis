@@ -361,19 +361,19 @@ function canLogWellness(status: string | null) {
 }
 
 function wellnessDisabledReason(status: string | null) {
-    if (!selectedScheduleItem.value) return 'Select a schedule first.'
+    if (!selectedScheduleItem.value) return 'Please select a schedule first.'
     if (!['practice', 'game'].includes(String(selectedScheduleItem.value.type))) {
-        return 'Wellness is only for practice or game schedules.'
+        return 'Post-training condition records are only available for practice or game schedules.'
     }
-    if (!status) return 'No attendance status yet.'
+    if (!status) return 'An attendance status has not been recorded yet.'
     if (!['present', 'late', 'excused'].includes(status)) {
-        return 'Only attended athletes can be logged for wellness.'
+        return 'Post-training condition records may only be entered for student-athletes who attended the session.'
     }
     return ''
 }
 
 function wellnessActionLabel(logId: number | null) {
-    return logId ? 'Edit Wellness' : 'Wellness Check'
+    return logId ? 'Edit Condition Record' : 'Record Condition'
 }
 
 function openWellness(row: (typeof props.attendanceRows)[number]) {

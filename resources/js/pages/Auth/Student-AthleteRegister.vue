@@ -834,12 +834,12 @@ onBeforeUnmount(() => {
     <PublicLayout
         title="Student-Athlete Registration"
         page-title="Student-Athlete Registration"
-        page-description="3-step signup. Required now: account, identity basics, and requirements."
+        page-description="Complete the three-step registration process by providing your account details, personal information, and required documents."
     >
         <main class="register-main px-4 py-8 sm:px-6 lg:px-10" @keydown.enter="handleEnter">
             <div class="mx-auto w-full max-w-4xl public-card register-card">
                 <h1 class="register-title">Student-Athlete Registration</h1>
-                <p class="register-subtitle">3-step signup. Required now: account, identity basics, and requirements.</p>
+                <p class="register-subtitle">Complete the three-step registration process by providing your account details, personal information, and required documents.</p>
                 <FormAlert class="mt-4" tone="error" :message="formAlert" />
 
                 <div class="mt-6 stepper">
@@ -944,9 +944,9 @@ onBeforeUnmount(() => {
                             @blur="touchAndValidate('student_id_number')"
                         />
                         <div class="mt-1 text-xs">
-                            <span v-if="checkingStudentId" class="text-white/80">Checking student ID...</span>
-                            <span v-else-if="studentIdAvailable === true" class="text-emerald-600">Student ID is available.</span>
-                            <span v-else-if="studentIdAvailable === false && (submitAttempted || touchedFields.student_id_number)" class="error-inline">Student ID is already in use.</span>
+                            <span v-if="checkingStudentId" class="text-white/80">Checking the student ID number...</span>
+                            <span v-else-if="studentIdAvailable === true" class="text-emerald-600">The student ID number is available.</span>
+                            <span v-else-if="studentIdAvailable === false && (submitAttempted || touchedFields.student_id_number)" class="error-inline">This student ID number is already in use.</span>
                         </div>
                         <FieldError :message="shouldShowError('student_id_number') ? fieldErrors.student_id_number : ''" />
                     </div>
@@ -964,7 +964,7 @@ onBeforeUnmount(() => {
                             <img :src="avatarPreviewUrl" alt="Avatar preview" />
                             <div>
                                 <p class="text-xs text-slate-500">Preview</p>
-                                <p class="text-sm font-semibold text-slate-700">Avatar ready</p>
+                                <p class="text-sm font-semibold text-slate-700">Profile image selected</p>
                             </div>
                         </div>
                         <FieldError :message="shouldShowError('avatar') ? fieldErrors.avatar : ''" />
@@ -989,7 +989,7 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
 
-                    <p class="text-xs text-slate-500">Full name preview: {{ fullNamePreview || 'Not set yet' }}</p>
+                    <p class="text-xs text-slate-500">Full name preview: {{ fullNamePreview || 'Not yet provided' }}</p>
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -1032,11 +1032,11 @@ onBeforeUnmount(() => {
 
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="label">Education Level (Auto)</label>
+                            <label class="label">Education Level (Automatic)</label>
                             <input
                                 :value="derivedEducationLevel || ''"
                                 class="field"
-                                placeholder="Select grade level first"
+                                placeholder="Select the current grade level first"
                                 disabled
                             />
                         </div>
@@ -1182,19 +1182,19 @@ onBeforeUnmount(() => {
                         <textarea v-model="form.academic_document_notes" class="field min-h-21" placeholder="Additional context"></textarea>
                     </div>
 
-                    <button type="button" class="btn-outline w-fit" @click="saveDraft">Save As Draft</button>
+                    <button type="button" class="btn-outline w-full sm:w-fit" @click="saveDraft">Save as Draft</button>
                     </section>
                 </transition>
 
-                <div class="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-[#e2e8f0] pt-4">
-                    <button type="button" class="btn-outline" :disabled="step === 1 || isSubmitting" @click="previousStep">Previous</button>
+                <div class="mt-8 flex flex-col gap-3 border-t border-[#e2e8f0] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                    <button type="button" class="btn-outline w-full sm:w-auto" :disabled="step === 1 || isSubmitting" @click="previousStep">Previous Step</button>
 
-                    <div class="flex items-center gap-2">
-                        <button v-if="step < 3" type="button" class="btn-fill" :disabled="isSubmitting" @click="nextStep">Continue</button>
-                        <button v-else type="button" class="btn-fill" :disabled="isSubmitting" @click="submit">
+                    <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                        <button v-if="step < 3" type="button" class="btn-fill w-full sm:w-auto" :disabled="isSubmitting" @click="nextStep">Continue</button>
+                        <button v-else type="button" class="btn-fill w-full sm:w-auto" :disabled="isSubmitting" @click="submit">
                             <span class="inline-flex items-center gap-2">
                                 <Spinner v-if="isSubmitting" class="h-4 w-4 text-white" />
-                                {{ isSubmitting ? 'Submitting...' : 'Create Account' }}
+                                {{ isSubmitting ? 'Submitting...' : 'Submit Registration' }}
                             </span>
                         </button>
                     </div>
@@ -1202,7 +1202,7 @@ onBeforeUnmount(() => {
 
                 <div v-if="isSubmitting" class="mt-4 space-y-1.5">
                     <div class="flex items-center justify-between text-xs text-white/80">
-                        <span>Uploading requirements...</span>
+                        <span>Uploading required documents...</span>
                         <span>{{ uploadProgress }}%</span>
                     </div>
                     <div class="h-2 rounded-full bg-[#e2e8f0] overflow-hidden">
@@ -1217,7 +1217,7 @@ onBeforeUnmount(() => {
                 <div class="dialog-icon">!</div>
                 <h3 class="dialog-title">{{ modal.title }}</h3>
                 <p class="dialog-message">{{ modal.message }}</p>
-                <button type="button" class="btn-fill mt-2" @click="closeModal">Close</button>
+                <button type="button" class="btn-fill mt-2 w-full sm:w-auto" @click="closeModal">Close</button>
             </div>
         </div>
 
@@ -1250,9 +1250,9 @@ onBeforeUnmount(() => {
                     <p v-if="cropError" class="error-inline text-xs">{{ cropError }}</p>
                 </div>
 
-                <div class="mt-4 flex justify-end gap-2">
-                    <button type="button" class="btn-outline" @click="closeCropModal">Cancel</button>
-                    <button type="button" class="btn-fill" @click="applyCroppedAvatar">Use Cropped Photo</button>
+                <div class="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button type="button" class="btn-outline w-full sm:w-auto" @click="closeCropModal">Cancel</button>
+                    <button type="button" class="btn-fill w-full sm:w-auto" @click="applyCroppedAvatar">Use Cropped Photo</button>
                 </div>
             </div>
         </div>
@@ -1377,6 +1377,8 @@ onBeforeUnmount(() => {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    line-height: 1.35;
+    text-align: center;
 }
 
 .step.active {

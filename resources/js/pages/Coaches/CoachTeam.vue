@@ -437,7 +437,7 @@ function printTeamRoster() {
                                                 d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
                                             />
                                         </svg>
-                                        <span v-if="copiedField === 'student-id'" class="text-[10px]">Copied</span>
+                                        <span v-if="copiedField === 'student-id'" class="text-[10px]">Student ID Copied</span>
                                     </button>
                                 </span>
                             </p>
@@ -478,7 +478,7 @@ function printTeamRoster() {
                                             d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
                                         />
                                     </svg>
-                                    <span v-if="copiedField === 'email'" class="text-[10px]">Copied</span>
+                                    <span v-if="copiedField === 'email'" class="text-[10px]">Email Copied</span>
                                 </button>
                             </span>
                         </p>
@@ -499,7 +499,7 @@ function printTeamRoster() {
                                             d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
                                         />
                                     </svg>
-                                    <span v-if="copiedField === 'phone'" class="text-[10px]">Copied</span>
+                                    <span v-if="copiedField === 'phone'" class="text-[10px]">Phone Number Copied</span>
                                 </button>
                             </span>
                         </p>
@@ -528,7 +528,7 @@ function printTeamRoster() {
                                             d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z"
                                         />
                                     </svg>
-                                    <span v-if="copiedField === 'emergency-phone'" class="text-[10px]">Copied</span>
+                                    <span v-if="copiedField === 'emergency-phone'" class="text-[10px]">Emergency Contact Number Copied</span>
                                 </button>
                             </span>
                         </p>

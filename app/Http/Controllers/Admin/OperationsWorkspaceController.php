@@ -155,7 +155,7 @@ class OperationsWorkspaceController extends Controller
         );
 
         return response()->json([
-            'message' => 'Attendance updated successfully.',
+            'message' => 'Attendance has been updated successfully.',
         ]);
     }
 

@@ -108,7 +108,7 @@ class CreateTeamController extends Controller
         $this->notifyTeamAssignmentAdded($team, (int) $validated['coach_id'], 'head coach');
         $this->notifyTeamAssignmentAdded($team, $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null, 'assistant coach');
         $this->notifyPlayersAdded($team, $playerIds->all());
-        return redirect('/teams')->with('success', 'Team created successfully.');
+        return redirect('/teams')->with('success', 'The team has been created successfully.');
     }
 
     public function edit(Team $team)
@@ -224,7 +224,7 @@ class CreateTeamController extends Controller
         $this->notifyPlayersAdded($team, $addedPlayerIds);
         $this->notifyPlayersRemoved($team, $removedPlayerIds);
 
-        return redirect('/teams')->with('success', 'Team updated successfully.');
+        return redirect('/teams')->with('success', 'The team has been updated successfully.');
     }
 
     public function teamSetup(Request $request)

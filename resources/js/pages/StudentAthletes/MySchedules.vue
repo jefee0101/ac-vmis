@@ -378,22 +378,22 @@ onUnmounted(() => {
                 <h1 class="text-2xl font-bold text-slate-900">My Schedule</h1>
                 <p class="text-sm text-slate-500">Confirm your attendance for practices, trainings, and meetings.</p>
             </div>
-            <div v-if="!accessLocked" class="flex flex-wrap gap-2">
+            <div v-if="!accessLocked" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <button
                     @click="printSchedule"
-                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
+                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
                 >
                     Print
                 </button>
                 <button
                     @click="showCalendar = !showCalendar"
-                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
+                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
                 >
                     {{ showCalendar ? 'Hide Calendar' : 'Show Calendar' }}
                 </button>
                 <button
                     @click="showCompleted = !showCompleted"
-                    class="rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70]"
+                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
                 >
                     {{ showCompleted ? 'Hide Completed' : 'Show Completed' }}
                 </button>
@@ -413,7 +413,7 @@ onUnmounted(() => {
                 href="/AcademicSubmissions"
                 class="mt-4 inline-flex rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] hover:bg-[#034485]/10"
             >
-                Go to Academic Submissions
+                Open Academic Submissions
             </Link>
         </div>
 
@@ -448,7 +448,7 @@ onUnmounted(() => {
                         <p class="text-xs text-slate-500">Next session</p>
                         <p v-if="nextSchedule" class="mt-1 text-sm font-semibold text-slate-900">{{ nextSchedule.title }}</p>
                         <p v-if="nextSchedule" class="text-xs text-slate-500">{{ formatPHT(nextSchedule.start) }}</p>
-                        <p v-else class="mt-1 text-sm text-slate-500">No upcoming sessions</p>
+                        <p v-else class="mt-1 text-sm text-slate-500">No upcoming sessions have been scheduled.</p>
                     </div>
                     <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
                         <p class="text-xs text-slate-500">Upcoming sessions</p>
@@ -456,7 +456,7 @@ onUnmounted(() => {
                         <p class="text-xs text-slate-500">Scheduled this season</p>
                     </div>
                     <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
-                        <p class="text-xs text-slate-500">Needs response</p>
+                        <p class="text-xs text-slate-500">Pending confirmation</p>
                         <p class="mt-1 text-2xl font-semibold text-rose-600">{{ needsResponseCount }}</p>
                         <p class="text-xs text-slate-500">Attendance to confirm</p>
                     </div>
@@ -485,15 +485,15 @@ onUnmounted(() => {
                         class="max-h-162.5 overflow-y-auto rounded-xl border border-[#034485]/35 bg-white p-4"
                         :class="showCalendar ? 'xl:col-span-2' : 'xl:col-span-5'"
                     >
-                        <div class="mb-3 flex items-center justify-between">
-                            <div>
+                        <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
                                 <h2 class="font-semibold text-slate-900">Upcoming Sessions</h2>
                                 <p class="text-xs text-slate-500">{{ upcomingSchedules.length }} scheduled</p>
                             </div>
-                            <span v-if="selectedSchedule" class="text-xs text-[#1f2937]">Focused: {{ selectedSchedule.title }}</span>
+                            <span v-if="selectedSchedule" class="text-xs break-words text-[#1f2937] sm:text-right">Focused: {{ selectedSchedule.title }}</span>
                         </div>
 
-                        <div v-if="upcomingSchedules.length === 0" class="text-sm text-slate-500">No upcoming sessions found.</div>
+                        <div v-if="upcomingSchedules.length === 0" class="text-sm text-slate-500">No upcoming sessions are available at this time.</div>
 
                         <div v-else class="space-y-3">
                             <div
@@ -508,12 +508,12 @@ onUnmounted(() => {
                                     <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                     <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                 </div>
-                                <div class="flex items-start justify-between gap-2">
-                                    <div>
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
                                         <div class="leading-tight font-medium text-slate-900">{{ item.title }}</div>
                                         <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
                                     </div>
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex flex-wrap items-center gap-2">
                                         <span class="rounded px-2 py-0.5 text-[10px]" :class="statusClass(item.attendance_status)">
                                             {{ statusLabel(item.attendance_status) }}
                                         </span>
@@ -542,7 +542,7 @@ onUnmounted(() => {
                                         >Today</span
                                     >
                                     <span v-if="needsResponse(item)" class="rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-700"
-                                        >Needs response</span
+                                        >Pending confirmation</span
                                     >
                                 </div>
 
@@ -558,26 +558,26 @@ onUnmounted(() => {
                                 </div>
 
                                 <div class="mt-3 border-t border-[#034485]/20 pt-3">
-                                    <p class="mb-2 text-[11px] text-slate-500">Attendance Response</p>
-                                    <div class="flex gap-2">
+                                    <p class="mb-2 text-[11px] text-slate-500">Attendance Confirmation</p>
+                                    <div class="flex flex-col gap-2 sm:flex-row">
                                         <button
                                             @click="setAttendance(item.id, 'present')"
                                             :disabled="processingScheduleId === item.id"
-                                            class="rounded bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 disabled:opacity-50"
+                                            class="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"
                                         >
                                             Attending
                                         </button>
                                         <button
                                             @click="openReasonModal(item, 'absent')"
                                             :disabled="processingScheduleId === item.id"
-                                            class="rounded bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-700 disabled:opacity-50"
+                                            class="w-full rounded bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-700 disabled:opacity-50 sm:w-auto"
                                         >
                                             Not Attending
                                         </button>
                                         <button
                                             @click="openReasonModal(item, 'excused')"
                                             :disabled="processingScheduleId === item.id"
-                                            class="rounded bg-amber-500 px-3 py-1.5 text-xs text-slate-900 hover:bg-amber-600 disabled:opacity-50"
+                                            class="w-full rounded bg-amber-500 px-3 py-1.5 text-xs text-slate-900 hover:bg-amber-600 disabled:opacity-50 sm:w-auto"
                                         >
                                             Excused
                                         </button>
@@ -591,7 +591,7 @@ onUnmounted(() => {
                                 <h3 class="text-sm font-semibold text-slate-800">Completed</h3>
                                 <span class="text-xs text-slate-500">{{ completedSchedules.length }}</span>
                             </div>
-                            <div v-if="completedSchedules.length === 0" class="text-sm text-slate-500">No completed sessions yet.</div>
+                            <div v-if="completedSchedules.length === 0" class="text-sm text-slate-500">No completed sessions are available at this time.</div>
                             <div v-else class="space-y-3">
                                 <div
                                     v-for="item in completedSchedules"
@@ -605,12 +605,12 @@ onUnmounted(() => {
                                         <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                         <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                     </div>
-                                    <div class="flex items-start justify-between gap-2">
-                                        <div>
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
                                             <div class="leading-tight font-medium text-slate-900">{{ item.title }}</div>
                                             <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
                                         </div>
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex flex-wrap items-center gap-2">
                                             <span class="rounded px-2 py-0.5 text-[10px]" :class="statusClass(item.attendance_status)">
                                                 {{ statusLabel(item.attendance_status) }}
                                             </span>

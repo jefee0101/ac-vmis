@@ -124,7 +124,7 @@ function submitSettings() {
 
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
           <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
-            <div class="flex items-center justify-between gap-4">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="settings-kicker text-xs font-semibold uppercase tracking-wide text-slate-500">Email Notifications</p>
                 <p class="text-xs text-slate-500">
@@ -216,11 +216,16 @@ function submitSettings() {
 
 .toggle-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   font-size: 0.9rem;
   color: #334155;
+}
+
+.toggle-row span:first-child {
+  min-width: 0;
+  line-height: 1.4;
 }
 
 .toggle-row--disabled {

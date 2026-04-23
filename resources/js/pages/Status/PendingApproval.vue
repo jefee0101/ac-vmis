@@ -17,15 +17,15 @@ function goLogin() {
         <div class="status-shell">
             <section class="public-card status-card">
                 <p class="status-kicker">Registration Submitted</p>
-                <h2>Account Created Successfully</h2>
+                <h2>Registration Submitted Successfully</h2>
                 <p class="status-text">
-                    Your registration is currently <span class="status-pending">pending approval</span>.
-                    An administrator will review your details. You can log in once your account is approved.
+                    Your registration is currently <span class="status-pending">pending review</span>.
+                    An administrator will review your submitted information. You may sign in after your account has been approved.
                 </p>
 
                 <div class="status-actions">
-                    <button @click="goHome" class="status-btn-fill">Back to Home</button>
-                    <button @click="goLogin" class="status-btn-outline">Go to Login</button>
+                    <button @click="goHome" class="status-btn-fill">Return to Home</button>
+                    <button @click="goLogin" class="status-btn-outline">Go to Sign In</button>
                 </div>
             </section>
         </div>
@@ -44,6 +44,7 @@ function goLogin() {
     text-align: center;
     display: grid;
     gap: 0.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
 }
 
 .status-kicker {
@@ -77,8 +78,9 @@ function goLogin() {
     margin-top: 1rem;
     display: flex;
     justify-content: center;
+    align-items: stretch;
     gap: 0.6rem;
-    flex-wrap: wrap;
+    flex-direction: column;
 }
 
 .status-btn-fill,
@@ -87,6 +89,7 @@ function goLogin() {
     padding: 0.62rem 0.95rem;
     font-weight: 700;
     font-size: 0.9rem;
+    width: 100%;
 }
 
 .status-btn-fill {
@@ -99,5 +102,17 @@ function goLogin() {
     border: 1px solid rgba(255, 255, 255, 0.6);
     background: transparent;
     color: #ffffff;
+}
+
+@media (min-width: 640px) {
+    .status-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .status-btn-fill,
+    .status-btn-outline {
+        width: auto;
+    }
 }
 </style>

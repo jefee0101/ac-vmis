@@ -169,7 +169,7 @@ function formatRelative(value: string | null) {
   const diffMs = date.getTime() - Date.now()
   const diffMinutes = Math.round(diffMs / 60000)
   const absMinutes = Math.abs(diffMinutes)
-  if (absMinutes < 1) return 'just now'
+  if (absMinutes < 1) return 'moments ago'
   if (absMinutes < 60) {
     return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(diffMinutes, 'minute')
   }
@@ -191,7 +191,7 @@ function formatRelative(value: string | null) {
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <Link href="/CoachDashboard" class="mb-2 inline-flex items-center rounded-full border border-[#034485]/40 px-3 py-1 text-xs font-semibold text-[#034485] transition hover:bg-[#034485]/10">
-          Back to Dashboard
+          Return to Dashboard
         </Link>
         <h1 class="text-2xl font-bold text-slate-900">Announcements</h1>
         <p class="text-sm text-slate-500">Broadcast updates from admin and system events.</p>

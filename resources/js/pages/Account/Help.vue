@@ -213,7 +213,7 @@ function toggleFaq(index: number) {
 </script>
 
 <template>
-  <Head title="Help & Support" />
+  <Head title="Help and Support" />
 
   <AccountShell active="help">
     <div class="space-y-6">
@@ -225,19 +225,19 @@ function toggleFaq(index: number) {
               <span class="focus-chip">{{ helpContent.focusLabel }}</span>
             </div>
             <div>
-              <h2 class="section-title text-2xl sm:text-[1.95rem]">Help &amp; Support</h2>
+              <h2 class="section-title text-2xl sm:text-[1.95rem]">Help and Support</h2>
               <p class="settings-muted mt-2 max-w-xl text-sm leading-6 text-slate-600">
                 {{ helpContent.roleSummary }}
               </p>
             </div>
           </div>
 
-          <div class="support-aside rounded-2xl border border-[#034485]/15 bg-[#f4f8fc] p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Need assistance?</p>
+          <div class="support-aside w-full rounded-2xl border border-[#034485]/15 bg-[#f4f8fc] p-4 lg:max-w-sm">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Need Assistance?</p>
             <p class="mt-2 text-sm font-semibold text-slate-900">Varsity support desk</p>
-            <p class="mt-1 text-sm text-slate-600">Reach out with a screenshot and a short description of what happened.</p>
-            <div class="mt-4 flex flex-wrap gap-2">
-              <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Email Support</a>
+            <p class="mt-1 text-sm text-slate-600">Please provide a screenshot and a brief description of the concern when requesting assistance.</p>
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <a href="mailto:varsity.support@asiancollege.edu.ph" class="support-btn support-btn-fill">Send Email</a>
               <a href="tel:+63281234567" class="support-btn support-btn-ghost">Call Office</a>
             </div>
           </div>
@@ -248,7 +248,7 @@ function toggleFaq(index: number) {
         <div class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
           <div class="flex flex-col gap-1">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">{{ helpContent.topTaskLabel }}</p>
-            <h3 class="text-lg font-semibold text-slate-900">Quick task shortcuts</h3>
+            <h3 class="text-lg font-semibold text-slate-900">Quick Access Tasks</h3>
             <p class="text-sm text-slate-600">{{ helpContent.taskSummary }}</p>
           </div>
 
@@ -257,9 +257,9 @@ function toggleFaq(index: number) {
               <div class="flex h-full flex-col">
                 <p class="text-sm font-semibold text-slate-900">{{ task.title }}</p>
                 <p class="mt-2 text-sm leading-6 text-slate-600">{{ task.description }}</p>
-                <div class="mt-4 pt-1">
-                  <a :href="task.href" class="task-link">{{ task.cta }}</a>
-                </div>
+              <div class="mt-4 pt-1">
+                <a :href="task.href" class="task-link">{{ task.cta }}</a>
+              </div>
               </div>
             </article>
           </div>
@@ -267,8 +267,8 @@ function toggleFaq(index: number) {
 
         <aside class="space-y-5">
           <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Issue reporting</p>
-            <h3 class="mt-1 text-lg font-semibold text-slate-900">What to include</h3>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Issue Reporting</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-900">Information to Include</h3>
             <div class="mt-4 space-y-3">
               <div v-for="note in helpContent.supportNotes" :key="note" class="note-row">
                 <span class="note-dot" />
@@ -278,16 +278,16 @@ function toggleFaq(index: number) {
           </section>
 
           <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Response guide</p>
-            <h3 class="mt-1 text-lg font-semibold text-slate-900">Support expectations</h3>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Response Guide</p>
+            <h3 class="mt-1 text-lg font-semibold text-slate-900">Support Expectations</h3>
             <div class="mt-4 grid gap-3">
               <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <p class="text-sm font-semibold text-slate-900">Best channel</p>
-                <p class="mt-1 text-sm text-slate-600">Use email for account, workflow, and data-record concerns.</p>
+                <p class="mt-1 text-sm text-slate-600">Use email for account, process, and data-record concerns.</p>
               </div>
               <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <p class="text-sm font-semibold text-slate-900">Urgent issues</p>
-                <p class="mt-1 text-sm text-slate-600">Call the office for live operation blockers affecting attendance or access.</p>
+                <p class="mt-1 text-sm text-slate-600">Call the office for urgent issues affecting attendance processing or account access.</p>
               </div>
             </div>
           </section>
@@ -296,9 +296,9 @@ function toggleFaq(index: number) {
 
       <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
         <div class="flex flex-col gap-1">
-          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Role-specific FAQ</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Role-Specific Questions</p>
           <h3 class="text-lg font-semibold text-slate-900">Common questions for {{ helpContent.roleLabel }}</h3>
-          <p class="text-sm text-slate-600">Quick answers for the situations that usually cause confusion during normal system use.</p>
+          <p class="text-sm text-slate-600">Clear answers for common concerns encountered during regular system use.</p>
         </div>
 
         <div class="mt-5 space-y-3">
@@ -438,6 +438,30 @@ function toggleFaq(index: number) {
 }
 
 .task-link {
+  display: inline-flex;
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .task-link {
+    width: auto;
+  }
+}
+
+.support-btn {
+  display: inline-flex;
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .support-btn {
+    width: auto;
+  }
+}
   display: inline-flex;
   align-items: center;
   border-radius: 999px;

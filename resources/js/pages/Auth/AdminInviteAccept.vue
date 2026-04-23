@@ -41,8 +41,8 @@ function toLogin() {
             <div class="login-grid">
                 <section class="public-card login-copy">
                     <p class="copy-kicker">Administrator Access</p>
-                    <h1>Complete Your Admin Setup</h1>
-                    <p>Use this invitation to create your administrator account for AC-VMIS. This link is one-time use and expires on {{ expiresAt }}.</p>
+                    <h1>Complete Administrator Account Setup</h1>
+                    <p>Use this invitation to create your administrator account for AC-VMIS. This link may be used once and will expire on {{ expiresAt }}.</p>
                 </section>
 
                 <section class="public-card login-card">
@@ -106,13 +106,13 @@ function toLogin() {
                         <button type="submit" class="login-btn mt-3" :disabled="form.processing">
                             <span class="inline-flex items-center gap-2">
                                 <Spinner v-if="form.processing" class="h-4 w-4 text-[#034485]" />
-                                {{ form.processing ? 'Creating account...' : 'Create Admin Account' }}
+                                {{ form.processing ? 'Creating account...' : 'Create Administrator Account' }}
                             </span>
                         </button>
 
                         <p class="register-note">
-                            Already have access?
-                            <button type="button" @click="toLogin" class="register-link">Go to Login</button>
+                            Return to account access:
+                            <button type="button" @click="toLogin" class="register-link">Go to Sign In</button>
                         </p>
                     </form>
                 </section>
@@ -133,7 +133,7 @@ function toLogin() {
     width: 100%;
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
-    gap: 1rem;
+    gap: 1.25rem;
     align-items: center;
 }
 
@@ -162,12 +162,13 @@ function toLogin() {
     margin-top: 0.35rem;
     color: rgba(255, 255, 255, 0.86);
     line-height: 1.65;
-    max-width: 52ch;
+    max-width: 56ch;
 }
 
 .login-card {
     display: grid;
     gap: 0.75rem;
+    min-width: 0;
 }
 
 .login-card h2 {
@@ -218,6 +219,7 @@ function toLogin() {
     text-align: center;
     color: rgba(255, 255, 255, 0.82);
     font-size: 0.9rem;
+    line-height: 1.6;
 }
 
 .register-link {
@@ -234,14 +236,28 @@ function toLogin() {
 }
 
 @media (max-width: 900px) {
+    .login-shell {
+        padding: 1rem 0 2rem;
+    }
+
     .login-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 }
 
 @media (max-width: 640px) {
+    .login-shell {
+        padding: 0.85rem 0 1.8rem;
+    }
+
     .login-copy h1 {
         font-size: 1.6rem;
+    }
+
+    .login-copy,
+    .login-card {
+        padding-inline: 1.15rem;
     }
 }
 </style>

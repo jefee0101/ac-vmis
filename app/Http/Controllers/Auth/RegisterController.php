@@ -92,11 +92,11 @@ class RegisterController extends Controller
 
             // --- Redirect on success ---
             return inertia('Status/PendingApproval', [
-                'successMessage' => 'Student-Athlete registered successfully.'
+                'successMessage' => 'Registration submitted successfully.'
             ]);
         } catch (\Exception $e) {
             // --- Catch errors and display ---
-            return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()])
+            return back()->withErrors(['error' => 'The registration could not be completed: ' . $e->getMessage()])
                 ->withInput();
         }
     }
@@ -262,9 +262,9 @@ class RegisterController extends Controller
                 return $user;
             });
 
-            return redirect('/Login')->with('success', 'Coach registered successfully. You may now sign in.');
+            return redirect('/Login')->with('success', 'The coach account has been registered successfully. You may now sign in.');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Registration failed: ' . $e->getMessage()])->withInput();
+            return back()->withErrors(['error' => 'The registration could not be completed: ' . $e->getMessage()])->withInput();
         }
     }
 

@@ -22,11 +22,11 @@ function goContact() {
                 <h2>Account Deactivated</h2>
                 <p class="status-text">
                     Your account has been <span class="status-deactivated">temporarily deactivated</span> by an administrator.
-                    Please contact support or your varsity office to request reactivation.
+                    Please contact the varsity office or the system administrator to request reactivation.
                 </p>
 
                 <div class="status-actions">
-                    <button @click="goHome" class="status-btn-fill">Back to Home</button>
+                    <button @click="goHome" class="status-btn-fill">Return to Home</button>
                     <button @click="goContact" class="status-btn-outline">Contact Support</button>
                 </div>
             </section>
@@ -46,6 +46,7 @@ function goContact() {
     text-align: center;
     display: grid;
     gap: 0.5rem;
+    padding: clamp(1.25rem, 3vw, 2rem);
 }
 
 .status-kicker {
@@ -79,8 +80,9 @@ function goContact() {
     margin-top: 1rem;
     display: flex;
     justify-content: center;
+    align-items: stretch;
     gap: 0.6rem;
-    flex-wrap: wrap;
+    flex-direction: column;
 }
 
 .status-btn-fill,
@@ -89,6 +91,7 @@ function goContact() {
     padding: 0.62rem 0.95rem;
     font-weight: 700;
     font-size: 0.9rem;
+    width: 100%;
 }
 
 .status-btn-fill {
@@ -101,5 +104,17 @@ function goContact() {
     border: 1px solid rgba(255, 255, 255, 0.6);
     background: transparent;
     color: #ffffff;
+}
+
+@media (min-width: 640px) {
+    .status-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .status-btn-fill,
+    .status-btn-outline {
+        width: auto;
+    }
 }
 </style>
