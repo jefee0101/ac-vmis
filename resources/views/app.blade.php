@@ -6,9 +6,9 @@
 
         <title inertia>{{ config('app.name', 'AC-VMIS') }}</title>
 
-        <link rel="icon" href="/images/aclogo.svg" type="image/svg+xml">
-<link rel="icon" href="/images/aclogo.svg" sizes="any">
-<link rel="apple-touch-icon" href="/images/aclogo.svg">
+        <link rel="icon" href="/images/ac-vmis.logo.png" type="image/png">
+        <link rel="icon" href="/images/ac-vmis.logo.png" sizes="any">
+        <link rel="apple-touch-icon" href="/images/ac-vmis.logo.png">
 
 
         <link rel="preconnect" href="https://fonts.bunny.net">

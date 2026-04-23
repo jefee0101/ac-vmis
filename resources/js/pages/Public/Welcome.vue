@@ -5,7 +5,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useInertiaLoading } from '@/composables/useInertiaLoading';
 
 const currentYear = new Date().getFullYear();
-const fallbackLogo = '/images/aclogo.svg';
+const fallbackLogo = '/images/ac-vmis.logo.png';
 const publicNavItems = [
     { id: 'home', label: 'Home' },
     { id: 'how-it-works', label: 'How It Works' },
@@ -260,7 +260,7 @@ watch(mobileMenuOpen, (open) => {
                                    Q38 12 46 12Z"
                             />
                         </svg>
-                        <img src="/images/aclogo.svg" alt="Asian College Logo" class="logo-inside-triangle" />
+                        <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="logo-inside-triangle" />
                     </div>
                 </div>
 
@@ -271,7 +271,7 @@ watch(mobileMenuOpen, (open) => {
                 </nav>
 
                 <div class="mobile-brand">
-                    <img src="/images/aclogo.svg" alt="Asian College Logo" class="mobile-brand-logo" />
+                    <img src="/images/ac-vmis.logo.png" alt="AC-VMIS Logo" class="mobile-brand-logo" />
                 </div>
             </div>
         </header>
@@ -918,12 +918,12 @@ watch(mobileMenuOpen, (open) => {
 
 .corner-badge {
     position: absolute;
-    top: -54px;
+    top: -60px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 40;
-    width: 260px;
-    height: 105px;
+    width: 290px;
+    height: 118px;
     pointer-events: none;
 }
 
@@ -939,11 +939,11 @@ watch(mobileMenuOpen, (open) => {
 
 .logo-inside-triangle {
     position: absolute;
-    top: 42px;
+    top: 45px;
     left: 50%;
     transform: translateX(-50%);
-    width: 58px;
-    height: 58px;
+    width: 66px;
+    height: 66px;
     border-radius: 999px;
     background: #fff;
     padding: 5px;
@@ -975,8 +975,8 @@ watch(mobileMenuOpen, (open) => {
 }
 
 .mobile-brand-logo {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
     background: #ffffff;
     padding: 4px;
@@ -3095,8 +3095,8 @@ watch(mobileMenuOpen, (open) => {
         left: 50%;
         top: 64%;
         transform: translate(-50%, -50%);
-        height: 88px;
-        width: min(240px, 70vw);
+        height: 98px;
+        width: min(264px, 74vw);
     }
 
     .mobile-brand {
@@ -3109,18 +3109,18 @@ watch(mobileMenuOpen, (open) => {
 
     .corner-badge {
         top: 6px;
-        width: 220px;
-        height: 90px;
+        width: 242px;
+        height: 99px;
     }
 
     .header-logo-slot {
-        flex-basis: 200px;
+        flex-basis: 220px;
     }
 
     .logo-inside-triangle {
-        top: 30px;
-        width: 46px;
-        height: 46px;
+        top: 32px;
+        width: 52px;
+        height: 52px;
         padding: 4px;
     }
 
@@ -3237,12 +3237,12 @@ watch(mobileMenuOpen, (open) => {
     }
     .corner-badge {
         top: 8px;
-        width: 200px;
-        height: 82px;
+        width: 220px;
+        height: 90px;
     }
 
     .header-logo-slot {
-        flex-basis: 190px;
+        flex-basis: 205px;
     }
 
     .nav-shell {
@@ -3250,9 +3250,9 @@ watch(mobileMenuOpen, (open) => {
     }
 
     .logo-inside-triangle {
-        top: 26px;
-        width: 42px;
-        height: 42px;
+        top: 29px;
+        width: 46px;
+        height: 46px;
         padding: 4px;
     }
 
