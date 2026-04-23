@@ -62,7 +62,7 @@ const currentYear = new Date().getFullYear()
       </div>
 
       <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/10 pt-3 text-[10px] text-blue-200">
-        <span>v2.0 • © {{ currentYear }} Asian College</span>
+        <span>© {{ currentYear }} Asian College</span>
         <span class="text-white">Varsity Management Information System</span>
       </div>
     </div>

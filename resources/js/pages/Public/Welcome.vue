@@ -333,7 +333,6 @@ watch(mobileMenuOpen, (open) => {
                             AC-VMIS helps student-athletes and coaches handle daily varsity work faster. Use one system to check schedules, verify
                             attendance, monitor wellness, submit academic requirements, and receive updates.
                         </p>
-                        <div class="strip-version">Version 2.0</div>
                     </div>
                 </div>
             </section>
@@ -792,7 +791,7 @@ watch(mobileMenuOpen, (open) => {
                 </div>
 
                 <div class="footer-bottom-row">
-                    <p>v2.0 • © {{ currentYear }} Asian College</p>
+                    <p>© {{ currentYear }} Asian College</p>
                 </div>
             </div>
         </footer>
