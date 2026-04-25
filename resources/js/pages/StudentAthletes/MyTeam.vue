@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
+import ToastEventBus from 'primevue/toasteventbus';
 import { computed, ref, watch } from 'vue';
 
 import { useSportColors } from '@/composables/useSportColors';
@@ -77,6 +78,10 @@ watch(
 
 function saveDesiredJersey() {
     if (!myMembership.value) return;
+
+    const nextJersey = String(jerseyDraft.value ?? '').trim()
+    const previousJersey = String(myMembership.value.jersey_number ?? '').trim()
+
     router.put(
         `/Student/TeamPlayers/${myMembership.value.id}/jersey`,
         { jersey_number: jerseyDraft.value },
@@ -89,14 +94,42 @@ function saveDesiredJersey() {
             },
             onFinish: () => {
                 jerseySaving.value = false
+            },
+            onSuccess: () => {
                 jerseyStatus.value = 'saved'
+
+                const detail = nextJersey === ''
+                    ? 'Your jersey request has been cleared.'
+                    : previousJersey === ''
+                        ? `Your jersey request for #${nextJersey} has been submitted.`
+                        : `Your jersey request has been updated to #${nextJersey}.`
+
+                ToastEventBus.emit('add', {
+                    severity: 'success',
+                    summary: 'Jersey Request Updated',
+                    detail,
+                    life: 2600,
+                })
+
                 setTimeout(() => {
                     jerseyStatus.value = 'idle'
                 }, 1500)
             },
-            onError: () => {
+            onError: (errors: Record<string, string | string[]>) => {
                 jerseySaving.value = false
                 jerseyStatus.value = 'error'
+
+                const jerseyError = errors?.jersey_number
+                const detail = Array.isArray(jerseyError)
+                    ? String(jerseyError[0] ?? 'We could not update your jersey request. Please try again.')
+                    : String(jerseyError ?? 'We could not update your jersey request. Please try again.')
+
+                ToastEventBus.emit('add', {
+                    severity: 'error',
+                    summary: 'Jersey Request Failed',
+                    detail,
+                    life: 3200,
+                })
             },
         },
     );
@@ -218,29 +251,45 @@ function statusTone(status?: string | null) {
                         <p class="text-sm font-semibold text-slate-800 mt-1">
                             {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}
                         </p>
-                        <div class="mt-2 flex flex-wrap gap-2 text-xs">
-                            <button
+                        <div class="mt-3 space-y-2 text-xs">
+                            <div
                                 v-if="props.team.coach?.email"
-                                type="button"
-                                @click="copyToClipboard(props.team.coach.email, 'coach-email')"
-                                class="inline-flex items-center gap-1 rounded-full border border-[#034485]/40 bg-[#034485] px-2 py-0.5 text-white hover:bg-[#033a70]"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
                             >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
-                                    <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
-                                </svg>
-                                <span>{{ copiedField === 'coach-email' ? 'Email Copied' : 'Email Address' }}</span>
-                            </button>
-                            <button
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Email</p>
+                                    <p class="truncate text-sm font-medium text-slate-700">{{ props.team.coach.email }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="copyToClipboard(props.team.coach.email, 'coach-email')"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
+                                        <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
+                                    </svg>
+                                    <span>{{ copiedField === 'coach-email' ? 'Copied' : 'Copy' }}</span>
+                                </button>
+                            </div>
+                            <div
                                 v-if="props.team.coach?.phone_number"
-                                type="button"
-                                @click="copyToClipboard(props.team.coach.phone_number, 'coach-phone')"
-                                class="inline-flex items-center gap-1 rounded-full border border-[#034485]/40 bg-[#034485] px-2 py-0.5 text-white hover:bg-[#033a70]"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
                             >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
-                                    <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
-                                </svg>
-                                <span>{{ copiedField === 'coach-phone' ? 'Phone Number Copied' : 'Phone Number' }}</span>
-                            </button>
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Phone</p>
+                                    <p class="text-sm font-medium text-slate-700">{{ props.team.coach.phone_number }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="copyToClipboard(props.team.coach.phone_number, 'coach-phone')"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
+                                        <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
+                                    </svg>
+                                    <span>{{ copiedField === 'coach-phone' ? 'Copied' : 'Copy' }}</span>
+                                </button>
+                            </div>
                             <span
                                 v-if="!props.team.coach?.email && !props.team.coach?.phone_number"
                                 class="text-slate-400"
@@ -257,29 +306,45 @@ function statusTone(status?: string | null) {
                             </span>
                             <span v-else class="text-slate-400 font-medium">Not assigned</span>
                         </p>
-                        <div v-if="props.team.assistantCoach" class="mt-2 flex flex-wrap gap-2 text-xs">
-                            <button
+                        <div v-if="props.team.assistantCoach" class="mt-3 space-y-2 text-xs">
+                            <div
                                 v-if="props.team.assistantCoach?.email"
-                                type="button"
-                                @click="copyToClipboard(props.team.assistantCoach.email, 'assistant-email')"
-                                class="inline-flex items-center gap-1 rounded-full border border-[#034485]/40 bg-[#034485] px-2 py-0.5 text-white hover:bg-[#033a70]"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
                             >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
-                                    <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
-                                </svg>
-                                <span>{{ copiedField === 'assistant-email' ? 'Email Copied' : 'Email Address' }}</span>
-                            </button>
-                            <button
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Email</p>
+                                    <p class="truncate text-sm font-medium text-slate-700">{{ props.team.assistantCoach.email }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="copyToClipboard(props.team.assistantCoach.email, 'assistant-email')"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
+                                        <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
+                                    </svg>
+                                    <span>{{ copiedField === 'assistant-email' ? 'Copied' : 'Copy' }}</span>
+                                </button>
+                            </div>
+                            <div
                                 v-if="props.team.assistantCoach?.phone_number"
-                                type="button"
-                                @click="copyToClipboard(props.team.assistantCoach.phone_number, 'assistant-phone')"
-                                class="inline-flex items-center gap-1 rounded-full border border-[#034485]/40 bg-[#034485] px-2 py-0.5 text-white hover:bg-[#033a70]"
+                                class="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
                             >
-                                <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
-                                    <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
-                                </svg>
-                                <span>{{ copiedField === 'assistant-phone' ? 'Phone Number Copied' : 'Phone Number' }}</span>
-                            </button>
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Phone</p>
+                                    <p class="text-sm font-medium text-slate-700">{{ props.team.assistantCoach.phone_number }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="copyToClipboard(props.team.assistantCoach.phone_number, 'assistant-phone')"
+                                    class="inline-flex items-center gap-1 rounded-full border border-[#034485]/30 px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                >
+                                    <svg aria-hidden="true" viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="currentColor">
+                                        <path d="M16 1H6a2 2 0 0 0-2 2v12h2V3h10ZM19 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2m0 16H10V7h9Z" />
+                                    </svg>
+                                    <span>{{ copiedField === 'assistant-phone' ? 'Copied' : 'Copy' }}</span>
+                                </button>
+                            </div>
                             <span
                                 v-if="!props.team.assistantCoach?.email && !props.team.assistantCoach?.phone_number"
                                 class="text-slate-400"
