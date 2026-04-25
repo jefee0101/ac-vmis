@@ -97,6 +97,7 @@ class ScheduleRecord extends Controller
             ->get()
             ->map(function ($schedule) use ($attendanceBySchedule, $team) {
                 $attendance = $attendanceBySchedule->get($schedule->id);
+                $window = $this->checkinWindow($schedule);
 
                 return [
                     'id' => $schedule->id,
@@ -109,6 +110,9 @@ class ScheduleRecord extends Controller
                     'end' => Carbon::parse($schedule->end_time)->toIso8601String(),
                     'attendance_status' => optional($attendance)->status,
                     'attendance_notes' => optional($attendance)->notes,
+                    'checkin_window_open' => $window['is_open'],
+                    'checkin_window_reason' => $window['reason'],
+                    'checkin_window_closes_at' => $window['closes_at']?->toIso8601String(),
                 ];
             });
 
@@ -127,79 +131,6 @@ class ScheduleRecord extends Controller
             })->values(),
             'selectedTeamId' => $selectedTeamId,
             'schedules' => $schedules,
-        ]);
-    }
-
-    public function print(Request $request)
-    {
-        $student = Student::where('user_id', Auth::id())->first();
-        abort_unless($student, 403);
-        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
-
-        $teams = Team::with('sport')
-            ->whereHas('players', function ($q) use ($student) {
-                $q->where('student_id', $student->id);
-            })
-            ->orderBy('team_name')
-            ->get();
-
-        abort_unless($teams->isNotEmpty(), 403);
-
-        $teamIds = $teams->pluck('id')->all();
-        $selectedTeamId = (int) $request->query('team_id', 0);
-        if (!$selectedTeamId || !in_array($selectedTeamId, $teamIds, true)) {
-            $selectedTeamId = $teamIds[0];
-        }
-
-        $team = $teams->firstWhere('id', $selectedTeamId);
-        abort_unless($team, 404);
-
-        $validated = $request->validate([
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date|after_or_equal:start_date',
-        ]);
-
-        $attendanceBySchedule = ScheduleAttendance::where('student_id', $student->id)
-            ->get()
-            ->keyBy('schedule_id');
-
-        $query = TeamSchedule::query()->where('team_id', $team->id);
-        if (!empty($validated['start_date'])) {
-            $query->whereDate('start_time', '>=', $validated['start_date']);
-        }
-        if (!empty($validated['end_date'])) {
-            $query->whereDate('start_time', '<=', $validated['end_date']);
-        }
-
-        $schedules = $query->orderBy('start_time')->get()->map(function ($schedule) use ($attendanceBySchedule) {
-            $attendance = $attendanceBySchedule->get($schedule->id);
-
-            return [
-                'title' => $schedule->title,
-                'type' => $schedule->type,
-                'venue' => $schedule->venue,
-                'start' => optional($schedule->start_time)->format('M j, Y g:i A'),
-                'end' => optional($schedule->end_time)->format('M j, Y g:i A'),
-                'attendance_status' => $attendance?->status,
-                'attendance_notes' => $attendance?->notes,
-            ];
-        })->values();
-
-        $rangeLabel = (!empty($validated['start_date']) || !empty($validated['end_date']))
-            ? trim(($validated['start_date'] ?? '...') . ' to ' . ($validated['end_date'] ?? '...'))
-            : 'All Dates';
-
-        return view('print.student-schedule', [
-            'student' => [
-                'name' => trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? '')),
-                'student_id_number' => $student->student_id_number,
-            ],
-            'team' => [
-                'team_name' => $team->team_name,
-            ],
-            'schedules' => $schedules,
-            'rangeLabel' => $rangeLabel,
-            'generatedAt' => now()->format('M j, Y g:i A'),
         ]);
     }
 
@@ -228,7 +159,11 @@ class ScheduleRecord extends Controller
         abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule attendance update.');
 
         $window = $this->checkinWindow($schedule);
-        abort_unless($window['is_open'], 422, "Attendance updates are closed. {$window['reason']}");
+        if (!$window['is_open']) {
+            return back()->withErrors([
+                'attendance' => "Attendance updates are closed. {$window['reason']}",
+            ]);
+        }
 
         $existing = ScheduleAttendance::query()
             ->where('schedule_id', $schedule->id)
@@ -289,7 +224,11 @@ class ScheduleRecord extends Controller
 
         abort_unless($team && $schedule->team_id === $team->id, 403, 'Unauthorized schedule QR request.');
         $window = $this->checkinWindow($schedule);
-        abort_unless($window['is_open'], 422, "QR check-in is unavailable. {$window['reason']}");
+        if (!$window['is_open']) {
+            return response()->json([
+                'message' => "QR check-in is unavailable. {$window['reason']}",
+            ], 422);
+        }
 
         $rotation = max(20, (int) ($schedule->qr_rotation_seconds ?? 25));
         $expiresAt = min(

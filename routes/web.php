@@ -379,7 +379,6 @@ Route::middleware(['auth', 'role:student-athlete,student', 'academic.hold', 'aca
     Route::put('/Student/TeamPlayers/{teamPlayer}/jersey', [StudentAthleteController::class, 'updateDesiredJersey'])
         ->name('student.team_players.jersey');
     Route::get('/MySchedule', [ScheduleRecord::class, 'mySchedules'])->name('MySchedule');
-    Route::get('/MySchedule/print', [ScheduleRecord::class, 'print'])->name('MySchedule.print');
     Route::get('/WellnessHistory', [WellnessHistoryController::class, 'index'])->name('WellnessHistory');
     Route::put('/Student/Schedules/{id}/attendance', [ScheduleRecord::class, 'updateScheduleAttendance'])
         ->name('student.schedules.attendance');

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Link, router } from '@inertiajs/vue3';
+import ToastEventBus from 'primevue/toasteventbus';
 import QRCode from 'qrcode';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { VueCal } from 'vue-cal';
@@ -193,7 +194,26 @@ function needsResponse(item: any) {
     return !isPastSchedule(item) && !item.attendance_status;
 }
 
+function canRespondToAttendance(item: any) {
+    return !isPastSchedule(item) && Boolean(item?.checkin_window_open);
+}
+
+function attendanceUnavailableMessage(item: any) {
+    return String(item?.checkin_window_reason || 'Attendance confirmation is not available right now.');
+}
+
 function setAttendance(scheduleId: number, status: 'present' | 'absent' | 'excused', notes: string | null = null) {
+    const schedule = sortedSchedules.value.find((item) => item.id === scheduleId);
+    if (schedule && !canRespondToAttendance(schedule)) {
+        ToastEventBus.emit('add', {
+            severity: 'warn',
+            summary: 'Attendance Unavailable',
+            detail: attendanceUnavailableMessage(schedule),
+            life: 3200,
+        });
+        return;
+    }
+
     processingScheduleId.value = scheduleId;
 
     router.put(
@@ -201,6 +221,29 @@ function setAttendance(scheduleId: number, status: 'present' | 'absent' | 'excus
         { status, notes },
         {
             preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                const label = statusLabel(status);
+                ToastEventBus.emit('add', {
+                    severity: 'success',
+                    summary: 'Attendance Updated',
+                    detail: `Your attendance has been marked as ${label.toLowerCase()}.`,
+                    life: 2400,
+                });
+            },
+            onError: (errors: Record<string, string | string[]>) => {
+                const attendanceError = errors?.attendance;
+                const notesError = errors?.notes;
+                const rawMessage = attendanceError ?? notesError ?? 'We could not update your attendance right now.';
+                const detail = Array.isArray(rawMessage) ? String(rawMessage[0] ?? '') : String(rawMessage);
+
+                ToastEventBus.emit('add', {
+                    severity: 'error',
+                    summary: 'Attendance Update Failed',
+                    detail,
+                    life: 3400,
+                });
+            },
             onFinish: () => {
                 processingScheduleId.value = null;
             },
@@ -325,6 +368,17 @@ function startQrCountdown() {
 }
 
 function openQrModal(scheduleId: number) {
+    const schedule = sortedSchedules.value.find((item) => item.id === scheduleId);
+    if (schedule && !canRespondToAttendance(schedule)) {
+        ToastEventBus.emit('add', {
+            severity: 'warn',
+            summary: 'QR Unavailable',
+            detail: attendanceUnavailableMessage(schedule),
+            life: 3200,
+        });
+        return;
+    }
+
     showQrModal.value = true;
     qrScheduleId.value = scheduleId;
     qrToken.value = '';
@@ -345,13 +399,6 @@ function changeTeam() {
             replace: true,
         },
     );
-}
-
-function printSchedule() {
-    if (!selectedTeamId.value) return;
-    const params = new URLSearchParams();
-    params.set('team_id', String(selectedTeamId.value));
-    window.open(`/MySchedule/print?${params.toString()}`, '_blank');
 }
 
 function closeQrModal() {
@@ -379,12 +426,6 @@ onUnmounted(() => {
                 <p class="text-sm text-slate-500">Confirm your attendance for practices, trainings, and meetings.</p>
             </div>
             <div v-if="!accessLocked" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <button
-                    @click="printSchedule"
-                    class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
-                >
-                    Print
-                </button>
                 <button
                     @click="showCalendar = !showCalendar"
                     class="w-full rounded-lg border border-[#034485]/40 bg-[#034485] px-3 py-2 text-xs font-semibold text-white hover:bg-[#033a70] sm:w-auto"
@@ -525,8 +566,8 @@ onUnmounted(() => {
                                         </button>
                                         <button
                                             @click="openQrModal(item.id)"
-                                            :disabled="qrLoading && qrScheduleId === item.id"
-                                            class="rounded bg-[#1f2937] px-2.5 py-1 text-xs text-white hover:bg-[#334155]"
+                                            :disabled="(qrLoading && qrScheduleId === item.id) || !canRespondToAttendance(item)"
+                                            class="rounded bg-[#1f2937] px-2.5 py-1 text-xs text-white hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <span class="inline-flex items-center gap-1.5">
                                                 <Spinner v-if="qrLoading && qrScheduleId === item.id" class="h-3 w-3 text-white" />
@@ -559,25 +600,28 @@ onUnmounted(() => {
 
                                 <div class="mt-3 border-t border-[#034485]/20 pt-3">
                                     <p class="mb-2 text-[11px] text-slate-500">Attendance Confirmation</p>
+                                    <p v-if="!canRespondToAttendance(item)" class="mb-2 text-[11px] text-amber-600">
+                                        {{ attendanceUnavailableMessage(item) }}
+                                    </p>
                                     <div class="flex flex-col gap-2 sm:flex-row">
                                         <button
                                             @click="setAttendance(item.id, 'present')"
-                                            :disabled="processingScheduleId === item.id"
-                                            class="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"
+                                            :disabled="processingScheduleId === item.id || !canRespondToAttendance(item)"
+                                            class="w-full rounded bg-emerald-600 px-3 py-1.5 text-xs text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                         >
                                             Attending
                                         </button>
                                         <button
                                             @click="openReasonModal(item, 'absent')"
-                                            :disabled="processingScheduleId === item.id"
-                                            class="w-full rounded bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-700 disabled:opacity-50 sm:w-auto"
+                                            :disabled="processingScheduleId === item.id || !canRespondToAttendance(item)"
+                                            class="w-full rounded bg-rose-600 px-3 py-1.5 text-xs text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                         >
                                             Not Attending
                                         </button>
                                         <button
                                             @click="openReasonModal(item, 'excused')"
-                                            :disabled="processingScheduleId === item.id"
-                                            class="w-full rounded bg-amber-500 px-3 py-1.5 text-xs text-slate-900 hover:bg-amber-600 disabled:opacity-50 sm:w-auto"
+                                            :disabled="processingScheduleId === item.id || !canRespondToAttendance(item)"
+                                            class="w-full rounded bg-amber-500 px-3 py-1.5 text-xs text-slate-900 hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                                         >
                                             Excused
                                         </button>
