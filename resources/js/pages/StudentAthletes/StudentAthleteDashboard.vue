@@ -28,6 +28,7 @@ const academicRestrictionMessage = computed(() =>
 )
 const dashboard = computed(() => (page.props as any)?.dashboard ?? {})
 const kpis = computed(() => dashboard.value.kpis ?? {})
+const hasTeamAssignment = computed(() => Boolean(kpis.value.has_team_assignment))
 const charts = computed(() => dashboard.value.charts ?? {})
 const upcomingSeries = computed(() => charts.value.upcoming_sessions ?? [])
 const upcomingMax = computed(() => Math.max(1, ...upcomingSeries.value.map((item: any) => Number(item.count || 0))))

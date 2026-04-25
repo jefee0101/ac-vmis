@@ -304,6 +304,7 @@ class StudentAthleteController extends Controller
 
         return [
             'kpis' => [
+                'has_team_assignment' => $teamIds->isNotEmpty(),
                 'attendance_rate' => $attendanceRate,
                 'pending_responses' => $pendingResponses,
                 'wellness_logs_30d' => $wellnessLogsCount,
@@ -325,6 +326,7 @@ class StudentAthleteController extends Controller
     {
         return [
             'kpis' => [
+                'has_team_assignment' => false,
                 'attendance_rate' => null,
                 'pending_responses' => 0,
                 'wellness_logs_30d' => 0,
