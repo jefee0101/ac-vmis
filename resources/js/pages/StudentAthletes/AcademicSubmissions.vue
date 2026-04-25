@@ -28,6 +28,30 @@ type Submission = {
     file_url: string | null
     uploaded_at: string | null
     notes: string | null
+    ocr: {
+        id: number
+        run_status: string
+        processed_at: string | null
+        error_message: string | null
+        parsed_summary: {
+            gwa: number | null
+            total_units: number | null
+            parser_status: string
+            parser_confidence: number | null
+        } | null
+        interpretation: {
+            scale: string
+            value_label: string
+            status: string | null
+            label: string
+        }
+        validation: {
+            status: string | null
+            summary: string | null
+            flags: Array<{ code: string; message: string }>
+            checked_at: string | null
+        }
+    } | null
     evaluation: {
         gpa: number | null
         status: string
@@ -71,6 +95,7 @@ const sortedSubmissions = computed(() =>
 const latestSubmission = computed(() => sortedSubmissions.value[0] || null)
 const latestEvaluated = computed(() => sortedSubmissions.value.find((row) => row.evaluation) || null)
 const completedSubmissions = computed(() => sortedSubmissions.value.filter((row) => row.evaluation))
+const displayedSubmissions = computed(() => sortedSubmissions.value)
 function statusPill(row: Submission) {
     if (!row.evaluation) {
         return { label: 'Pending review', class: 'bg-amber-50 text-amber-700 border border-amber-200' }
@@ -103,7 +128,7 @@ function evaluationPill(status: string | null | undefined) {
     if (value.includes('ineligible') || value.includes('rejected') || value.includes('failed')) {
         return 'bg-rose-50 text-rose-700 border border-rose-200'
     }
-    if (value.includes('probation') || value.includes('incomplete') || value.includes('needs')) {
+    if (value.includes('pending_review') || value.includes('incomplete') || value.includes('needs')) {
         return 'bg-amber-50 text-amber-700 border border-amber-200'
     }
     return 'bg-[#034485]/5 text-slate-600 border border-[#034485]/20'
@@ -114,6 +139,27 @@ function termLabel(termCode: string) {
     if (termCode === '2nd_sem') return '2nd Sem'
     if (termCode === 'summer') return 'Summer'
     return termCode
+}
+
+function validationPill(status: string | null | undefined) {
+    const value = String(status ?? '').toLowerCase()
+    if (value === 'valid') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    if (value === 'manual_review') return 'bg-amber-50 text-amber-700 border border-amber-200'
+    return 'bg-slate-100 text-slate-600 border border-slate-200'
+}
+
+function validationLabel(status: string | null | undefined) {
+    const value = String(status ?? '').toLowerCase()
+    if (value === 'valid') return 'GPA extracted'
+    if (value === 'manual_review') return 'Needs GPA review'
+    if (value === 'pending') return 'Scanning GPA'
+    return status || 'Not yet processed'
+}
+
+function scaleLabel(scale: string | null | undefined) {
+    if (scale === 'basic_education') return 'Basic Education'
+    if (scale === 'higher_education') return 'Higher Education'
+    return 'Unknown scale'
 }
 
 function formatDate(value: string | null | undefined) {
@@ -243,6 +289,23 @@ function printAcademicSummary() {
                     <div class="mt-2 text-xs text-slate-600">
                         {{ latestSubmission ? docLabel(latestSubmission.document_type) : '—' }}
                     </div>
+                    <div v-if="latestSubmission?.ocr" class="mt-2 space-y-1 text-xs text-slate-500">
+                        <div>
+                            Extracted {{ latestSubmission.ocr.interpretation?.value_label || 'GPA/GWA' }}:
+                            <span class="font-semibold text-slate-800">{{ latestSubmission.ocr.parsed_summary?.gwa ?? '-' }}</span>
+                        </div>
+                        <div>
+                            System interpretation:
+                            <span class="font-semibold text-slate-800">{{ latestSubmission.ocr.interpretation?.label || '-' }}</span>
+                            <span class="text-slate-400"> · {{ scaleLabel(latestSubmission.ocr.interpretation?.scale) }}</span>
+                        </div>
+                        <div>
+                            Scan status:
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr.validation?.status)">
+                                {{ validationLabel(latestSubmission.ocr.validation?.status) }}
+                            </span>
+                        </div>
+                    </div>
                     <div v-if="latestSubmission?.file_url" class="mt-2">
                         <a :href="latestSubmission.file_url" target="_blank" class="text-xs font-semibold text-[#1f2937] hover:underline">
                             View submitted file
@@ -314,8 +377,8 @@ function printAcademicSummary() {
             </section>
 
 
-            <section v-if="completedSubmissions.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
-                <div v-for="row in completedSubmissions" :key="row.id" class="rounded-xl border border-[#034485]/35 bg-white p-4">
+            <section v-if="displayedSubmissions.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
+                <div v-for="row in displayedSubmissions" :key="row.id" class="rounded-xl border border-[#034485]/35 bg-white p-4">
                     <div class="flex items-center justify-between gap-2">
                         <div>
                             <p class="text-sm font-semibold text-slate-900">{{ row.period_label || 'Unknown period' }}</p>
@@ -332,20 +395,34 @@ function printAcademicSummary() {
                     <div class="mt-2 text-xs text-slate-500">
                         Notes: {{ row.notes || '—' }}
                     </div>
+                    <div v-if="row.ocr" class="mt-2 text-xs text-slate-500">
+                        Extracted {{ row.ocr.interpretation?.value_label || 'GPA/GWA' }}: {{ row.ocr.parsed_summary?.gwa ?? '-' }}
+                    </div>
+                    <div v-if="row.ocr" class="mt-1 text-xs text-slate-500">
+                        Interpretation: {{ row.ocr.interpretation?.label || '-' }} · {{ scaleLabel(row.ocr.interpretation?.scale) }}
+                    </div>
+                    <div v-if="row.ocr" class="mt-1 text-xs text-slate-500">
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr.validation?.status)">
+                            {{ validationLabel(row.ocr.validation?.status) }}
+                        </span>
+                    </div>
+                    <div v-if="row.ocr?.validation?.summary" class="mt-2 text-xs text-slate-500">
+                        {{ row.ocr.validation.summary }}
+                    </div>
                     <div v-if="row.evaluation" class="mt-2 text-xs text-slate-500">
                         GPA: {{ row.evaluation.gpa ?? '-' }} • {{ row.evaluation.remarks || 'No remarks' }}
                     </div>
                 </div>
             </section>
 
-            <div v-else-if="completedSubmissions.length === 0" class="bg-white border border-[#034485]/35 rounded-xl p-6 text-slate-500 text-center">
-                No completed submissions are available at this time.
+            <div v-else-if="displayedSubmissions.length === 0" class="bg-white border border-[#034485]/35 rounded-xl p-6 text-slate-500 text-center">
+                No submissions are available at this time.
             </div>
 
             <section class="bg-white border border-[#034485]/35 rounded-xl overflow-x-auto">
                 <div class="flex items-center justify-between px-4 pt-4">
-                    <h2 class="text-sm font-semibold text-[#034485]">Completed / Past Submissions</h2>
-                    <span class="text-xs text-slate-500">{{ completedSubmissions.length }} total</span>
+                    <h2 class="text-sm font-semibold text-[#034485]">Submission History</h2>
+                    <span class="text-xs text-slate-500">{{ displayedSubmissions.length }} total</span>
                 </div>
                 <table class="min-w-full text-sm">
                     <thead class="bg-[#034485] text-white">
@@ -353,11 +430,13 @@ function printAcademicSummary() {
                             <th class="px-3 py-2 text-left">Period</th>
                             <th class="px-3 py-2 text-left">Uploaded</th>
                             <th class="px-3 py-2 text-left">Document</th>
+                            <th class="px-3 py-2 text-left">Scan</th>
                             <th class="px-3 py-2 text-left">Evaluation</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in completedSubmissions" :key="row.id" class="border-t border-[#034485]/20 text-slate-700">                            <td class="px-3 py-2">{{ row.period_label || '-' }}</td>
+                        <tr v-for="row in displayedSubmissions" :key="row.id" class="border-t border-[#034485]/20 text-slate-700">
+                            <td class="px-3 py-2">{{ row.period_label || '-' }}</td>
                             <td class="px-3 py-2">
                                 <div>{{ row.uploaded_at || '-' }}</div>
                                 <div class="text-xs text-slate-500">{{ row.notes || '-' }}</div>
@@ -367,6 +446,19 @@ function printAcademicSummary() {
                                 <a v-if="row.file_url" :href="row.file_url" target="_blank" class="text-[#1f2937] hover:underline">View</a>
                             </td>
                             <td class="px-3 py-2">
+                                <div v-if="row.ocr" class="space-y-1 text-xs text-slate-500">
+                                    <div>Extracted {{ row.ocr.interpretation?.value_label || 'GPA/GWA' }}: {{ row.ocr.parsed_summary?.gwa ?? '-' }}</div>
+                                    <div>Interpretation: {{ row.ocr.interpretation?.label || '-' }} · {{ scaleLabel(row.ocr.interpretation?.scale) }}</div>
+                                    <div>
+                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr.validation?.status)">
+                                            {{ validationLabel(row.ocr.validation?.status) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="row.ocr.validation?.summary">{{ row.ocr.validation.summary }}</div>
+                                </div>
+                                <div v-else class="text-xs text-slate-400">Not yet processed</div>
+                            </td>
+                            <td class="px-3 py-2">
                                 <span class="text-[11px] rounded-full px-2 py-0.5" :class="statusPill(row).class">
                                     {{ statusPill(row).label }}
                                 </span>
@@ -374,8 +466,8 @@ function printAcademicSummary() {
                                 <div v-if="row.evaluation" class="text-xs text-slate-500">{{ row.evaluation.remarks || '-' }}</div>
                             </td>
                         </tr>
-                        <tr v-if="completedSubmissions.length === 0">
-                            <td colspan="4" class="px-3 py-8 text-center text-slate-500">No submissions are on record at this time.</td>
+                        <tr v-if="displayedSubmissions.length === 0">
+                            <td colspan="5" class="px-3 py-8 text-center text-slate-500">No submissions are on record at this time.</td>
                         </tr>
                     </tbody>
                 </table>

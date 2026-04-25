@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class OperationsWorkspaceController extends Controller
@@ -568,7 +569,7 @@ class OperationsWorkspaceController extends Controller
     private function filterOptions(): array
     {
         return [
-            'sports' => Sport::query()->orderBy('name')->get(['id', 'name']),
+            'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
             'teams' => Team::query()->with('sport:id,name')
                 ->orderBy('team_name')
                 ->get(['id', 'team_name', 'sport_id'])
@@ -610,7 +611,7 @@ class OperationsWorkspaceController extends Controller
         $validated = $request->validate([
             'tab' => 'nullable|in:calendar,attendance,exceptions',
             'search' => 'nullable|string|max:150',
-            'sport_id' => 'nullable|integer|exists:sports,id',
+            'sport_id' => ['nullable', 'integer', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'team_id' => 'nullable|integer|exists:teams,id',
             'coach_id' => 'nullable|integer|exists:coaches,id',
             'schedule_id' => 'nullable|integer|exists:team_schedules,id',

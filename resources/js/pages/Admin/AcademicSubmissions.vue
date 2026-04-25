@@ -27,13 +27,45 @@ type LegacyRow = {
     document_type: string
     notes: string | null
     file_url: string | null
+    ocr?: OcrPayload | null
     evaluation: {
         id: number
         gpa: number | null
         status: string | null
         remarks: string | null
         evaluated_at: string | null
+        evaluation_source?: string | null
+        review_required?: boolean
     } | null
+}
+
+type OcrPayload = {
+    id: number
+    engine: string
+    engine_version: string | null
+    run_status: string
+    mean_confidence: number | null
+    processed_at: string | null
+    error_message: string | null
+    raw_text_preview: string | null
+    validation: {
+        status: string | null
+        summary: string | null
+        flags: Array<{ code: string; message: string }>
+        checked_at: string | null
+    }
+    parsed_summary: {
+        gwa: number | null
+        total_units: number | null
+        parser_status: string
+        parser_confidence: number | null
+    } | null
+    interpretation: {
+        scale: string
+        value_label: string
+        status: string | null
+        label: string
+    }
 }
 
 type SubmissionsRow = {
@@ -45,15 +77,18 @@ type SubmissionsRow = {
     uploaded_at: string | null
     notes: string | null
     file_url: string | null
+    ocr: OcrPayload | null
     period: { id: number; school_year: string; term: string } | null
-    evaluation: {
-        id: number
-        gpa: number | null
-        status: string | null
-        remarks: string | null
-        evaluated_at: string | null
-        evaluator_name: string | null
-    } | null
+        evaluation: {
+            id: number
+            gpa: number | null
+            status: string | null
+            remarks: string | null
+            evaluated_at: string | null
+            evaluator_name: string | null
+            evaluation_source: string | null
+            review_required: boolean
+        } | null
 }
 
 type PaginatedPayload<T> = {
@@ -82,7 +117,9 @@ const evalForms = ref<Record<number, { gpa: string; remarks: string }>>(
     Object.fromEntries((props.rows || []).map((row) => [
         row.document_id,
         {
-            gpa: row.evaluation?.gpa != null ? String(row.evaluation.gpa) : '',
+            gpa: row.evaluation?.gpa != null
+                ? String(row.evaluation.gpa)
+                : (row.ocr?.parsed_summary?.gwa != null ? String(row.ocr.parsed_summary.gwa) : ''),
             remarks: row.evaluation?.remarks ?? '',
         },
     ])),
@@ -104,6 +141,7 @@ const submissionsState = ref<PaginatedPayload<SubmissionsRow>>({
         uploaded_at: row.uploaded_at,
         notes: row.notes,
         file_url: row.file_url,
+        ocr: row.ocr ?? null,
         period: selectedPeriodId.value
             ? {
                 id: selectedPeriodId.value,
@@ -119,6 +157,8 @@ const submissionsState = ref<PaginatedPayload<SubmissionsRow>>({
                 remarks: row.evaluation.remarks,
                 evaluated_at: row.evaluation.evaluated_at,
                 evaluator_name: null,
+                evaluation_source: row.evaluation.evaluation_source ?? null,
+                review_required: row.evaluation.review_required ?? false,
             }
             : null,
     })),
@@ -165,9 +205,35 @@ function isImageUrl(url: string | null) {
 
 function statusTone(status: string | null | undefined) {
     if (status === 'eligible') return 'bg-emerald-100 text-emerald-700'
-    if (status === 'probation') return 'bg-amber-100 text-amber-700'
+    if (status === 'pending_review') return 'bg-amber-100 text-amber-700'
     if (status === 'ineligible') return 'bg-red-100 text-red-700'
     return 'bg-slate-100 text-slate-700'
+}
+
+function ocrTone(status: string | null | undefined) {
+    if (status === 'processed') return 'bg-emerald-100 text-emerald-700'
+    if (status === 'needs_review') return 'bg-amber-100 text-amber-700'
+    if (status === 'failed') return 'bg-red-100 text-red-700'
+    return 'bg-slate-100 text-slate-700'
+}
+
+function validationTone(status: string | null | undefined) {
+    if (status === 'valid') return 'bg-emerald-100 text-emerald-700'
+    if (status === 'manual_review') return 'bg-amber-100 text-amber-700'
+    return 'bg-slate-100 text-slate-600'
+}
+
+function validationLabel(status: string | null | undefined) {
+    if (status === 'valid') return 'GPA extracted'
+    if (status === 'manual_review') return 'Needs GPA review'
+    if (status === 'pending') return 'Scanning GPA'
+    return 'Scan unavailable'
+}
+
+function scaleLabel(scale: string | null | undefined) {
+    if (scale === 'basic_education') return 'Basic Education'
+    if (scale === 'higher_education') return 'Higher Education'
+    return 'Unknown scale'
 }
 
 function buildQuery(page = 1) {
@@ -201,7 +267,9 @@ async function fetchSubmissions(page = 1) {
     const nextForms: Record<number, { gpa: string; remarks: string }> = {}
     payload.data.forEach((row) => {
         nextForms[row.document_id] = {
-            gpa: row.evaluation?.gpa != null ? String(row.evaluation.gpa) : '',
+            gpa: row.evaluation?.gpa != null
+                ? String(row.evaluation.gpa)
+                : (row.ocr?.parsed_summary?.gwa != null ? String(row.ocr.parsed_summary.gwa) : ''),
             remarks: row.evaluation?.remarks ?? '',
         }
     })
@@ -285,6 +353,7 @@ onMounted(() => {
                         <tr>
                             <th class="px-4 py-3 text-left">Student</th>
                             <th class="px-4 py-3 text-left">Document</th>
+                            <th class="px-4 py-3 text-left">OCR / Parse</th>
                             <th class="px-4 py-3 text-left">Status</th>
                             <th class="px-4 py-3 text-left">Remarks</th>
                             <th class="px-4 py-3 text-right">Action</th>
@@ -329,21 +398,71 @@ onMounted(() => {
                                 </div>
                             </td>
                             <td class="px-4 py-3">
+                                <div class="space-y-2 text-xs">
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="ocrTone(row.ocr?.run_status)">
+                                        OCR: {{ row.ocr?.run_status || 'not processed' }}
+                                    </span>
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="validationTone(row.ocr?.validation?.status)">
+                                        {{ validationLabel(row.ocr?.validation?.status) }}
+                                    </span>
+                                    <div class="text-slate-600">
+                                        GPA/GWA:
+                                        <span class="font-semibold text-slate-900">{{ row.ocr?.parsed_summary?.gwa ?? '-' }}</span>
+                                    </div>
+                                    <div class="text-slate-500">
+                                        Parser: {{ row.ocr?.parsed_summary?.parser_status || '-' }}
+                                        <span v-if="row.ocr?.parsed_summary?.parser_confidence != null">
+                                            · {{ row.ocr.parsed_summary.parser_confidence }}%
+                                        </span>
+                                    </div>
+                                    <div v-if="row.ocr?.interpretation" class="text-slate-500">
+                                        Scale: {{ scaleLabel(row.ocr.interpretation.scale) }}
+                                        · System interpretation:
+                                        <span class="font-semibold text-slate-800">{{ row.ocr.interpretation.label }}</span>
+                                    </div>
+                                    <div v-if="row.ocr?.validation?.summary" class="rounded-md border border-slate-200 bg-slate-50 p-2 text-slate-600">
+                                        {{ row.ocr.validation.summary }}
+                                    </div>
+                                    <div v-if="row.ocr?.validation?.flags?.length" class="space-y-1 rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-700">
+                                        <div
+                                            v-for="flag in row.ocr.validation.flags"
+                                            :key="`${row.document_id}-${flag.code}`"
+                                        >
+                                            {{ flag.message }}
+                                        </div>
+                                    </div>
+                                    <div v-if="row.ocr?.error_message" class="rounded-md bg-red-50 px-2 py-1 text-red-700">
+                                        {{ row.ocr.error_message }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
                                 <div v-if="evalForms[row.document_id]" class="space-y-2">
                                     <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold" :class="statusTone(row.evaluation?.status)">
                                         Current: {{ row.evaluation?.status || 'pending' }}
                                     </span>
+                                    <div class="text-xs text-slate-500">
+                                        Source: {{ row.evaluation?.evaluation_source || 'manual/pending' }}
+                                    </div>
+                                    <div v-if="row.evaluation?.review_required" class="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                                        Manual review required
+                                    </div>
                                 </div>
                                 <div v-else class="text-xs text-slate-400">Loading status...</div>
                             </td>
                             <td class="px-4 py-3">
-                                <input
-                                    v-if="evalForms[row.document_id]"
-                                    v-model="evalForms[row.document_id].remarks"
-                                    type="text"
-                                    placeholder="Remarks (optional)"
-                                    class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
-                                />
+                                <div v-if="evalForms[row.document_id]" class="space-y-2">
+                                    <input
+                                        v-model="evalForms[row.document_id].remarks"
+                                        type="text"
+                                        placeholder="Remarks (optional)"
+                                        class="w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                                    />
+                                    <div v-if="row.ocr?.raw_text_preview" class="rounded-md border border-slate-200 bg-slate-50 p-2 text-[11px] text-slate-600">
+                                        <div class="mb-1 font-semibold uppercase tracking-wide text-slate-500">OCR Preview</div>
+                                        <div class="whitespace-pre-wrap">{{ row.ocr.raw_text_preview }}</div>
+                                    </div>
+                                </div>
                                 <div v-else class="text-xs text-slate-400">Loading remarks...</div>
                             </td>
                             <td class="px-4 py-3 text-right">
@@ -357,7 +476,7 @@ onMounted(() => {
                             </td>
                         </tr>
                         <tr v-if="submissionsState.data.length === 0" key="empty">
-                            <td colspan="5" class="px-4 py-8 text-center text-slate-500">No submissions yet for this period.</td>
+                            <td colspan="6" class="px-4 py-8 text-center text-slate-500">No submissions yet for this period.</td>
                         </tr>
                     </transition-group>
                 </table>

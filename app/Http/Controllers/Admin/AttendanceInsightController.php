@@ -9,6 +9,7 @@ use App\Models\Team;
 use App\Models\TeamSchedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AttendanceInsightController extends Controller
@@ -16,7 +17,7 @@ class AttendanceInsightController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate([
-            'sport_id' => 'nullable|integer|exists:sports,id',
+            'sport_id' => ['nullable', 'integer', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'team_id' => 'nullable|integer|exists:teams,id',
             'coach_id' => 'nullable|integer|exists:coaches,id',
             'schedule_type' => 'nullable|string|max:50',
@@ -285,6 +286,7 @@ class AttendanceInsightController extends Controller
             'selected' => $selected,
             'options' => [
                 'sports' => Sport::query()
+                    ->supported()
                     ->orderBy('name')
                     ->get(['id', 'name']),
                 'teams' => Team::query()

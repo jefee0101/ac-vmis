@@ -13,7 +13,6 @@ function createNotificationSettings(User $user, array $overrides = []): void
     UserSetting::create(array_merge([
         'user_id' => $user->id,
         'notification_email_enabled' => true,
-        'notification_in_app_enabled' => true,
         'notify_approvals' => true,
         'notify_schedule_changes' => true,
         'notify_attendance_changes' => true,
@@ -24,7 +23,6 @@ function createNotificationSettings(User $user, array $overrides = []): void
         'wellness_injury_threshold_level' => 3,
         'theme_preference' => 'light',
         'timezone' => 'Asia/Manila',
-        'language' => 'en',
     ], $overrides));
 }
 

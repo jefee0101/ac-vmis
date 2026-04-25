@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\StudentAthlete;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessAcademicDocumentOcr;
 use App\Models\AcademicDocument;
 use App\Models\AcademicDocumentType;
 use App\Models\AcademicEligibilityEvaluation;
@@ -65,7 +66,10 @@ class AcademicSubmissionController extends Controller
 
         $submissions = AcademicDocument::query()
             ->periodSubmission()
-            ->with('academicPeriod')
+            ->with([
+                'academicPeriod',
+                'latestOcrRun.parsedSummary',
+            ])
             ->where('student_id', $student->id)
             ->latest('uploaded_at')
             ->get();
@@ -91,7 +95,7 @@ class AcademicSubmissionController extends Controller
             'hasSubmittedAll' => $holdState['hasSubmittedAll'],
             'openPeriods' => $openPeriods->map(function ($p) use ($evalByPeriod) {
                 $evaluation = $evalByPeriod->get($p->id);
-                $status = AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null);
+                $status = $evaluation?->status;
                 $isEligible = $status === 'eligible';
 
                 return [
@@ -118,9 +122,10 @@ class AcademicSubmissionController extends Controller
                     'file_url' => $doc->id ? route('files.academic', $doc->id) : null,
                     'uploaded_at' => optional($doc->uploaded_at)->toDateTimeString(),
                     'notes' => $doc->notes,
+                    'ocr' => $this->ocrPayload($doc->latestOcrRun),
                     'evaluation' => $evaluation ? [
                         'gpa' => $evaluation->gpa,
-                        'status' => AcademicEligibilityEvaluation::statusForGpa($evaluation->gpa !== null ? (float) $evaluation->gpa : null),
+                        'status' => $evaluation->status,
                         'remarks' => $evaluation->remarks,
                         'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
                     ] : null,
@@ -136,7 +141,6 @@ class AcademicSubmissionController extends Controller
         $validated = $request->validate([
             'academic_period_id' => 'required|exists:academic_periods,id',
             'document_type' => 'required|in:grade_report,supporting_document',
-            'semester_gpa' => 'nullable|numeric|min:0|max:5',
             'notes' => 'nullable|string|max:1000',
             'document_file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
@@ -147,8 +151,7 @@ class AcademicSubmissionController extends Controller
         $eligible = AcademicEligibilityEvaluation::query()
             ->where('student_id', $student->id)
             ->where('academic_period_id', $period->id)
-            ->whereNotNull('gpa')
-            ->where('gpa', '<=', AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX)
+            ->where('final_status', 'eligible')
             ->exists();
         if ($eligible) {
             abort(422, 'You are already eligible for this period. Further submissions are locked.');
@@ -161,12 +164,8 @@ class AcademicSubmissionController extends Controller
         );
 
         $notes = trim((string) ($validated['notes'] ?? ''));
-        if (isset($validated['semester_gpa']) && $validated['semester_gpa'] !== null && $validated['semester_gpa'] !== '') {
-            $gpaLine = 'Submitted GPA: ' . $validated['semester_gpa'];
-            $notes = $notes !== '' ? ($gpaLine . "\n" . $notes) : $gpaLine;
-        }
 
-        AcademicDocument::create([
+        $document = AcademicDocument::create([
             'student_id' => $student->id,
             'document_type_id' => AcademicDocumentType::resolveId(
                 AcademicDocumentType::CONTEXT_PERIOD_SUBMISSION,
@@ -178,6 +177,10 @@ class AcademicSubmissionController extends Controller
             'uploaded_at' => now(),
             'notes' => $notes !== '' ? $notes : null,
         ]);
+
+        if ((string) $validated['document_type'] === AcademicDocumentType::CODE_GRADE_REPORT) {
+            ProcessAcademicDocumentOcr::dispatch($document->id);
+        }
 
         $periodLabel = "{$period->school_year} - {$period->term}";
         $studentName = trim(($student->first_name ?? '') . ' ' . ($student->last_name ?? ''));
@@ -230,7 +233,7 @@ class AcademicSubmissionController extends Controller
 
         $submissions = AcademicDocument::query()
             ->periodSubmission()
-            ->with('academicPeriod')
+            ->with(['academicPeriod', 'latestOcrRun.parsedSummary'])
             ->where('student_id', $student->id)
             ->latest('uploaded_at')
             ->get();
@@ -248,7 +251,7 @@ class AcademicSubmissionController extends Controller
 
             return [
                 'label' => $label,
-                'eligibility_status' => AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null),
+                'eligibility_status' => $evaluation?->status,
                 'window' => $window,
             ];
         })->values();
@@ -262,8 +265,12 @@ class AcademicSubmissionController extends Controller
                     : null,
                 'document_type' => $doc->document_type,
                 'uploaded_at' => optional($doc->uploaded_at)->format('M j, Y g:i A'),
-                'status' => AcademicEligibilityEvaluation::statusForGpa($evaluation?->gpa !== null ? (float) $evaluation->gpa : null),
+                'status' => $evaluation?->status,
                 'gpa' => $evaluation?->gpa,
+                'extracted_gpa' => $doc->latestOcrRun?->parsedSummary?->gwa !== null
+                    ? (float) $doc->latestOcrRun?->parsedSummary?->gwa
+                    : null,
+                'validation_status' => $doc->latestOcrRun?->validation_status,
                 'remarks' => $evaluation?->remarks,
             ];
         })->values();
@@ -277,5 +284,42 @@ class AcademicSubmissionController extends Controller
             'submissions' => $submissionRows,
             'generatedAt' => now()->format('M j, Y g:i A'),
         ]);
+    }
+
+    private function ocrPayload($ocrRun): ?array
+    {
+        if (!$ocrRun) {
+            return null;
+        }
+
+        $summary = $ocrRun->parsedSummary;
+        $interpretation = AcademicEligibilityEvaluation::interpretGrade(
+            $summary && $summary->gwa !== null ? (float) $summary->gwa : null
+        );
+
+        return [
+            'id' => $ocrRun->id,
+            'run_status' => $ocrRun->run_status,
+            'processed_at' => optional($ocrRun->processed_at)->toDateTimeString(),
+            'error_message' => $ocrRun->error_message,
+            'parsed_summary' => $summary ? [
+                'gwa' => $summary->gwa !== null ? (float) $summary->gwa : null,
+                'total_units' => $summary->total_units !== null ? (float) $summary->total_units : null,
+                'parser_status' => $summary->parser_status,
+                'parser_confidence' => $summary->parser_confidence !== null ? (float) $summary->parser_confidence : null,
+            ] : null,
+            'interpretation' => [
+                'scale' => $interpretation['scale'],
+                'value_label' => $interpretation['value_label'],
+                'status' => $interpretation['status'],
+                'label' => $interpretation['interpretation_label'],
+            ],
+            'validation' => [
+                'status' => $ocrRun->validation_status,
+                'summary' => $ocrRun->validation_summary,
+                'flags' => collect($ocrRun->validation_flags)->values()->all(),
+                'checked_at' => optional($ocrRun->validation_checked_at)->toDateTimeString(),
+            ],
+        ];
     }
 }

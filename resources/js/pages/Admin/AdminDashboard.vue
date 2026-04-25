@@ -43,7 +43,7 @@ type DashboardPayload = {
         academic_by_team: Array<{
             team_name: string;
             eligible: number;
-            probation: number;
+            pending_review: number;
             ineligible: number;
             total: number;
         }>;
@@ -1127,7 +1127,7 @@ watch(
                                     </div>
                                     <div class="flex h-2 overflow-hidden rounded-full bg-slate-100">
                                         <span class="bg-emerald-500" :style="{ width: `${academicSegment(team.eligible, team.total)}%` }" />
-                                        <span class="bg-amber-500" :style="{ width: `${academicSegment(team.probation, team.total)}%` }" />
+                                        <span class="bg-amber-500" :style="{ width: `${academicSegment(team.pending_review, team.total)}%` }" />
                                         <span class="bg-red-500" :style="{ width: `${academicSegment(team.ineligible, team.total)}%` }" />
                                     </div>
                                 </div>

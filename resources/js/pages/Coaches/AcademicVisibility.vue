@@ -86,7 +86,7 @@ function evaluationLabel(status: string | null) {
     const normalized = String(status ?? '').replace(/_/g, ' ').toLowerCase()
     if (!normalized || normalized === 'pending') return 'Pending'
     if (normalized === 'eligible') return 'Eligible'
-    if (normalized === 'probation') return 'Probation'
+    if (normalized === 'pending_review') return 'Pending Review'
     if (normalized === 'ineligible') return 'Ineligible'
     return normalized.replace(/\b\w/g, (char) => char.toUpperCase())
 }
@@ -95,7 +95,7 @@ function evaluationTone(status: string | null) {
     const normalized = String(status ?? '').toLowerCase()
     if (!normalized || normalized === 'pending') return 'bg-slate-100 text-slate-600'
     if (normalized === 'eligible') return 'bg-emerald-100 text-emerald-700'
-    if (normalized === 'probation') return 'bg-amber-100 text-amber-700'
+    if (normalized === 'pending_review') return 'bg-amber-100 text-amber-700'
     if (normalized === 'ineligible') return 'bg-rose-100 text-rose-700'
     if (normalized === 'approved' || normalized === 'passed') return 'bg-emerald-100 text-emerald-700'
     if (normalized === 'rejected' || normalized === 'failed') return 'bg-rose-100 text-rose-700'

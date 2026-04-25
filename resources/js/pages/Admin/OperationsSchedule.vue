@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { VueCal } from 'vue-cal'
 
-import { useSportColors } from '@/composables/useSportColors'
+import { supportedSports, useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import 'vue-cal/style'
 
@@ -28,8 +28,16 @@ const teamOptions = computed(() =>
 
 const sportOptions = computed(() =>
     [...new Set((props.schedules || []).map((item: any) => sportLabel(item.sport)))]
-        .filter(Boolean)
+        .filter((sport) => sport !== 'Unknown')
         .sort((a, b) => String(a).localeCompare(String(b)))
+)
+
+const sportsLegend = computed(() =>
+    supportedSports.map((sport) => ({
+        key: sport,
+        label: sportLabel(sport),
+        color: sportColor(sport),
+    }))
 )
 
 const filteredSchedules = computed(() =>
@@ -105,17 +113,8 @@ function formatPHT(dt: string | Date | null) {
                 class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
         </div>
         <div class="flex flex-wrap gap-4 text-xs">
-            <div class="flex items-center gap-1 text-white">
-                <span class="w-3 h-3 rounded bg-orange-500"></span> Basketball
-            </div>
-            <div class="flex items-center gap-1 text-white">
-                <span class="w-3 h-3 rounded bg-slate-500"></span> Volleyball
-            </div>
-            <div class="flex items-center gap-1 text-white">
-                <span class="w-3 h-3 rounded bg-green-500"></span> Football
-            </div>
-            <div class="flex items-center gap-1 text-white">
-                <span class="w-3 h-3 rounded bg-yellow-400"></span> Badminton
+            <div v-for="sport in sportsLegend" :key="sport.key" class="flex items-center gap-1 text-white">
+                <span class="w-3 h-3 rounded" :style="{ backgroundColor: sport.color }"></span> {{ sport.label }}
             </div>
         </div>
 

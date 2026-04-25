@@ -12,7 +12,6 @@ class UserSetting extends Model
     protected $fillable = [
         'user_id',
         'notification_email_enabled',
-        'notification_in_app_enabled',
         'notify_approvals',
         'notify_schedule_changes',
         'notify_attendance_changes',
@@ -23,14 +22,12 @@ class UserSetting extends Model
         'wellness_injury_threshold_level',
         'theme_preference',
         'timezone',
-        'language',
     ];
 
     protected function casts(): array
     {
         return [
             'notification_email_enabled' => 'boolean',
-            'notification_in_app_enabled' => 'boolean',
             'notify_approvals' => 'boolean',
             'notify_schedule_changes' => 'boolean',
             'notify_attendance_changes' => 'boolean',

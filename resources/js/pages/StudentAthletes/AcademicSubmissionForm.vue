@@ -49,7 +49,6 @@ const initialPeriodId = props.selectedPeriodId && props.openPeriods.some((p) => 
   : props.openPeriods?.[0]?.id
 const academicPeriodId = ref<number | null>(initialPeriodId ?? null)
 const documentType = ref<'grade_report' | 'supporting_document'>('grade_report')
-const semesterGpa = ref('')
 const notes = ref('')
 const file = ref<File | null>(null)
 const submitError = ref('')
@@ -61,7 +60,7 @@ const eligibilityLabel = computed(() => {
   const status = String(selectedPeriod.value?.eligibility_status ?? '').trim().toLowerCase()
   if (!status) return null
   if (status === 'eligible') return 'Eligible'
-  if (status === 'probation') return 'Probation'
+  if (status === 'pending_review') return 'Pending Review'
   if (status === 'ineligible') return 'Ineligible'
   return status.replace(/\b\w/g, (c) => c.toUpperCase())
 })
@@ -99,7 +98,6 @@ function submit() {
   const fd = new FormData()
   fd.append('academic_period_id', String(academicPeriodId.value))
   fd.append('document_type', documentType.value)
-  fd.append('semester_gpa', semesterGpa.value)
   fd.append('notes', notes.value)
   fd.append('document_file', file.value)
 
@@ -155,6 +153,9 @@ function submit() {
               <span v-if="!canSubmit"> — submissions locked for this period.</span>
             </div>
             <p class="text-xs text-slate-500">Choose the academic period and upload your latest grade document.</p>
+            <p class="text-xs text-slate-500">
+              Grade reports are automatically scanned to extract the GPA or general weighted average from the document.
+            </p>
             <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
               <select v-model="academicPeriodId" class="bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700">
                 <option :value="null" disabled>Select period</option>
@@ -171,16 +172,6 @@ function submit() {
                 <option value="supporting_document">Supporting Document</option>
               </select>
             </div>
-            <input
-              v-model="semesterGpa"
-              type="number"
-              step="0.01"
-              min="0"
-              max="5"
-              placeholder="Semester GPA (optional)"
-              :disabled="!canSubmit"
-              class="w-full bg-white border border-[#034485]/35 rounded-lg px-2 py-2 text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
-            />
             <textarea
               v-model="notes"
               rows="2"

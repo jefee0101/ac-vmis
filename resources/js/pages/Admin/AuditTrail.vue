@@ -144,7 +144,7 @@ function outcomeTone(value: string) {
     if (normalized === 'rejected' || normalized === 'ineligible' || normalized.includes('removed') || normalized.includes('deactivated')) {
         return 'bg-rose-100 text-rose-700'
     }
-    if (normalized === 'probation') {
+    if (normalized === 'pending_review') {
         return 'bg-amber-100 text-amber-700'
     }
 

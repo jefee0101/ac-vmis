@@ -60,7 +60,10 @@ class AcademicEligibilityController extends Controller
         if ($selectedPeriodId) {
             $docs = AcademicDocument::query()
                 ->periodSubmission()
-                ->with(['student.user'])
+                ->with([
+                    'student.user',
+                    'latestOcrRun.parsedSummary',
+                ])
                 ->where('academic_period_id', $selectedPeriodId)
                 ->latest('uploaded_at')
                 ->get();
@@ -84,12 +87,15 @@ class AcademicEligibilityController extends Controller
                 'document_type' => $doc->document_type,
                 'notes' => $doc->notes,
                 'file_url' => $doc->id ? route('files.academic', $doc->id) : null,
+                'ocr' => $this->ocrPayload($doc->latestOcrRun),
                 'evaluation' => $evaluation ? [
                     'id' => $evaluation->id,
                     'gpa' => $evaluation->gpa,
                     'status' => $evaluation->status,
                     'remarks' => $evaluation->remarks,
                     'evaluated_at' => optional($evaluation->evaluated_at)->toDateTimeString(),
+                    'evaluation_source' => $evaluation->evaluation_source,
+                    'review_required' => (bool) $evaluation->review_required,
                 ] : null,
             ];
         })->values();
@@ -201,7 +207,7 @@ class AcademicEligibilityController extends Controller
             'period_id' => 'required|exists:academic_periods,id',
             'student_id' => 'required|exists:students,id',
             'document_id' => 'required|exists:academic_documents,id',
-            'gpa' => 'nullable|numeric|min:0|max:5',
+            'gpa' => 'nullable|numeric|min:0|max:100',
             'remarks' => 'nullable|string',
         ]);
 
@@ -223,11 +229,22 @@ class AcademicEligibilityController extends Controller
             [
                 'document_id' => $doc->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                'evaluation_source' => 'manual',
+                'final_status' => AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null),
+                'review_required' => AcademicEligibilityEvaluation::interpretGrade(
+                    $validated['gpa'] !== null ? (float) $validated['gpa'] : null
+                )['review_required'],
                 'remarks' => $validated['remarks'] ?? null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
             ]
         );
+
+        $doc->update([
+            'review_status' => AcademicDocument::REVIEW_STATUS_REVIEWED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
 
         $evaluation = AcademicEligibilityEvaluation::query()
             ->where('student_id', (int) $validated['student_id'])
@@ -236,9 +253,7 @@ class AcademicEligibilityController extends Controller
 
         $student = Student::find((int) $validated['student_id']);
         $studentUserId = (int) ($student?->user_id ?? 0);
-        $computedStatus = AcademicEligibilityEvaluation::statusForGpa(
-            $validated['gpa'] !== null ? (float) $validated['gpa'] : null
-        );
+        $computedStatus = AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null);
         $status = strtoupper((string) ($computedStatus ?? 'pending'));
         $periodLabel = $period
             ? "{$period->school_year} {$this->termLabel((string) $period->term)}"
@@ -248,6 +263,8 @@ class AcademicEligibilityController extends Controller
             $message = "Your academic status for {$periodLabel} is {$status}.";
             if (($computedStatus ?? '') === 'eligible') {
                 $message .= ' You are now eligible; further submissions for this period are locked.';
+            } elseif (($computedStatus ?? '') === 'pending_review') {
+                $message .= ' Your record needs additional review before a final clearance decision.';
             }
             $this->notifications->announce(
                 $studentUserId,
@@ -322,7 +339,10 @@ class AcademicEligibilityController extends Controller
                 't.team_name',
                 'e.id as evaluation_id',
                 'e.gpa as evaluation_gpa',
+                'e.final_status as evaluation_final_status',
                 'e.remarks as evaluation_remarks',
+                'e.evaluation_source',
+                'e.review_required',
                 'e.evaluated_at',
                 DB::raw("TRIM(CONCAT(COALESCE(evaluator.first_name, ''), ' ', COALESCE(evaluator.last_name, ''))) as evaluator_name"),
             ]);
@@ -335,8 +355,24 @@ class AcademicEligibilityController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $documentIds = collect($paginator->items())
+            ->pluck('document_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $ocrRunsByDocument = !empty($documentIds)
+            ? AcademicDocument::query()
+                ->with('latestOcrRun.parsedSummary')
+                ->whereIn('id', $documentIds)
+                ->get()
+                ->keyBy('id')
+            : collect();
+
         return response()->json([
-            'data' => collect($paginator->items())->map(function ($row) {
+            'data' => collect($paginator->items())->map(function ($row) use ($ocrRunsByDocument) {
+                $document = $row->document_id ? $ocrRunsByDocument->get((int) $row->document_id) : null;
+
                 return [
                     'document_id' => (int) $row->document_id,
                     'student_id' => (int) $row->student_id,
@@ -348,6 +384,7 @@ class AcademicEligibilityController extends Controller
                     'uploaded_at' => $row->uploaded_at,
                     'notes' => $row->notes,
                     'file_url' => $row->document_id ? route('files.academic', $row->document_id) : null,
+                    'ocr' => $this->ocrPayload($document?->latestOcrRun),
                     'period' => $row->period_id ? [
                         'id' => (int) $row->period_id,
                         'school_year' => $row->school_year,
@@ -356,12 +393,14 @@ class AcademicEligibilityController extends Controller
                     'evaluation' => $row->evaluation_id ? [
                         'id' => (int) $row->evaluation_id,
                         'gpa' => $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null,
-                        'status' => AcademicEligibilityEvaluation::statusForGpa(
+                        'status' => $row->evaluation_final_status ?: AcademicEligibilityEvaluation::statusForGpa(
                             $row->evaluation_gpa !== null ? (float) $row->evaluation_gpa : null
                         ),
                         'remarks' => $row->evaluation_remarks,
                         'evaluated_at' => $row->evaluated_at,
                         'evaluator_name' => $row->evaluator_name,
+                        'evaluation_source' => $row->evaluation_source,
+                        'review_required' => (bool) ($row->review_required ?? false),
                     ] : null,
                 ];
             })->values(),
@@ -404,6 +443,7 @@ class AcademicEligibilityController extends Controller
                 'd.id as document_id',
                 'dt.code as document_type',
                 'e.gpa',
+                'e.final_status',
                 'e.remarks',
                 'e.evaluated_at',
                 DB::raw("TRIM(CONCAT(COALESCE(evaluator.first_name, ''), ' ', COALESCE(evaluator.last_name, ''))) as evaluator_name"),
@@ -434,7 +474,7 @@ class AcademicEligibilityController extends Controller
                     'document_id' => $row->document_id ? (int) $row->document_id : null,
                     'document_type' => $row->document_type,
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
-                    'status' => AcademicEligibilityEvaluation::statusForGpa(
+                    'status' => $row->final_status ?: AcademicEligibilityEvaluation::statusForGpa(
                         $row->gpa !== null ? (float) $row->gpa : null
                     ),
                     'remarks' => $row->remarks,
@@ -464,7 +504,7 @@ class AcademicEligibilityController extends Controller
                 'kpis' => [
                     'missing_submissions' => 0,
                     'pending_evaluation' => 0,
-                    'probation' => 0,
+                    'pending_review' => 0,
                     'ineligible' => 0,
                 ],
                 'rows' => [],
@@ -502,14 +542,11 @@ class AcademicEligibilityController extends Controller
             ->distinct()
             ->pluck('student_id');
 
-        $eligibleMax = AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-        $probationMax = AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
-
         $evaluatedByStatus = DB::table('academic_eligibility_evaluations')
             ->where('academic_period_id', $periodId)
             ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('student_id', $studentIds))
-            ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL AND gpa > ? AND gpa <= ? THEN 1 ELSE 0 END) as probation_count", [$eligibleMax, $probationMax])
-            ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL AND gpa > ? THEN 1 ELSE 0 END) as ineligible_count", [$probationMax])
+            ->selectRaw("SUM(CASE WHEN final_status = 'pending_review' THEN 1 ELSE 0 END) as pending_review_count")
+            ->selectRaw("SUM(CASE WHEN final_status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
             ->selectRaw("SUM(CASE WHEN gpa IS NOT NULL THEN 1 ELSE 0 END) as evaluated_count")
             ->first();
 
@@ -525,11 +562,10 @@ class AcademicEligibilityController extends Controller
             })
             ->where('d.academic_period_id', $periodId)
             ->when($studentIds->isNotEmpty(), fn ($q) => $q->whereIn('d.student_id', $studentIds))
-            ->where(function ($q) use ($eligibleMax) {
+            ->where(function ($q) {
                 $q->whereNull('e.id')
-                    ->orWhere(function ($sq) use ($eligibleMax) {
-                        $sq->whereNotNull('e.gpa')
-                            ->where('e.gpa', '>', $eligibleMax);
+                    ->orWhere(function ($sq) {
+                        $sq->whereIn('e.final_status', ['pending_review', 'ineligible']);
                     });
             })
             ->select([
@@ -541,6 +577,7 @@ class AcademicEligibilityController extends Controller
                 'd.uploaded_at',
                 'e.id as evaluation_id',
                 'e.gpa',
+                'e.final_status',
                 'e.evaluated_at',
             ])
             ->orderByDesc('d.uploaded_at')
@@ -554,7 +591,7 @@ class AcademicEligibilityController extends Controller
                     'document_id' => (int) $row->document_id,
                     'uploaded_at' => $row->uploaded_at,
                     'evaluation_id' => $row->evaluation_id ? (int) $row->evaluation_id : null,
-                    'evaluation_status' => AcademicEligibilityEvaluation::statusForGpa(
+                    'evaluation_status' => $row->final_status ?: AcademicEligibilityEvaluation::statusForGpa(
                         $row->gpa !== null ? (float) $row->gpa : null
                     ),
                     'gpa' => $row->gpa !== null ? (float) $row->gpa : null,
@@ -569,7 +606,7 @@ class AcademicEligibilityController extends Controller
             'kpis' => [
                 'missing_submissions' => $missingSubmissions,
                 'pending_evaluation' => $pendingEvaluation,
-                'probation' => (int) ($evaluatedByStatus->probation_count ?? 0),
+                'pending_review' => (int) ($evaluatedByStatus->pending_review_count ?? 0),
                 'ineligible' => (int) ($evaluatedByStatus->ineligible_count ?? 0),
             ],
             'rows' => $rows,
@@ -580,7 +617,7 @@ class AcademicEligibilityController extends Controller
     {
         $validated = $request->validate([
             'document_id' => 'required|exists:academic_documents,id',
-            'gpa' => 'nullable|numeric|min:0|max:5',
+            'gpa' => 'nullable|numeric|min:0|max:100',
             'remarks' => 'nullable|string|max:1000',
             'audit_note' => 'nullable|string|max:1000',
         ]);
@@ -609,11 +646,22 @@ class AcademicEligibilityController extends Controller
             [
                 'document_id' => $document->id,
                 'gpa' => $validated['gpa'] !== null ? (float) $validated['gpa'] : null,
+                'evaluation_source' => 'manual',
+                'final_status' => AcademicEligibilityEvaluation::statusForGpa($validated['gpa'] !== null ? (float) $validated['gpa'] : null),
+                'review_required' => AcademicEligibilityEvaluation::interpretGrade(
+                    $validated['gpa'] !== null ? (float) $validated['gpa'] : null
+                )['review_required'],
                 'remarks' => !empty($remarkParts) ? implode("\n\n", $remarkParts) : null,
                 'evaluated_by' => Auth::id(),
                 'evaluated_at' => now(),
             ]
         );
+
+        $document->update([
+            'review_status' => AcademicDocument::REVIEW_STATUS_REVIEWED,
+            'reviewed_by' => Auth::id(),
+            'reviewed_at' => now(),
+        ]);
 
         return response()->json([
             'message' => 'Evaluation updated.',
@@ -677,9 +725,7 @@ class AcademicEligibilityController extends Controller
                 'student_id_number' => $student->student_id_number ?? null,
                 'document_type' => $doc->document_type,
                 'uploaded_at' => optional($doc->uploaded_at)->format('M j, Y g:i A'),
-                'status' => AcademicEligibilityEvaluation::statusForGpa(
-                    $evaluation?->gpa !== null ? (float) $evaluation->gpa : null
-                ) ?? 'pending',
+                'status' => $evaluation?->status ?? 'pending',
                 'gpa' => $evaluation?->gpa,
                 'evaluated_at' => $evaluation?->evaluated_at
                     ? $evaluation->evaluated_at->format('M j, Y g:i A')
@@ -689,7 +735,7 @@ class AcademicEligibilityController extends Controller
 
         $counts = [
             'eligible' => $rows->where('status', 'eligible')->count(),
-            'probation' => $rows->where('status', 'probation')->count(),
+            'pending_review' => $rows->where('status', 'pending_review')->count(),
             'ineligible' => $rows->where('status', 'ineligible')->count(),
             'pending' => $rows->where('status', 'pending')->count(),
             'total' => $rows->count(),
@@ -711,7 +757,7 @@ class AcademicEligibilityController extends Controller
             'period_id' => 'nullable|integer|exists:academic_periods,id',
             'team_id' => 'nullable|integer|exists:teams,id',
             'coach_id' => 'nullable|integer|exists:coaches,id',
-            'status' => 'nullable|in:eligible,probation,ineligible,pending',
+            'status' => 'nullable|in:eligible,pending_review,ineligible,pending',
             'search' => 'nullable|string|max:150',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -758,6 +804,47 @@ class AcademicEligibilityController extends Controller
             ->value('id');
     }
 
+    private function ocrPayload($ocrRun): ?array
+    {
+        if (!$ocrRun) {
+            return null;
+        }
+
+        $summary = $ocrRun->parsedSummary;
+        $interpretation = AcademicEligibilityEvaluation::interpretGrade(
+            $summary && $summary->gwa !== null ? (float) $summary->gwa : null
+        );
+
+        return [
+            'id' => $ocrRun->id,
+            'engine' => $ocrRun->ocr_engine,
+            'engine_version' => $ocrRun->ocr_engine_version,
+            'run_status' => $ocrRun->run_status,
+            'mean_confidence' => $ocrRun->mean_confidence !== null ? (float) $ocrRun->mean_confidence : null,
+            'processed_at' => optional($ocrRun->processed_at)->toDateTimeString(),
+            'error_message' => $ocrRun->error_message,
+            'raw_text_preview' => $ocrRun->raw_text ? mb_substr((string) $ocrRun->raw_text, 0, 400) : null,
+            'validation' => [
+                'status' => $ocrRun->validation_status,
+                'summary' => $ocrRun->validation_summary,
+                'flags' => collect($ocrRun->validation_flags)->values()->all(),
+                'checked_at' => optional($ocrRun->validation_checked_at)->toDateTimeString(),
+            ],
+            'parsed_summary' => $summary ? [
+                'gwa' => $summary->gwa !== null ? (float) $summary->gwa : null,
+                'total_units' => $summary->total_units !== null ? (float) $summary->total_units : null,
+                'parser_status' => $summary->parser_status,
+                'parser_confidence' => $summary->parser_confidence !== null ? (float) $summary->parser_confidence : null,
+            ] : null,
+            'interpretation' => [
+                'scale' => $interpretation['scale'],
+                'value_label' => $interpretation['value_label'],
+                'status' => $interpretation['status'],
+                'label' => $interpretation['interpretation_label'],
+            ],
+        ];
+    }
+
     private function applyRecordsFilters($query, array $filters, string $documentAlias, string $studentAlias, string $evaluationAlias, string $studentUserAlias): void
     {
         $periodId = $this->resolvePeriodId($filters['period_id']);
@@ -766,24 +853,17 @@ class AcademicEligibilityController extends Controller
         }
 
         if (!empty($filters['status'])) {
-            $eligibleMax = AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-            $probationMax = AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
-
             if ($filters['status'] === 'pending') {
                 $query->where(function ($q) use ($evaluationAlias) {
                     $q->whereNull("{$evaluationAlias}.id")
                         ->orWhereNull("{$evaluationAlias}.gpa");
                 });
             } elseif ($filters['status'] === 'eligible') {
-                $query->whereNotNull("{$evaluationAlias}.gpa")
-                    ->where("{$evaluationAlias}.gpa", '<=', $eligibleMax);
-            } elseif ($filters['status'] === 'probation') {
-                $query->whereNotNull("{$evaluationAlias}.gpa")
-                    ->where("{$evaluationAlias}.gpa", '>', $eligibleMax)
-                    ->where("{$evaluationAlias}.gpa", '<=', $probationMax);
+                $query->where("{$evaluationAlias}.final_status", 'eligible');
+            } elseif ($filters['status'] === 'pending_review') {
+                $query->where("{$evaluationAlias}.final_status", 'pending_review');
             } elseif ($filters['status'] === 'ineligible') {
-                $query->whereNotNull("{$evaluationAlias}.gpa")
-                    ->where("{$evaluationAlias}.gpa", '>', $probationMax);
+                $query->where("{$evaluationAlias}.final_status", 'ineligible');
             }
         }
 

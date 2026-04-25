@@ -205,7 +205,6 @@ class AccountSettingsController extends Controller
 
         $validated = $request->validate([
             'notification_email_enabled' => ['nullable', 'boolean'],
-            'notification_in_app_enabled' => ['nullable', 'boolean'],
             'notify_approvals' => ['nullable', 'boolean'],
             'notify_schedule_changes' => ['nullable', 'boolean'],
             'notify_attendance_changes' => ['nullable', 'boolean'],
@@ -216,14 +215,12 @@ class AccountSettingsController extends Controller
             'wellness_injury_threshold_level' => ['required', 'integer', 'between:1,5'],
             'theme_preference' => ['required', 'in:light,dark,blue'],
             'timezone' => ['required', 'string', 'max:60'],
-            'language' => ['required', 'string', 'max:12'],
         ]);
 
         UserSetting::updateOrCreate(
             ['user_id' => $user->id],
             [
                 'notification_email_enabled' => (bool) ($validated['notification_email_enabled'] ?? false),
-                'notification_in_app_enabled' => (bool) ($validated['notification_in_app_enabled'] ?? false),
                 'notify_approvals' => (bool) ($validated['notify_approvals'] ?? false),
                 'notify_schedule_changes' => (bool) ($validated['notify_schedule_changes'] ?? false),
                 'notify_attendance_changes' => (bool) ($validated['notify_attendance_changes'] ?? false),
@@ -234,7 +231,6 @@ class AccountSettingsController extends Controller
                 'wellness_injury_threshold_level' => (int) $validated['wellness_injury_threshold_level'],
                 'theme_preference' => $validated['theme_preference'],
                 'timezone' => $validated['timezone'],
-                'language' => $validated['language'],
             ]
         );
 
@@ -316,7 +312,7 @@ class AccountSettingsController extends Controller
                 ? AcademicEligibilityEvaluation::query()
                     ->where('academic_period_id', $latestPeriodId)
                     ->whereNotNull('gpa')
-                    ->where('gpa', '>', AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX)
+                    ->whereIn('final_status', ['pending_review', 'ineligible'])
                     ->count()
                 : 0;
 
@@ -395,7 +391,7 @@ class AccountSettingsController extends Controller
 
             $missingCount = $latestPeriod ? $studentIds->diff($submittedInLatest)->count() : 0;
             $eligibleCount = $latestEvaluations->where('status', 'eligible')->count();
-            $probationCount = $latestEvaluations->where('status', 'probation')->count();
+            $pendingReviewCount = $latestEvaluations->where('status', 'pending_review')->count();
             $ineligibleCount = $latestEvaluations->where('status', 'ineligible')->count();
 
             return [
@@ -406,7 +402,7 @@ class AccountSettingsController extends Controller
                     'latest_period' => $latestPeriod ? ($latestPeriod->school_year . ' ' . $latestPeriod->term) : null,
                     'missing_submissions_count' => (int) $missingCount,
                     'eligible_count' => (int) $eligibleCount,
-                    'probation_count' => (int) $probationCount,
+                    'probation_count' => (int) $pendingReviewCount,
                     'ineligible_count' => (int) $ineligibleCount,
                 ],
             ];
@@ -429,7 +425,6 @@ class AccountSettingsController extends Controller
                     'notify_wellness_alerts',
                     'notify_academic_alerts',
                     'notification_email_enabled',
-                    'notification_in_app_enabled',
                 ],
                 'coach_preferences' => false,
             ];
@@ -445,7 +440,6 @@ class AccountSettingsController extends Controller
                     'notify_attendance_exceptions',
                     'notify_wellness_injury_threshold',
                     'notification_email_enabled',
-                    'notification_in_app_enabled',
                 ],
                 'coach_preferences' => true,
             ];
@@ -459,7 +453,6 @@ class AccountSettingsController extends Controller
                 'notify_academic_alerts',
                 'notify_attendance_exceptions',
                 'notification_email_enabled',
-                'notification_in_app_enabled',
             ],
             'coach_preferences' => false,
         ];
@@ -471,7 +464,6 @@ class AccountSettingsController extends Controller
             ['user_id' => $user->id],
             [
                 'notification_email_enabled' => true,
-                'notification_in_app_enabled' => true,
                 'notify_approvals' => true,
                 'notify_schedule_changes' => true,
                 'notify_attendance_changes' => true,
@@ -482,14 +474,12 @@ class AccountSettingsController extends Controller
                 'wellness_injury_threshold_level' => 3,
                 'theme_preference' => 'light',
                 'timezone' => 'Asia/Manila',
-                'language' => 'en',
             ]
         );
 
         return [
             'settings' => [
                 'notification_email_enabled' => (bool) $settings->notification_email_enabled,
-                'notification_in_app_enabled' => (bool) $settings->notification_in_app_enabled,
                 'notify_approvals' => (bool) $settings->notify_approvals,
                 'notify_schedule_changes' => (bool) $settings->notify_schedule_changes,
                 'notify_attendance_changes' => (bool) $settings->notify_attendance_changes,
@@ -500,7 +490,6 @@ class AccountSettingsController extends Controller
                 'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
                 'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
                 'timezone' => $settings->timezone,
-                'language' => $settings->language,
             ],
             'scope' => $this->settingsScopeForRole((string) $user->role),
             'compliance' => $this->buildCompliance($user),

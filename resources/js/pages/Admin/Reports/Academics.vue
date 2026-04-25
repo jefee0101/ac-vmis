@@ -40,7 +40,7 @@ const props = defineProps<{
         summary: {
             total_submissions: number
             eligible: number
-            probation: number
+            pending_review: number
             ineligible: number
             pending: number
         }
@@ -200,7 +200,7 @@ function resetFilters() {
                 </article>
                 <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Probation</p>
-                    <p class="mt-1 text-2xl font-bold text-amber-700">{{ props.academicReport.summary.probation }}</p>
+                    <p class="mt-1 text-2xl font-bold text-amber-700">{{ props.academicReport.summary.pending_review }}</p>
                 </article>
                 <article class="rounded-xl border border-[#034485]/45 bg-white p-4">
                     <p class="text-xs text-slate-500">Ineligible</p>

@@ -339,8 +339,6 @@ watch(mobileMenuOpen, (open) => {
                     <div class="strip-col strip-col-1" aria-hidden="true"></div>
                     <div class="strip-col strip-col-2" aria-hidden="true"></div>
                     <div class="strip-col strip-col-3" aria-hidden="true"></div>
-                    <div class="strip-col strip-col-4" aria-hidden="true"></div>
-                    <div class="strip-col strip-col-5" aria-hidden="true"></div>
                 </div>
 
                 <div class="strip-overlay">
@@ -1293,16 +1291,6 @@ watch(mobileMenuOpen, (open) => {
 .strip-col-3 {
     background-image: url('/images/hero-soccer.webp');
     animation-delay: 180ms;
-}
-
-.strip-col-4 {
-    background-image: url('/images/hero-shuttlecock.jpg');
-    animation-delay: 240ms;
-}
-
-.strip-col-5 {
-    background-image: url('/images/hero-tabletennis.webp');
-    animation-delay: 300ms;
 }
 
 .strip-overlay {

@@ -52,7 +52,7 @@ const props = defineProps<{
 }>()
 
 const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
-const activeTab = ref<'periods' | 'evaluations' | 'policies'>('periods')
+const activeTab = ref<'periods' | 'evaluations'>('periods')
 const isLoading = ref(false)
 const showFilters = ref(false)
 const deletePeriodDialogOpen = ref(false)
@@ -97,14 +97,7 @@ const activeFilterCount = computed(() => {
 })
 
 const tabIndex = computed(() => {
-    switch (activeTab.value) {
-        case 'periods':
-            return 0
-        case 'policies':
-            return 1
-        default:
-            return 0
-    }
+    return activeTab.value === 'periods' ? 0 : 1
 })
 
 
@@ -146,7 +139,7 @@ function periodStatusTone(status: string | null) {
 function evaluationLabel(status: string | null) {
     const normalized = String(status ?? '').toLowerCase()
     if (normalized === 'eligible') return 'Eligible'
-    if (normalized === 'probation') return 'Probation'
+    if (normalized === 'pending_review') return 'Pending Review'
     if (normalized === 'ineligible') return 'Ineligible'
     return 'Pending'
 }
@@ -154,7 +147,7 @@ function evaluationLabel(status: string | null) {
 function evaluationTone(status: string | null) {
     const normalized = String(status ?? '').toLowerCase()
     if (normalized === 'eligible') return 'bg-emerald-100 text-emerald-700'
-    if (normalized === 'probation') return 'bg-amber-100 text-amber-700'
+    if (normalized === 'pending_review') return 'bg-amber-100 text-amber-700'
     if (normalized === 'ineligible') return 'bg-rose-100 text-rose-700'
     return 'bg-slate-100 text-slate-600'
 }
@@ -206,7 +199,7 @@ function clearQuickDates() {
     fetchActiveTab(1)
 }
 
-function setTab(tab: 'periods' | 'evaluations' | 'policies') {
+function setTab(tab: 'periods' | 'evaluations') {
     activeTab.value = tab
     if (tab === 'evaluations') {
         fetchActiveTab(1)
@@ -395,7 +388,7 @@ function changePeriod() {
                 </button>
             </div>
 
-            <div v-if="activeTab !== 'periods' && activeTab !== 'policies'" class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div v-if="activeTab === 'evaluations'" class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <input
                     v-model="filterForm.search"
                     type="text"
@@ -411,14 +404,14 @@ function changePeriod() {
                 </button>
             </div>
 
-            <div v-if="activeTab !== 'periods' && activeTab !== 'policies'" class="mt-3 flex flex-wrap gap-2">
+            <div v-if="activeTab === 'evaluations'" class="mt-3 flex flex-wrap gap-2">
                 <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="clearQuickDates">All Time</button>
                 <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('today')">Today</button>
                 <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('week')">This Week</button>
                 <button type="button" class="quick-range-btn rounded-full px-3 py-1 text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200" @click="applyQuickPeriod('month')">This Month</button>
             </div>
 
-            <div v-if="showFilters && activeTab !== 'periods' && activeTab !== 'policies'" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
+            <div v-if="showFilters && activeTab === 'evaluations'" class="mt-3 grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 md:grid-cols-2 lg:grid-cols-4">
                 <select v-model="selectedPeriodId" class="rounded-md border border-slate-300 px-3 py-2 text-sm" @change="changePeriod">
                     <option :value="null" disabled>Select period</option>
                     <option v-for="p in periods" :key="p.id" :value="p.id">
@@ -429,7 +422,7 @@ function changePeriod() {
                 <select v-model="filterForm.status" class="rounded-md border border-slate-300 px-3 py-2 text-sm">
                     <option value="">All Statuses</option>
                     <option value="eligible">Eligible</option>
-                    <option value="probation">Probation</option>
+                    <option value="pending_review">Pending Review</option>
                     <option value="ineligible">Ineligible</option>
                     <option value="pending">Pending Evaluation</option>
                 </select>
@@ -471,10 +464,10 @@ function changePeriod() {
                     <button
                         type="button"
                         class="relative z-10 rounded-full px-3 py-2 text-xs font-semibold transition-colors"
-                        :class="activeTab === 'policies' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
-                        @click="setTab('policies')"
+                        :class="activeTab === 'evaluations' ? 'text-white' : 'text-slate-700 hover:text-slate-900'"
+                        @click="setTab('evaluations')"
                     >
-                        Policies/Rules
+                        Evaluations
                     </button>
                 </div>
             </div>
@@ -579,7 +572,7 @@ function changePeriod() {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <input v-model.number="row.gpa" type="number" step="0.01" min="0" max="5" class="w-24 rounded-md border border-slate-300 px-2 py-1.5" />
+                                    <input v-model.number="row.gpa" type="number" step="0.01" min="0" max="100" class="w-24 rounded-md border border-slate-300 px-2 py-1.5" />
                                 </td>
                                 <td class="px-4 py-3">
                                     <input v-model="row.remarks" type="text" class="w-full rounded-md border border-slate-300 px-2 py-1.5" />
@@ -597,28 +590,6 @@ function changePeriod() {
                             </tr>
                         </transition-group>
                     </table>
-                </div>
-            </section>
-
-            <section v-if="activeTab === 'policies'" class="rounded-xl border border-[#034485]/45 bg-white p-4">
-                <h2 class="text-sm font-semibold text-slate-800">Policies & Rules</h2>
-                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                        <p class="text-xs font-semibold uppercase text-slate-500">Status Flow</p>
-                        <p class="mt-1">Draft → Open → Closed. Status is auto-calculated from the date window.</p>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                        <p class="text-xs font-semibold uppercase text-slate-500">Submissions Page</p>
-                        <p class="mt-1">All student documents are reviewed in the Academic Submissions page per period.</p>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                        <p class="text-xs font-semibold uppercase text-slate-500">Evaluation Notes</p>
-                        <p class="mt-1">Add remarks for probation or ineligible outcomes for clarity and traceability.</p>
-                    </div>
-                    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                        <p class="text-xs font-semibold uppercase text-slate-500">Period History</p>
-                        <p class="mt-1">Past periods are read-only. Use Past Periods for archive review and submissions.</p>
-                    </div>
                 </div>
             </section>
 

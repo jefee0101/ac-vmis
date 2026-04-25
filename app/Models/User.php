@@ -163,6 +163,11 @@ class User extends Authenticatable
         return $this->hasMany(AcademicDocument::class, 'uploaded_by');
     }
 
+    public function reviewedAcademicDocuments()
+    {
+        return $this->hasMany(AcademicDocument::class, 'reviewed_by');
+    }
+
     public function academicEvaluations()
     {
         return $this->hasMany(AcademicEligibilityEvaluation::class, 'evaluated_by');

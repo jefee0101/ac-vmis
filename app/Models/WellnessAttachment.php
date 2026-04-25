@@ -12,7 +12,6 @@ class WellnessAttachment extends Model
     protected $fillable = [
         'wellness_log_id',
         'file_path',
-        'file_type',
         'uploaded_by',
     ];
 
@@ -26,4 +25,3 @@ class WellnessAttachment extends Model
         return $this->belongsTo(User::class, 'uploaded_by');
     }
 }
-

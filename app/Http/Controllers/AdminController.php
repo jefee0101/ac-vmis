@@ -72,7 +72,7 @@ class AdminController extends Controller
                         'attendance_rate' => $attendanceSummary['attendance_rate'],
                         'no_response' => $attendanceSummary['no_response'],
                         'expired_clearances' => $healthDistribution['expired'],
-                        'academic_at_risk' => $academicByTeam['totals']['probation'] + $academicByTeam['totals']['ineligible'],
+                        'academic_at_risk' => $academicByTeam['totals']['pending_review'] + $academicByTeam['totals']['ineligible'],
                         'pending_approvals' => $this->pendingStudentApprovalUsers()->count(),
                     ],
                     'trends' => [
@@ -678,7 +678,7 @@ class AdminController extends Controller
             'filtered' => (clone $baseQuery)->count(),
         ];
         $pendingCount = $this->pendingStudentApprovalUsers()->count();
-        $sports = Sport::query()
+        $sports = Sport::supported()
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (Sport $sport) => [
@@ -1168,12 +1168,9 @@ class AdminController extends Controller
         if (!$periodId) {
             return [
                 'rows' => [],
-                'totals' => ['eligible' => 0, 'probation' => 0, 'ineligible' => 0],
+                'totals' => ['eligible' => 0, 'pending_review' => 0, 'ineligible' => 0],
             ];
         }
-
-        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
 
         $rows = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
@@ -1182,10 +1179,10 @@ class AdminController extends Controller
             })
             ->where('e.academic_period_id', $periodId)
             ->selectRaw("COALESCE(t.team_name, 'Unassigned') as team_name")
-            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa <= ? THEN 1 ELSE 0 END) as eligible_count", [$eligibleMax])
-            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? AND e.gpa <= ? THEN 1 ELSE 0 END) as probation_count", [$eligibleMax, $probationMax])
-            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? THEN 1 ELSE 0 END) as ineligible_count", [$probationMax])
-            ->selectRaw("SUM(CASE WHEN e.gpa IS NOT NULL AND e.gpa > ? THEN 1 ELSE 0 END) as risk_count", [$eligibleMax])
+            ->selectRaw("SUM(CASE WHEN e.final_status = 'eligible' THEN 1 ELSE 0 END) as eligible_count")
+            ->selectRaw("SUM(CASE WHEN e.final_status = 'pending_review' THEN 1 ELSE 0 END) as pending_review_count")
+            ->selectRaw("SUM(CASE WHEN e.final_status = 'ineligible' THEN 1 ELSE 0 END) as ineligible_count")
+            ->selectRaw("SUM(CASE WHEN e.final_status IN ('pending_review', 'ineligible') THEN 1 ELSE 0 END) as risk_count")
             ->groupBy('team_name')
             ->orderByDesc('risk_count')
             ->orderBy('team_name')
@@ -1196,13 +1193,13 @@ class AdminController extends Controller
             'rows' => $rows->map(fn ($row) => [
                 'team_name' => $row->team_name,
                 'eligible' => (int) $row->eligible_count,
-                'probation' => (int) $row->probation_count,
+                'pending_review' => (int) $row->pending_review_count,
                 'ineligible' => (int) $row->ineligible_count,
-                'total' => (int) $row->eligible_count + (int) $row->probation_count + (int) $row->ineligible_count,
+                'total' => (int) $row->eligible_count + (int) $row->pending_review_count + (int) $row->ineligible_count,
             ])->values(),
             'totals' => [
                 'eligible' => (int) $rows->sum('eligible_count'),
-                'probation' => (int) $rows->sum('probation_count'),
+                'pending_review' => (int) $rows->sum('pending_review_count'),
                 'ineligible' => (int) $rows->sum('ineligible_count'),
             ],
         ];
@@ -1296,9 +1293,6 @@ class AdminController extends Controller
     {
         $today = now()->toDateString();
         $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
-        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
-
         $expired = DB::table('athlete_health_clearances as ahc')
             ->join(DB::raw('(SELECT student_id, MAX(id) as latest_id FROM athlete_health_clearances GROUP BY student_id) latest'), 'latest.latest_id', '=', 'ahc.id')
             ->join('students as s', 's.id', '=', 'ahc.student_id')
@@ -1323,9 +1317,8 @@ class AdminController extends Controller
         $academic = DB::table('academic_eligibility_evaluations as e')
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
-            ->whereNotNull('e.gpa')
-            ->where('e.gpa', '>', $eligibleMax)
-            ->orderByRaw("CASE WHEN e.gpa > {$probationMax} THEN 0 ELSE 1 END")
+            ->whereIn('e.final_status', ['pending_review', 'ineligible'])
+            ->orderByRaw("CASE WHEN e.final_status = 'ineligible' THEN 0 ELSE 1 END")
             ->orderByDesc('e.evaluated_at')
             ->limit(4)
             ->get([
@@ -1341,7 +1334,9 @@ class AdminController extends Controller
                 ) ?? 'pending') . ' academic status',
                 'action_label' => 'Evaluate',
                 'action_url' => '/academics',
-                'priority' => ($row->gpa !== null && (float) $row->gpa > $probationMax) ? 95 : 85,
+                'priority' => \App\Models\AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ) === 'ineligible' ? 95 : 85,
             ]);
 
         $pendingApprovals = $this->pendingStudentApprovalUsers()
@@ -1464,9 +1459,6 @@ class AdminController extends Controller
     {
         $today = now()->toDateString();
         $statusCaseSql = \App\Models\AthleteHealthClearance::statusCaseSql('ahc');
-        $eligibleMax = \App\Models\AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-        $probationMax = \App\Models\AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
-
         $pendingApprovals = $this->pendingStudentApprovalUsers()
             ->latest('created_at')
             ->limit(3)
@@ -1524,9 +1516,8 @@ class AdminController extends Controller
             ->join('students as s', 's.id', '=', 'e.student_id')
             ->join('users as su', 'su.id', '=', 's.user_id')
             ->when($openPeriod, fn ($query) => $query->where('e.academic_period_id', $openPeriod->id))
-            ->whereNotNull('e.gpa')
-            ->where('e.gpa', '>', $eligibleMax)
-            ->orderByRaw("CASE WHEN e.gpa > {$probationMax} THEN 0 ELSE 1 END")
+            ->whereIn('e.final_status', ['pending_review', 'ineligible'])
+            ->orderByRaw("CASE WHEN e.final_status = 'ineligible' THEN 0 ELSE 1 END")
             ->orderByDesc('e.evaluated_at')
             ->limit(3)
             ->get([
@@ -1543,7 +1534,9 @@ class AdminController extends Controller
                     $row->gpa !== null ? (float) $row->gpa : null
                 ) ?? 'PENDING') . ' academic status',
                 'meta' => $row->evaluated_at ? Carbon::parse($row->evaluated_at)->diffForHumans() : null,
-                'urgency' => ($row->gpa !== null && (float) $row->gpa > $probationMax) ? 'critical' : 'high',
+                'urgency' => \App\Models\AcademicEligibilityEvaluation::statusForGpa(
+                    $row->gpa !== null ? (float) $row->gpa : null
+                ) === 'ineligible' ? 'critical' : 'high',
                 'action_label' => 'Evaluate',
                 'action_url' => '/academics',
             ]);

@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -41,7 +42,7 @@ class CreateTeamController extends Controller
         $validated = $request->validate([
             'team_name' => 'required|string|max:255',
             'team_avatar' => 'nullable|image|max:4096',
-            'sport_id' => 'required|exists:sports,id',
+            'sport_id' => ['required', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'year' => 'required|digits:4',
             'coach_id' => 'required|exists:coaches,id',
             'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
@@ -130,7 +131,7 @@ class CreateTeamController extends Controller
         $validated = $request->validate([
             'team_name' => 'required|string|max:255',
             'team_avatar' => 'nullable|image|max:4096',
-            'sport_id' => 'required|exists:sports,id',
+            'sport_id' => ['required', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'year' => 'required|digits:4',
             'coach_id' => 'required|exists:coaches,id',
             'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
@@ -375,7 +376,7 @@ class CreateTeamController extends Controller
                 'tab' => (string) $request->input('tab', 'all-teams'),
             ],
             'options' => [
-                'sports' => Sport::query()->orderBy('name')->get(['id', 'name']),
+                'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
                 'years' => Team::query()->select('year')->whereNotNull('year')->distinct()->orderByDesc('year')->pluck('year'),
             ],
             'conflicts' => [
@@ -465,7 +466,7 @@ class CreateTeamController extends Controller
                 'direction' => $direction,
             ],
             'options' => [
-                'sports' => Sport::query()->orderBy('name')->get(['id', 'name']),
+                'sports' => Sport::supported()->orderBy('name')->get(['id', 'name']),
                 'years' => Team::query()
                     ->whereNotNull('archived_at')
                     ->select('year')
@@ -764,7 +765,8 @@ class CreateTeamController extends Controller
             ];
         }
 
-        $sports = Sport::orderBy('name')
+        $sports = Sport::supported()
+            ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn ($sport) => [
                 'id' => $sport->id,
@@ -824,9 +826,7 @@ class CreateTeamController extends Controller
         return match ($sportName) {
             'basketball' => 15,
             'volleyball' => 14,
-            'football' => 30,
-            'badminton' => 8,
-            'table tennis' => 6,
+            'soccer', 'football' => 30,
             default => 25,
         };
     }

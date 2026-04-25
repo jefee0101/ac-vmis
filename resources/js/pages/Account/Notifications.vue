@@ -18,7 +18,6 @@ defineOptions({
 const props = defineProps<{
   settings: {
     notification_email_enabled: boolean
-    notification_in_app_enabled: boolean
     notify_approvals: boolean
     notify_schedule_changes: boolean
     notify_attendance_changes: boolean
@@ -29,7 +28,6 @@ const props = defineProps<{
     wellness_injury_threshold_level: number
     theme_preference: 'system' | 'light' | 'dark'
     timezone: string
-    language: string
   }
   scope: {
     notifications: string[]
@@ -81,7 +79,6 @@ const labelMap = computed(() => {
 
 const form = useForm({
   notification_email_enabled: Boolean(props.settings?.notification_email_enabled ?? true),
-  notification_in_app_enabled: Boolean(props.settings?.notification_in_app_enabled ?? true),
   notify_approvals: Boolean(props.settings?.notify_approvals ?? true),
   notify_schedule_changes: Boolean(props.settings?.notify_schedule_changes ?? true),
   notify_attendance_changes: Boolean(props.settings?.notify_attendance_changes ?? true),
@@ -92,7 +89,6 @@ const form = useForm({
   wellness_injury_threshold_level: Number(props.settings?.wellness_injury_threshold_level ?? 3),
   theme_preference: (props.settings?.theme_preference ?? 'light') as 'light' | 'dark',
   timezone: props.settings?.timezone ?? 'Asia/Manila',
-  language: props.settings?.language ?? 'en',
 })
 
 function submitSettings() {

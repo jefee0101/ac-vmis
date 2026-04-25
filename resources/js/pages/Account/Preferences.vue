@@ -19,7 +19,6 @@ defineOptions({
 const props = defineProps<{
   settings: {
     notification_email_enabled: boolean
-    notification_in_app_enabled: boolean
     notify_approvals: boolean
     notify_schedule_changes: boolean
     notify_attendance_changes: boolean
@@ -30,7 +29,6 @@ const props = defineProps<{
     wellness_injury_threshold_level: number
     theme_preference: 'system' | 'light' | 'dark'
     timezone: string
-    language: string
   }
   scope: {
     notifications: string[]
@@ -71,7 +69,6 @@ function normalizedTheme(value: string | null | undefined): 'light' | 'dark' {
 
 const form = useForm({
   notification_email_enabled: Boolean(props.settings?.notification_email_enabled ?? true),
-  notification_in_app_enabled: Boolean(props.settings?.notification_in_app_enabled ?? true),
   notify_approvals: Boolean(props.settings?.notify_approvals ?? true),
   notify_schedule_changes: Boolean(props.settings?.notify_schedule_changes ?? true),
   notify_attendance_changes: Boolean(props.settings?.notify_attendance_changes ?? true),
@@ -82,7 +79,6 @@ const form = useForm({
   wellness_injury_threshold_level: Number(props.settings?.wellness_injury_threshold_level ?? 3),
   theme_preference: normalizedTheme(props.settings?.theme_preference) as 'light' | 'dark',
   timezone: props.settings?.timezone ?? 'Asia/Manila',
-  language: props.settings?.language ?? 'en',
 })
 
 watch(
@@ -164,16 +160,12 @@ function submitSettings() {
         </div>
       </section>
 
-        <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
-        <h2 class="section-title">Locale</h2>
-        <div class="mt-3 grid gap-3 md:grid-cols-2">
+      <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
+        <h2 class="section-title">Timezone</h2>
+        <div class="mt-3 grid gap-3">
           <div>
             <label class="settings-label text-slate-500 text-sm">Timezone</label>
             <input v-model="form.timezone" type="text" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </div>
-          <div>
-            <label class="settings-label text-slate-500 text-sm">Language</label>
-            <input v-model="form.language" type="text" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
           </div>
         </div>
         </section>

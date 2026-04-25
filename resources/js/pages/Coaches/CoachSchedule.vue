@@ -4,7 +4,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
-import { useSportColors } from '@/composables/useSportColors'
+import { supportedSports, useSportColors } from '@/composables/useSportColors'
 import { useUserTimezone } from '@/composables/useUserTimezone'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import 'vue-cal/style'
@@ -57,6 +57,13 @@ const { sportColor, sportTextColor } = useSportColors()
 const { timezone } = useUserTimezone()
 const deleteDialogOpen = ref(false)
 const pendingDeleteId = ref<number | null>(null)
+const sportsLegend = computed(() =>
+    supportedSports.map((sport) => ({
+        key: sport,
+        label: sport.charAt(0).toUpperCase() + sport.slice(1),
+        color: sportColor(sport),
+    }))
+)
 
 function tintHex(hex: string, amount: number) {
     const clean = hex.replace('#', '')
@@ -716,20 +723,8 @@ onBeforeUnmount(() => {
             </div>
             <div v-else-if="layout === 'calendar' && props.teams.length" key="calendar">
                 <div class="mb-3 flex flex-wrap gap-4 text-xs">
-                    <div class="flex items-center gap-1 text-slate-700">
-                        <span class="w-3 h-3 rounded bg-orange-500"></span> Basketball
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-700">
-                        <span class="w-3 h-3 rounded bg-blue-500"></span> Volleyball
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-700">
-                        <span class="w-3 h-3 rounded bg-green-500"></span> Football
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-700">
-                        <span class="w-3 h-3 rounded bg-yellow-400"></span> Badminton
-                    </div>
-                    <div class="flex items-center gap-1 text-slate-700">
-                        <span class="w-3 h-3 rounded bg-red-500"></span> Table Tennis
+                    <div v-for="sport in sportsLegend" :key="sport.key" class="flex items-center gap-1 text-slate-700">
+                        <span class="w-3 h-3 rounded" :style="{ backgroundColor: sport.color }"></span> {{ sport.label }}
                     </div>
                 </div>
                 <p class="mb-3 text-xs text-slate-500">

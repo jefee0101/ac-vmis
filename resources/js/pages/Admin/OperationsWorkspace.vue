@@ -4,7 +4,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
-import { useSportColors } from '@/composables/useSportColors'
+import { supportedSports, useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import 'vue-cal/style'
 
@@ -174,7 +174,7 @@ const quickPeriods: Array<{ key: '' | 'today' | 'week' | 'month'; label: string 
 const calendarSportFilter = ref<'all' | string>('all')
 
 const sportsLegend = computed(() =>
-    ['basketball', 'volleyball', 'football', 'badminton', 'table tennis'].map((sport) => ({
+    supportedSports.map((sport) => ({
         key: sport,
         label: sportLabel(sport),
         color: sportColor(sport),

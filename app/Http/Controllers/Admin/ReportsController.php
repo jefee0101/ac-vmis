@@ -12,6 +12,7 @@ use App\Models\Team;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -528,7 +529,7 @@ class ReportsController extends Controller
         return [
             'total_submissions' => $rows->count(),
             'eligible' => $rows->where('academic_status', 'Eligible')->count(),
-            'probation' => $rows->where('academic_status', 'Probation')->count(),
+            'pending_review' => $rows->where('academic_status', 'Pending review')->count(),
             'ineligible' => $rows->where('academic_status', 'Ineligible')->count(),
             'pending' => $rows->where('academic_status', 'Pending')->count(),
         ];
@@ -560,6 +561,7 @@ class ReportsController extends Controller
                 'p.school_year',
                 'p.term',
                 'e.gpa',
+                'e.final_status',
             ]);
 
         if (!empty($filters['period_id'])) {
@@ -580,20 +582,17 @@ class ReportsController extends Controller
             $query->whereDate('d.uploaded_at', '<=', $filters['end_date']);
         }
         if (!empty($filters['academic_status'])) {
-            $eligibleMax = AcademicEligibilityEvaluation::GPA_ELIGIBLE_MAX;
-            $probationMax = AcademicEligibilityEvaluation::GPA_PROBATION_MAX;
-
             if ($filters['academic_status'] === 'pending') {
                 $query->where(function ($q) {
                     $q->whereNull('e.id')
                         ->orWhereNull('e.gpa');
                 });
             } elseif ($filters['academic_status'] === 'eligible') {
-                $query->whereNotNull('e.gpa')->where('e.gpa', '<=', $eligibleMax);
-            } elseif ($filters['academic_status'] === 'probation') {
-                $query->whereNotNull('e.gpa')->where('e.gpa', '>', $eligibleMax)->where('e.gpa', '<=', $probationMax);
+                $query->where('e.final_status', 'eligible');
+            } elseif ($filters['academic_status'] === 'pending_review') {
+                $query->where('e.final_status', 'pending_review');
             } elseif ($filters['academic_status'] === 'ineligible') {
-                $query->whereNotNull('e.gpa')->where('e.gpa', '>', $probationMax);
+                $query->where('e.final_status', 'ineligible');
             }
         }
 
@@ -610,9 +609,11 @@ class ReportsController extends Controller
                     'document_type' => $row->document_type,
                     'uploaded_at' => $row->uploaded_at,
                     'period_label' => trim(($row->school_year ?? '') . ' ' . $this->termLabel((string) ($row->term ?? ''))),
-                    'academic_status' => ucfirst((string) (AcademicEligibilityEvaluation::statusForGpa(
-                        $row->gpa !== null ? (float) $row->gpa : null
-                    ) ?? 'pending')),
+                    'academic_status' => ucfirst(str_replace('_', ' ', (string) (
+                        $row->final_status ?: AcademicEligibilityEvaluation::statusForGpa(
+                            $row->gpa !== null ? (float) $row->gpa : null
+                        ) ?? 'pending'
+                    ))),
                     'gpa' => $row->gpa !== null ? number_format((float) $row->gpa, 2) : 'N/A',
                 ];
             })
@@ -727,10 +728,10 @@ class ReportsController extends Controller
     {
         $validated = $request->validate([
             'period_id' => 'nullable|integer|exists:academic_periods,id',
-            'sport_id' => 'nullable|integer|exists:sports,id',
+            'sport_id' => ['nullable', 'integer', Rule::exists('sports', 'id')->where(fn ($query) => $query->whereIn('name', Sport::supportedNames()))],
             'team_id' => 'nullable|integer|exists:teams,id',
             'status' => 'nullable|in:present,absent,late,excused,no_response',
-            'academic_status' => 'nullable|in:eligible,probation,ineligible,pending',
+            'academic_status' => 'nullable|in:eligible,pending_review,ineligible,pending',
             'clearance_status' => 'nullable|in:fit,fit_with_restrictions,not_fit,expired',
             'player_status' => 'nullable|in:active,injured,suspended',
             'review_state' => 'nullable|in:reviewed,unreviewed',
@@ -799,6 +800,7 @@ class ReportsController extends Controller
     private function sportOptions()
     {
         return Sport::query()
+            ->supported()
             ->orderBy('name')
             ->get(['id', 'name'])
             ->values();
@@ -844,7 +846,7 @@ class ReportsController extends Controller
     {
         return [
             ['value' => 'eligible', 'label' => 'Eligible'],
-            ['value' => 'probation', 'label' => 'Probation'],
+            ['value' => 'pending_review', 'label' => 'Pending Review'],
             ['value' => 'ineligible', 'label' => 'Ineligible'],
             ['value' => 'pending', 'label' => 'Pending'],
         ];

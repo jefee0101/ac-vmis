@@ -88,7 +88,7 @@ watch(
 
 const sportPositionMap: Record<string, string[]> = {
     basketball: ['Point Guard', 'Shooting Guard', 'Small Forward', 'Power Forward', 'Center'],
-    football: [
+    soccer: [
         'Goalkeeper',
         'Right Back',
         'Left Back',
@@ -101,8 +101,6 @@ const sportPositionMap: Record<string, string[]> = {
         'Striker',
     ],
     volleyball: ['Setter', 'Outside Hitter', 'Opposite Hitter', 'Middle Blocker', 'Libero', 'Defensive Specialist'],
-    badminton: ['Singles Player', 'Doubles Specialist', 'Mixed Doubles Specialist'],
-    'table tennis': ['Singles Player', 'Doubles Player', 'Mixed Doubles Player'],
 }
 
 function positionsForSport(): string[] {

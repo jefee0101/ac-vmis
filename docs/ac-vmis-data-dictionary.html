@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AC-VMIS Data Dictionary</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111827; margin: 32px; line-height: 1.45; }
+    h1 { font-size: 24px; margin-bottom: 10px; }
+    h2 { font-size: 18px; margin-top: 28px; margin-bottom: 10px; color: #0f172a; }
+    p { margin: 0 0 16px; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 24px; table-layout: fixed; }
+    th, td { border: 1px solid #374151; padding: 8px 10px; vertical-align: top; text-align: left; word-wrap: break-word; }
+    th { background: #e5e7eb; font-weight: 700; }
+    code { font-family: "Courier New", monospace; font-size: 0.95em; background: #f3f4f6; padding: 1px 4px; }
+  </style>
+</head>
+<body>
+<h1>AC-VMIS Data Dictionary</h1>
+<p>This document presents the current AC-VMIS database structure as of April 25, 2026. The <code>Constraints</code> column summarizes each field&#039;s primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.</p>
+<p>The academic eligibility module now uses an OCR-assisted workflow centered on uploaded documents, OCR runs, parsed summaries, and final eligibility evaluations with administrator override support.</p>
+<h2><code>academic_documents</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic document record.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student to whom the academic document belongs.</td>
+    </tr>
+    <tr>
+      <td><code>document_type_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_document_types.id</code>; not null</td>
+      <td>Identifies the type classification assigned to the academic document.</td>
+    </tr>
+    <tr>
+      <td><code>academic_period_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_periods.id</code>; nullable only for registration-context documents</td>
+      <td>Identifies the academic period associated with the document; required for period submissions and empty for registration documents.</td>
+    </tr>
+    <tr>
+      <td><code>file_path</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the file location of the uploaded academic document.</td>
+    </tr>
+    <tr>
+      <td><code>uploaded_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who uploaded the document.</td>
+    </tr>
+    <tr>
+      <td><code>uploaded_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the document was uploaded.</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores supplementary remarks regarding the document.</td>
+    </tr>
+    <tr>
+      <td><code>review_status</code></td>
+      <td><code>enum(&amp;#039;pending&amp;#039;,&amp;#039;auto_processed&amp;#039;,&amp;#039;needs_review&amp;#039;,&amp;#039;reviewed&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;pending&amp;#039;</code></td>
+      <td>Indicates whether the document is waiting for processing, system-classified, waiting for human action, or explicitly reviewed by an administrator.</td>
+    </tr>
+    <tr>
+      <td><code>reviewed_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the administrator who manually reviewed the document.</td>
+    </tr>
+    <tr>
+      <td><code>reviewed_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time of manual human review.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_document_ocr_runs</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the OCR processing run.</td>
+    </tr>
+    <tr>
+      <td><code>academic_document_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_documents.id</code>; not null</td>
+      <td>Identifies the academic document processed during the OCR run.</td>
+    </tr>
+    <tr>
+      <td><code>ocr_engine</code></td>
+      <td><code>varchar(50)</code></td>
+      <td>Not null</td>
+      <td>Stores the name of the OCR engine used for processing.</td>
+    </tr>
+    <tr>
+      <td><code>ocr_engine_version</code></td>
+      <td><code>varchar(50)</code></td>
+      <td>Nullable</td>
+      <td>Stores the version of the OCR engine used for processing.</td>
+    </tr>
+    <tr>
+      <td><code>run_status</code></td>
+      <td><code>enum(&amp;#039;pending&amp;#039;,&amp;#039;processed&amp;#039;,&amp;#039;failed&amp;#039;,&amp;#039;needs_review&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;pending&amp;#039;</code></td>
+      <td>Indicates the processing outcome or current state of the OCR run.</td>
+    </tr>
+    <tr>
+      <td><code>raw_text</code></td>
+      <td><code>longtext</code></td>
+      <td>Nullable</td>
+      <td>Stores the raw text extracted from the document.</td>
+    </tr>
+    <tr>
+      <td><code>mean_confidence</code></td>
+      <td><code>decimal(5,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the average OCR confidence score for the processed document.</td>
+    </tr>
+    <tr>
+      <td><code>processed_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when OCR processing was completed.</td>
+    </tr>
+    <tr>
+      <td><code>error_message</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores the error details when the OCR run fails.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_document_parsed_summaries</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the parsed summary record.</td>
+    </tr>
+    <tr>
+      <td><code>academic_document_ocr_run_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_document_ocr_runs.id</code>; not null; unique</td>
+      <td>Identifies the OCR run to which the parsed summary belongs.</td>
+    </tr>
+    <tr>
+      <td><code>gwa</code></td>
+      <td><code>decimal(4,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the general weighted average extracted from the document.</td>
+    </tr>
+    <tr>
+      <td><code>total_units</code></td>
+      <td><code>decimal(6,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the total number of academic units extracted from the document.</td>
+    </tr>
+    <tr>
+      <td><code>parser_status</code></td>
+      <td><code>enum(&amp;#039;pending&amp;#039;,&amp;#039;parsed&amp;#039;,&amp;#039;failed&amp;#039;,&amp;#039;needs_review&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;pending&amp;#039;</code></td>
+      <td>Indicates the parsing outcome or current state of the summary extraction process.</td>
+    </tr>
+    <tr>
+      <td><code>parser_confidence</code></td>
+      <td><code>decimal(5,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the confidence score for the parsed summary.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_document_types</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic document type.</td>
+    </tr>
+    <tr>
+      <td><code>context</code></td>
+      <td><code>enum(&amp;#039;registration&amp;#039;,&amp;#039;period_submission&amp;#039;)</code></td>
+      <td>Not null; part of unique combination with <code>code</code></td>
+      <td>Indicates the business context in which the document type is used.</td>
+    </tr>
+    <tr>
+      <td><code>code</code></td>
+      <td><code>varchar(50)</code></td>
+      <td>Not null; part of unique combination with <code>context</code></td>
+      <td>Stores the machine-readable code of the document type.</td>
+    </tr>
+    <tr>
+      <td><code>label</code></td>
+      <td><code>varchar(120)</code></td>
+      <td>Not null</td>
+      <td>Stores the descriptive name of the document type.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_eligibility_evaluations</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic eligibility evaluation record.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null; part of unique combination with <code>academic_period_id</code></td>
+      <td>Identifies the student being evaluated.</td>
+    </tr>
+    <tr>
+      <td><code>academic_period_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_periods.id</code>; not null; part of unique combination with <code>student_id</code></td>
+      <td>Identifies the academic period for which eligibility is evaluated.</td>
+    </tr>
+    <tr>
+      <td><code>document_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_documents.id</code>; nullable</td>
+      <td>Identifies the supporting academic document used in the evaluation.</td>
+    </tr>
+    <tr>
+      <td><code>academic_document_ocr_run_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_document_ocr_runs.id</code>; nullable</td>
+      <td>Identifies the OCR run used as the basis of the evaluation, when applicable.</td>
+    </tr>
+    <tr>
+      <td><code>gpa</code></td>
+      <td><code>decimal(4,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the GPA or equivalent rating used during evaluation.</td>
+    </tr>
+    <tr>
+      <td><code>evaluation_source</code></td>
+      <td><code>enum(&amp;#039;manual&amp;#039;,&amp;#039;rule_based&amp;#039;,&amp;#039;rule_based_reviewed&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;manual&amp;#039;</code></td>
+      <td>Indicates whether the evaluation was produced manually or through rule-based processing.</td>
+    </tr>
+    <tr>
+      <td><code>final_status</code></td>
+      <td><code>enum(&amp;#039;eligible&amp;#039;,&amp;#039;pending_review&amp;#039;,&amp;#039;ineligible&amp;#039;)</code></td>
+      <td>Nullable</td>
+      <td>Stores the final eligibility outcome assigned to the student.</td>
+    </tr>
+    <tr>
+      <td><code>review_required</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>0</code></td>
+      <td>Indicates whether the evaluation requires additional human review.</td>
+    </tr>
+    <tr>
+      <td><code>evaluated_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who finalized or recorded the evaluation.</td>
+    </tr>
+    <tr>
+      <td><code>evaluated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the evaluation was completed.</td>
+    </tr>
+    <tr>
+      <td><code>remarks</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores remarks or explanatory notes regarding the evaluation.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_holds</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic hold record.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student subject to the hold.</td>
+    </tr>
+    <tr>
+      <td><code>source_period_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_periods.id</code>; nullable</td>
+      <td>Identifies the academic period from which the hold originated.</td>
+    </tr>
+    <tr>
+      <td><code>reason</code></td>
+      <td><code>enum(&amp;#039;missing_submissions&amp;#039;,&amp;#039;legacy_student_status&amp;#039;,&amp;#039;manual_hold&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Stores the formal reason for placing the hold.</td>
+    </tr>
+    <tr>
+      <td><code>status</code></td>
+      <td><code>enum(&amp;#039;suspended&amp;#039;,&amp;#039;unenrolled&amp;#039;,&amp;#039;resolved&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Indicates the current state of the academic hold.</td>
+    </tr>
+    <tr>
+      <td><code>started_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the hold took effect.</td>
+    </tr>
+    <tr>
+      <td><code>resolved_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the hold was resolved.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_periods</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic period.</td>
+    </tr>
+    <tr>
+      <td><code>school_year</code></td>
+      <td><code>varchar(9)</code></td>
+      <td>Not null; part of unique combination with <code>term</code></td>
+      <td>Stores the school year designation of the academic period.</td>
+    </tr>
+    <tr>
+      <td><code>term</code></td>
+      <td><code>enum(&amp;#039;1st_sem&amp;#039;,&amp;#039;2nd_sem&amp;#039;,&amp;#039;summer&amp;#039;)</code></td>
+      <td>Not null; part of unique combination with <code>school_year</code></td>
+      <td>Stores the academic term within the school year.</td>
+    </tr>
+    <tr>
+      <td><code>starts_on</code></td>
+      <td><code>date</code></td>
+      <td>Not null</td>
+      <td>Stores the official start date of the academic period.</td>
+    </tr>
+    <tr>
+      <td><code>ends_on</code></td>
+      <td><code>date</code></td>
+      <td>Not null</td>
+      <td>Stores the official end date of the academic period.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>academic_period_messages</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the academic period message.</td>
+    </tr>
+    <tr>
+      <td><code>academic_period_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>academic_periods.id</code>; not null</td>
+      <td>Identifies the academic period to which the message belongs.</td>
+    </tr>
+    <tr>
+      <td><code>message</code></td>
+      <td><code>text</code></td>
+      <td>Not null</td>
+      <td>Stores the announcement or message content for the academic period.</td>
+    </tr>
+    <tr>
+      <td><code>published_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the message was published.</td>
+    </tr>
+    <tr>
+      <td><code>created_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who created the message.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>account_action_logs</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the account action log entry.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; not null</td>
+      <td>Identifies the user account affected by the action.</td>
+    </tr>
+    <tr>
+      <td><code>admin_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the administrator who performed the action.</td>
+    </tr>
+    <tr>
+      <td><code>action</code></td>
+      <td><code>varchar(80)</code></td>
+      <td>Not null</td>
+      <td>Stores the specific administrative action performed on the account.</td>
+    </tr>
+    <tr>
+      <td><code>remarks</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores remarks explaining the recorded action.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>admin_invites</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the administrative invitation record.</td>
+    </tr>
+    <tr>
+      <td><code>email</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the email address of the invited administrator.</td>
+    </tr>
+    <tr>
+      <td><code>token_hash</code></td>
+      <td><code>varchar(64)</code></td>
+      <td>Unique; not null</td>
+      <td>Stores the hashed invitation token used for secure verification.</td>
+    </tr>
+    <tr>
+      <td><code>created_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; not null</td>
+      <td>Identifies the user who generated the invitation.</td>
+    </tr>
+    <tr>
+      <td><code>expires_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Not null; default <code>current_timestamp()</code></td>
+      <td>Stores the expiration date and time of the invitation.</td>
+    </tr>
+    <tr>
+      <td><code>used_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the invitation was used.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>announcement_events</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the announcement event.</td>
+    </tr>
+    <tr>
+      <td><code>title</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the title of the announcement.</td>
+    </tr>
+    <tr>
+      <td><code>message</code></td>
+      <td><code>text</code></td>
+      <td>Not null</td>
+      <td>Stores the content body of the announcement.</td>
+    </tr>
+    <tr>
+      <td><code>type</code></td>
+      <td><code>enum(&amp;#039;approval&amp;#039;,&amp;#039;general&amp;#039;,&amp;#039;academic&amp;#039;,&amp;#039;schedule&amp;#039;,&amp;#039;system&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;general&amp;#039;</code></td>
+      <td>Classifies the announcement according to its functional category.</td>
+    </tr>
+    <tr>
+      <td><code>published_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the announcement was published.</td>
+    </tr>
+    <tr>
+      <td><code>created_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who created the announcement.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>announcement_recipients</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the announcement recipient record.</td>
+    </tr>
+    <tr>
+      <td><code>event_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>announcement_events.id</code>; not null; part of unique combination with <code>user_id</code></td>
+      <td>Identifies the announcement event assigned to the recipient.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; not null; part of unique combination with <code>event_id</code></td>
+      <td>Identifies the user designated to receive the announcement.</td>
+    </tr>
+    <tr>
+      <td><code>read_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the recipient read the announcement.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>athlete_health_clearances</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the athlete health clearance record.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student to whom the clearance applies.</td>
+    </tr>
+    <tr>
+      <td><code>clearance_date</code></td>
+      <td><code>date</code></td>
+      <td>Not null</td>
+      <td>Stores the date on which the medical clearance was issued.</td>
+    </tr>
+    <tr>
+      <td><code>valid_until</code></td>
+      <td><code>date</code></td>
+      <td>Nullable</td>
+      <td>Stores the date until which the clearance remains valid.</td>
+    </tr>
+    <tr>
+      <td><code>physician_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the name of the physician who issued the clearance.</td>
+    </tr>
+    <tr>
+      <td><code>conditions</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores declared medical conditions relevant to sports participation.</td>
+    </tr>
+    <tr>
+      <td><code>allergies</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores declared allergy information for the student.</td>
+    </tr>
+    <tr>
+      <td><code>restrictions</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores medical restrictions or limitations imposed on the student.</td>
+    </tr>
+    <tr>
+      <td><code>certificate_path</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the file location of the supporting medical certificate.</td>
+    </tr>
+    <tr>
+      <td><code>reviewed_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who reviewed the clearance record.</td>
+    </tr>
+    <tr>
+      <td><code>reviewed_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the clearance was reviewed.</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores additional remarks concerning the clearance.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>cache</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>key</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Primary key; not null</td>
+      <td>Stores the unique cache key.</td>
+    </tr>
+    <tr>
+      <td><code>value</code></td>
+      <td><code>mediumtext</code></td>
+      <td>Not null</td>
+      <td>Stores the serialized cached value.</td>
+    </tr>
+    <tr>
+      <td><code>expiration</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the cache expiration time in Unix timestamp format.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>cache_locks</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>key</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Primary key; not null</td>
+      <td>Stores the unique cache lock key.</td>
+    </tr>
+    <tr>
+      <td><code>owner</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the identifier of the lock owner.</td>
+    </tr>
+    <tr>
+      <td><code>expiration</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the lock expiration time in Unix timestamp format.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>coaches</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the coach record.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; unique; not null</td>
+      <td>Identifies the user account linked to the coach profile.</td>
+    </tr>
+    <tr>
+      <td><code>phone_number</code></td>
+      <td><code>varchar(20)</code></td>
+      <td>Nullable</td>
+      <td>Stores the coach&#039;s contact number.</td>
+    </tr>
+    <tr>
+      <td><code>date_of_birth</code></td>
+      <td><code>date</code></td>
+      <td>Nullable</td>
+      <td>Stores the coach&#039;s date of birth.</td>
+    </tr>
+    <tr>
+      <td><code>gender</code></td>
+      <td><code>enum(&amp;#039;Male&amp;#039;,&amp;#039;Female&amp;#039;,&amp;#039;Other&amp;#039;)</code></td>
+      <td>Nullable</td>
+      <td>Stores the coach&#039;s gender.</td>
+    </tr>
+    <tr>
+      <td><code>home_address</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the coach&#039;s residential address.</td>
+    </tr>
+    <tr>
+      <td><code>coach_status</code></td>
+      <td><code>enum(&amp;#039;Active&amp;#039;,&amp;#039;Inactive&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;Active&amp;#039;</code></td>
+      <td>Indicates whether the coach profile is active or inactive.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>failed_jobs</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the failed queued job record.</td>
+    </tr>
+    <tr>
+      <td><code>uuid</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Unique; not null</td>
+      <td>Stores the globally unique identifier of the failed job.</td>
+    </tr>
+    <tr>
+      <td><code>connection</code></td>
+      <td><code>text</code></td>
+      <td>Not null</td>
+      <td>Stores the queue connection name used by the failed job.</td>
+    </tr>
+    <tr>
+      <td><code>queue</code></td>
+      <td><code>text</code></td>
+      <td>Not null</td>
+      <td>Stores the queue name from which the job was processed.</td>
+    </tr>
+    <tr>
+      <td><code>payload</code></td>
+      <td><code>longtext</code></td>
+      <td>Not null</td>
+      <td>Stores the serialized job payload.</td>
+    </tr>
+    <tr>
+      <td><code>exception</code></td>
+      <td><code>longtext</code></td>
+      <td>Not null</td>
+      <td>Stores the exception details generated by the failed job.</td>
+    </tr>
+    <tr>
+      <td><code>failed_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Not null; default <code>current_timestamp()</code></td>
+      <td>Records the date and time when the job failed.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>jobs</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the queued job record.</td>
+    </tr>
+    <tr>
+      <td><code>queue</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the queue name assigned to the job.</td>
+    </tr>
+    <tr>
+      <td><code>payload</code></td>
+      <td><code>longtext</code></td>
+      <td>Not null</td>
+      <td>Stores the serialized job payload.</td>
+    </tr>
+    <tr>
+      <td><code>attempts</code></td>
+      <td><code>tinyint(3) unsigned</code></td>
+      <td>Not null</td>
+      <td>Stores the number of processing attempts made for the job.</td>
+    </tr>
+    <tr>
+      <td><code>reserved_at</code></td>
+      <td><code>int(10) unsigned</code></td>
+      <td>Nullable</td>
+      <td>Stores the reservation time of the job in Unix timestamp format.</td>
+    </tr>
+    <tr>
+      <td><code>available_at</code></td>
+      <td><code>int(10) unsigned</code></td>
+      <td>Not null</td>
+      <td>Stores the time when the job becomes available for processing in Unix timestamp format.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>int(10) unsigned</code></td>
+      <td>Not null</td>
+      <td>Stores the record creation time in Unix timestamp format.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>job_batches</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Primary key; not null</td>
+      <td>Unique identifier of the job batch record.</td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the descriptive name of the job batch.</td>
+    </tr>
+    <tr>
+      <td><code>total_jobs</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the total number of jobs included in the batch.</td>
+    </tr>
+    <tr>
+      <td><code>pending_jobs</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the number of jobs in the batch that remain pending.</td>
+    </tr>
+    <tr>
+      <td><code>failed_jobs</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the number of failed jobs in the batch.</td>
+    </tr>
+    <tr>
+      <td><code>failed_job_ids</code></td>
+      <td><code>longtext</code></td>
+      <td>Not null</td>
+      <td>Stores the identifiers of failed jobs in serialized form.</td>
+    </tr>
+    <tr>
+      <td><code>options</code></td>
+      <td><code>mediumtext</code></td>
+      <td>Nullable</td>
+      <td>Stores serialized batch configuration options.</td>
+    </tr>
+    <tr>
+      <td><code>cancelled_at</code></td>
+      <td><code>int(11)</code></td>
+      <td>Nullable</td>
+      <td>Stores the batch cancellation time in Unix timestamp format.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the batch creation time in Unix timestamp format.</td>
+    </tr>
+    <tr>
+      <td><code>finished_at</code></td>
+      <td><code>int(11)</code></td>
+      <td>Nullable</td>
+      <td>Stores the batch completion time in Unix timestamp format.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>migrations</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>int(10) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the migration log entry.</td>
+    </tr>
+    <tr>
+      <td><code>migration</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the name of the migration file that was executed.</td>
+    </tr>
+    <tr>
+      <td><code>batch</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the batch number under which the migration was executed.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>password_reset_tokens</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>email</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Primary key; not null</td>
+      <td>Stores the email address associated with the password reset request.</td>
+    </tr>
+    <tr>
+      <td><code>token</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the password reset token.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the token was created.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>schedule_attendances</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the attendance record.</td>
+    </tr>
+    <tr>
+      <td><code>schedule_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>team_schedules.id</code>; not null; part of unique combination with <code>student_id</code></td>
+      <td>Identifies the scheduled activity for which attendance was recorded.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null; part of unique combination with <code>schedule_id</code></td>
+      <td>Identifies the student whose attendance was recorded.</td>
+    </tr>
+    <tr>
+      <td><code>status</code></td>
+      <td><code>enum(&amp;#039;present&amp;#039;,&amp;#039;absent&amp;#039;,&amp;#039;late&amp;#039;,&amp;#039;excused&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;present&amp;#039;</code></td>
+      <td>Stores the attendance outcome assigned to the student.</td>
+    </tr>
+    <tr>
+      <td><code>verification_method</code></td>
+      <td><code>enum(&amp;#039;self_response&amp;#039;,&amp;#039;qr_verified&amp;#039;,&amp;#039;manual_override&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;self_response&amp;#039;</code></td>
+      <td>Indicates the method used to verify the attendance record.</td>
+    </tr>
+    <tr>
+      <td><code>qr_token_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>schedule_qr_tokens.id</code>; nullable</td>
+      <td>Identifies the QR token used for attendance verification, when applicable.</td>
+    </tr>
+    <tr>
+      <td><code>recorded_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who recorded or updated the attendance entry.</td>
+    </tr>
+    <tr>
+      <td><code>recorded_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when attendance was recorded.</td>
+    </tr>
+    <tr>
+      <td><code>verified_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when attendance was verified.</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores supplementary remarks regarding attendance.</td>
+    </tr>
+    <tr>
+      <td><code>override_reason</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores the justification for a manual attendance override.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>schedule_qr_tokens</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the schedule QR token record.</td>
+    </tr>
+    <tr>
+      <td><code>schedule_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>team_schedules.id</code>; not null</td>
+      <td>Identifies the scheduled activity for which the QR token was issued.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student for whom the QR token was issued.</td>
+    </tr>
+    <tr>
+      <td><code>token_hash</code></td>
+      <td><code>varchar(64)</code></td>
+      <td>Not null</td>
+      <td>Stores the hashed QR token value used for secure verification.</td>
+    </tr>
+    <tr>
+      <td><code>issued_at</code></td>
+      <td><code>datetime</code></td>
+      <td>Not null</td>
+      <td>Records the date and time when the QR token was issued.</td>
+    </tr>
+    <tr>
+      <td><code>expires_at</code></td>
+      <td><code>datetime</code></td>
+      <td>Not null</td>
+      <td>Records the date and time when the QR token expires.</td>
+    </tr>
+    <tr>
+      <td><code>used_at</code></td>
+      <td><code>datetime</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the QR token was used.</td>
+    </tr>
+    <tr>
+      <td><code>used_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who consumed the token during verification.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>sessions</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Primary key; not null</td>
+      <td>Unique identifier of the application session.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Nullable</td>
+      <td>Identifies the authenticated user linked to the session, when applicable.</td>
+    </tr>
+    <tr>
+      <td><code>ip_address</code></td>
+      <td><code>varchar(45)</code></td>
+      <td>Nullable</td>
+      <td>Stores the IP address associated with the session.</td>
+    </tr>
+    <tr>
+      <td><code>user_agent</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores the client user-agent string associated with the session.</td>
+    </tr>
+    <tr>
+      <td><code>payload</code></td>
+      <td><code>longtext</code></td>
+      <td>Not null</td>
+      <td>Stores the serialized session data.</td>
+    </tr>
+    <tr>
+      <td><code>last_activity</code></td>
+      <td><code>int(11)</code></td>
+      <td>Not null</td>
+      <td>Stores the last activity time in Unix timestamp format.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>sports</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the sport record.</td>
+    </tr>
+    <tr>
+      <td><code>name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Unique; not null</td>
+      <td>Stores the official name of the sport.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>students</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the student record.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; unique; not null</td>
+      <td>Identifies the user account linked to the student profile.</td>
+    </tr>
+    <tr>
+      <td><code>student_id_number</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Unique; not null</td>
+      <td>Stores the institutional student identification number.</td>
+    </tr>
+    <tr>
+      <td><code>date_of_birth</code></td>
+      <td><code>date</code></td>
+      <td>Not null</td>
+      <td>Stores the student&#039;s date of birth.</td>
+    </tr>
+    <tr>
+      <td><code>gender</code></td>
+      <td><code>enum(&amp;#039;Male&amp;#039;,&amp;#039;Female&amp;#039;,&amp;#039;Other&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Stores the student&#039;s gender.</td>
+    </tr>
+    <tr>
+      <td><code>home_address</code></td>
+      <td><code>text</code></td>
+      <td>Not null</td>
+      <td>Stores the student&#039;s residential address.</td>
+    </tr>
+    <tr>
+      <td><code>course_or_strand</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the student&#039;s academic course or strand.</td>
+    </tr>
+    <tr>
+      <td><code>current_grade_level</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the student&#039;s current grade level or year level designation.</td>
+    </tr>
+    <tr>
+      <td><code>approval_status</code></td>
+      <td><code>enum(&amp;#039;pending&amp;#039;,&amp;#039;approved&amp;#039;,&amp;#039;rejected&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;pending&amp;#039;</code></td>
+      <td>Indicates the current approval outcome of the student registration.</td>
+    </tr>
+    <tr>
+      <td><code>student_status</code></td>
+      <td><code>enum(&amp;#039;Enrolled&amp;#039;,&amp;#039;Dropped&amp;#039;,&amp;#039;Graduated&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;Enrolled&amp;#039;</code></td>
+      <td>Indicates the current enrollment status of the student.</td>
+    </tr>
+    <tr>
+      <td><code>phone_number</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the student&#039;s contact number.</td>
+    </tr>
+    <tr>
+      <td><code>height</code></td>
+      <td><code>decimal(5,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the student&#039;s height measurement.</td>
+    </tr>
+    <tr>
+      <td><code>weight</code></td>
+      <td><code>decimal(5,2)</code></td>
+      <td>Nullable</td>
+      <td>Stores the student&#039;s weight measurement.</td>
+    </tr>
+    <tr>
+      <td><code>emergency_contact_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the name of the student&#039;s emergency contact person.</td>
+    </tr>
+    <tr>
+      <td><code>emergency_contact_relationship</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the relationship of the emergency contact to the student.</td>
+    </tr>
+    <tr>
+      <td><code>emergency_contact_phone</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the contact number of the emergency contact person.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>student_approval_histories</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the student approval history entry.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student whose approval decision was recorded.</td>
+    </tr>
+    <tr>
+      <td><code>admin_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the administrator who made the decision.</td>
+    </tr>
+    <tr>
+      <td><code>decision</code></td>
+      <td><code>enum(&amp;#039;approved&amp;#039;,&amp;#039;rejected&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Stores the approval decision applied to the student.</td>
+    </tr>
+    <tr>
+      <td><code>remarks</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores remarks explaining the decision.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>teams</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the team record.</td>
+    </tr>
+    <tr>
+      <td><code>team_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the official name of the team.</td>
+    </tr>
+    <tr>
+      <td><code>team_avatar</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the file location of the team avatar image.</td>
+    </tr>
+    <tr>
+      <td><code>sport_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>sports.id</code>; nullable</td>
+      <td>Identifies the sport to which the team belongs.</td>
+    </tr>
+    <tr>
+      <td><code>year</code></td>
+      <td><code>year(4)</code></td>
+      <td>Nullable</td>
+      <td>Stores the year associated with the team roster or season.</td>
+    </tr>
+    <tr>
+      <td><code>description</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores a description of the team.</td>
+    </tr>
+    <tr>
+      <td><code>archived_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the team was archived.</td>
+    </tr>
+    <tr>
+      <td><code>archived_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who archived the team record.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>team_players</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the team-player assignment record.</td>
+    </tr>
+    <tr>
+      <td><code>team_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>teams.id</code>; not null; part of unique combination with <code>student_id</code></td>
+      <td>Identifies the team to which the student is assigned.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null; part of unique combination with <code>team_id</code></td>
+      <td>Identifies the student assigned as a player.</td>
+    </tr>
+    <tr>
+      <td><code>jersey_number</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the jersey number assigned to the player.</td>
+    </tr>
+    <tr>
+      <td><code>athlete_position</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the player&#039;s assigned position within the team.</td>
+    </tr>
+    <tr>
+      <td><code>player_status</code></td>
+      <td><code>enum(&amp;#039;active&amp;#039;,&amp;#039;injured&amp;#039;,&amp;#039;suspended&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;active&amp;#039;</code></td>
+      <td>Indicates the player&#039;s current participation status.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>team_schedules</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the team schedule record.</td>
+    </tr>
+    <tr>
+      <td><code>team_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>teams.id</code>; not null</td>
+      <td>Identifies the team to which the schedule belongs.</td>
+    </tr>
+    <tr>
+      <td><code>title</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the title or subject of the scheduled activity.</td>
+    </tr>
+    <tr>
+      <td><code>type</code></td>
+      <td><code>enum(&amp;#039;practice&amp;#039;,&amp;#039;game&amp;#039;,&amp;#039;meeting&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Classifies the scheduled activity by type.</td>
+    </tr>
+    <tr>
+      <td><code>venue</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the venue of the scheduled activity.</td>
+    </tr>
+    <tr>
+      <td><code>start_time</code></td>
+      <td><code>datetime</code></td>
+      <td>Not null</td>
+      <td>Records the start date and time of the activity.</td>
+    </tr>
+    <tr>
+      <td><code>end_time</code></td>
+      <td><code>datetime</code></td>
+      <td>Not null</td>
+      <td>Records the end date and time of the activity.</td>
+    </tr>
+    <tr>
+      <td><code>notes</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores supplementary details regarding the scheduled activity.</td>
+    </tr>
+    <tr>
+      <td><code>qr_window_minutes</code></td>
+      <td><code>smallint(5) unsigned</code></td>
+      <td>Not null; default <code>20</code></td>
+      <td>Stores the attendance QR validity window in minutes.</td>
+    </tr>
+    <tr>
+      <td><code>qr_rotation_seconds</code></td>
+      <td><code>smallint(5) unsigned</code></td>
+      <td>Not null; default <code>25</code></td>
+      <td>Stores the QR token rotation interval in seconds.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>team_staff_assignments</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the team staff assignment record.</td>
+    </tr>
+    <tr>
+      <td><code>team_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>teams.id</code>; not null</td>
+      <td>Identifies the team receiving the staff assignment.</td>
+    </tr>
+    <tr>
+      <td><code>coach_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>coaches.id</code>; not null</td>
+      <td>Identifies the coach assigned to the team.</td>
+    </tr>
+    <tr>
+      <td><code>role</code></td>
+      <td><code>enum(&amp;#039;head&amp;#039;,&amp;#039;assistant&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Stores the staff role performed by the coach within the team.</td>
+    </tr>
+    <tr>
+      <td><code>starts_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the assignment became effective.</td>
+    </tr>
+    <tr>
+      <td><code>ends_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the assignment ended.</td>
+    </tr>
+    <tr>
+      <td><code>created_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who created the assignment.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>users</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the user account.</td>
+    </tr>
+    <tr>
+      <td><code>first_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the user&#039;s given name.</td>
+    </tr>
+    <tr>
+      <td><code>middle_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the user&#039;s middle name.</td>
+    </tr>
+    <tr>
+      <td><code>last_name</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the user&#039;s family name.</td>
+    </tr>
+    <tr>
+      <td><code>email</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Unique; not null</td>
+      <td>Stores the user&#039;s email address used for authentication and communication.</td>
+    </tr>
+    <tr>
+      <td><code>email_verified_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when the email address was verified.</td>
+    </tr>
+    <tr>
+      <td><code>password</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the hashed password of the user account.</td>
+    </tr>
+    <tr>
+      <td><code>must_change_password</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>0</code></td>
+      <td>Indicates whether the user is required to change the password on the next login.</td>
+    </tr>
+    <tr>
+      <td><code>role</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the access role assigned to the user.</td>
+    </tr>
+    <tr>
+      <td><code>account_state</code></td>
+      <td><code>enum(&amp;#039;active&amp;#039;,&amp;#039;deactivated&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;active&amp;#039;</code></td>
+      <td>Indicates whether the user account is active or deactivated.</td>
+    </tr>
+    <tr>
+      <td><code>avatar</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Nullable</td>
+      <td>Stores the file location of the user&#039;s profile image.</td>
+    </tr>
+    <tr>
+      <td><code>remember_token</code></td>
+      <td><code>varchar(100)</code></td>
+      <td>Nullable</td>
+      <td>Stores the persistent authentication token for session recall.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>user_settings</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the user settings record.</td>
+    </tr>
+    <tr>
+      <td><code>user_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; not null</td>
+      <td>Identifies the user to whom the settings apply.</td>
+    </tr>
+    <tr>
+      <td><code>notification_email_enabled</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether email notifications are enabled for the user.</td>
+    </tr>
+    <tr>
+      <td><code>notify_approvals</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether approval-related notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_schedule_changes</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether schedule change notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_attendance_changes</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether attendance-related notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_wellness_alerts</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether wellness alert notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_academic_alerts</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether academic alert notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_attendance_exceptions</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether attendance exception notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>notify_wellness_injury_threshold</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>1</code></td>
+      <td>Indicates whether injury-threshold notifications are enabled.</td>
+    </tr>
+    <tr>
+      <td><code>wellness_injury_threshold_level</code></td>
+      <td><code>tinyint(3) unsigned</code></td>
+      <td>Not null; default <code>3</code></td>
+      <td>Stores the threshold level used for wellness injury alerts.</td>
+    </tr>
+    <tr>
+      <td><code>theme_preference</code></td>
+      <td><code>varchar(20)</code></td>
+      <td>Not null; default <code>&amp;#039;system&amp;#039;</code></td>
+      <td>Stores the user&#039;s preferred application theme.</td>
+    </tr>
+    <tr>
+      <td><code>timezone</code></td>
+      <td><code>varchar(60)</code></td>
+      <td>Not null; default <code>&amp;#039;Asia/Manila&amp;#039;</code></td>
+      <td>Stores the user&#039;s preferred time zone.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>wellness_attachments</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the wellness attachment record.</td>
+    </tr>
+    <tr>
+      <td><code>wellness_log_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>wellness_logs.id</code>; not null</td>
+      <td>Identifies the wellness log to which the attachment belongs.</td>
+    </tr>
+    <tr>
+      <td><code>file_path</code></td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null</td>
+      <td>Stores the file location of the attachment.</td>
+    </tr>
+    <tr>
+      <td><code>uploaded_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; nullable</td>
+      <td>Identifies the user who uploaded the attachment.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+<h2><code>wellness_logs</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th>Field Name</th>
+      <th>Data Type</th>
+      <th>Constraints</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Primary key; auto-increment; not null</td>
+      <td>Unique identifier of the wellness log record.</td>
+    </tr>
+    <tr>
+      <td><code>student_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>students.id</code>; not null</td>
+      <td>Identifies the student whose wellness status was recorded.</td>
+    </tr>
+    <tr>
+      <td><code>schedule_id</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>team_schedules.id</code>; nullable</td>
+      <td>Identifies the related schedule entry, when the log is tied to a scheduled activity.</td>
+    </tr>
+    <tr>
+      <td><code>logged_by</code></td>
+      <td><code>bigint(20) unsigned</code></td>
+      <td>Foreign key to <code>users.id</code>; not null</td>
+      <td>Identifies the user who recorded the wellness log.</td>
+    </tr>
+    <tr>
+      <td><code>log_date</code></td>
+      <td><code>date</code></td>
+      <td>Not null</td>
+      <td>Stores the date covered by the wellness log entry.</td>
+    </tr>
+    <tr>
+      <td><code>injury_observed</code></td>
+      <td><code>tinyint(1)</code></td>
+      <td>Not null; default <code>0</code></td>
+      <td>Indicates whether an injury was observed.</td>
+    </tr>
+    <tr>
+      <td><code>injury_notes</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores notes describing the observed injury.</td>
+    </tr>
+    <tr>
+      <td><code>fatigue_level</code></td>
+      <td><code>tinyint(3) unsigned</code></td>
+      <td>Not null</td>
+      <td>Stores the recorded fatigue level of the student.</td>
+    </tr>
+    <tr>
+      <td><code>performance_condition</code></td>
+      <td><code>enum(&amp;#039;excellent&amp;#039;,&amp;#039;good&amp;#039;,&amp;#039;fair&amp;#039;,&amp;#039;poor&amp;#039;)</code></td>
+      <td>Not null</td>
+      <td>Stores the assessed performance condition of the student.</td>
+    </tr>
+    <tr>
+      <td><code>remarks</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores supplementary remarks regarding the wellness record.</td>
+    </tr>
+    <tr>
+      <td><code>created_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was created.</td>
+    </tr>
+    <tr>
+      <td><code>updated_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Timestamp indicating when the record was last updated.</td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>

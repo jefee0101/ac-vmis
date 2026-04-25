@@ -130,6 +130,9 @@ return new class extends Migration
                 "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ? LIMIT 1",
                 [$table, $indexName]
             ));
+        } elseif ($driver === 'sqlite') {
+            $exists = collect(DB::select("PRAGMA index_list('{$table}')"))
+                ->contains(fn ($row) => ($row->name ?? null) === $indexName);
         }
 
         if (!$exists) {
@@ -150,12 +153,17 @@ return new class extends Migration
                 "SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ? LIMIT 1",
                 [$table, $indexName]
             ));
+        } elseif ($driver === 'sqlite') {
+            $exists = collect(DB::select("PRAGMA index_list('{$table}')"))
+                ->contains(fn ($row) => ($row->name ?? null) === $indexName);
         }
 
         if ($exists) {
             if (in_array($driver, ['mysql', 'mariadb'], true)) {
                 DB::statement("DROP INDEX `{$indexName}` ON `{$table}`");
             } elseif ($driver === 'pgsql') {
+                DB::statement("DROP INDEX IF EXISTS {$indexName}");
+            } elseif ($driver === 'sqlite') {
                 DB::statement("DROP INDEX IF EXISTS {$indexName}");
             }
         }
