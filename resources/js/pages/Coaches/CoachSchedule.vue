@@ -45,7 +45,7 @@ const pendingResolve = ref<any>(null)
 // Form state
 const form = ref({
     title: '',
-    type: 'Practice',
+    type: 'practice',
     venue: '',
     start_time: '',
     end_time: '',
@@ -481,7 +481,7 @@ function duplicateSchedule(item: any) {
     modalMode.value = 'form'
     form.value = {
         title: item.title ?? '',
-        type: item.type ?? 'Practice',
+        type: String(item.type ?? 'practice').toLowerCase(),
         venue: item.venue ?? '',
         start_time: toLocalInput(toMySQLLocal(new Date(item.start))),
         end_time: toLocalInput(toMySQLLocal(new Date(item.end))),
@@ -525,7 +525,7 @@ function closeModal() {
 function resetForm() {
     form.value = {
         title: '',
-        type: 'Practice',
+        type: 'practice',
         venue: '',
         start_time: '',
         end_time: '',
@@ -854,9 +854,9 @@ onBeforeUnmount(() => {
                                 v-model="form.type"
                                 class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-100"
                             >
-                                <option>Practice</option>
-                                <option>Game</option>
-                                <option>Meeting</option>
+                                <option value="practice">Practice</option>
+                                <option value="game">Game</option>
+                                <option value="meeting">Meeting</option>
                             </select>
                         </div>
 

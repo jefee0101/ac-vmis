@@ -13,6 +13,7 @@ use App\Models\TeamPlayer;
 use App\Models\Student;
 use App\Services\SystemNotificationService;
 use Carbon\Carbon;
+use Illuminate\Validation\Rule;
 
 class CoachScheduleController extends Controller
 {
@@ -123,12 +124,14 @@ class CoachScheduleController extends Controller
         $validated = $request->validate([
             'team_id'    => 'nullable|integer',
             'title'      => 'required|string|max:255',
-            'type'       => 'required|string|max:50',
+            'type'       => ['required', 'string', 'max:50', Rule::in(['practice', 'game', 'meeting', 'Practice', 'Game', 'Meeting'])],
             'venue'      => 'required|string|max:255',
             'start_time' => 'required|date',
             'end_time'   => 'required|date|after:start_time',
             'notes'      => 'nullable|string',
         ]);
+
+        $validated['type'] = strtolower(trim((string) $validated['type']));
 
         $coach = $request->user()?->coach;
 
@@ -189,12 +192,16 @@ class CoachScheduleController extends Controller
         $validated = $request->validate([
             'team_id' => 'nullable|integer',
             'title' => 'sometimes|string|max:255',
-            'type' => 'sometimes|string|max:50',
+            'type' => ['sometimes', 'string', 'max:50', Rule::in(['practice', 'game', 'meeting', 'Practice', 'Game', 'Meeting'])],
             'venue' => 'sometimes|string|max:255',
             'start_time' => 'sometimes|date',
             'end_time' => 'sometimes|date|after:start_time',
             'notes' => 'nullable|string',
         ]);
+
+        if (isset($validated['type'])) {
+            $validated['type'] = strtolower(trim((string) $validated['type']));
+        }
 
         $schedule = TeamSchedule::findOrFail($id);
         $coach = $request->user()?->coach;

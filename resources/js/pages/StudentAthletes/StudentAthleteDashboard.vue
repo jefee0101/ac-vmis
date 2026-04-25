@@ -529,11 +529,13 @@ watch(mobileMenuOpen, (open) => {
                     </div>
                 </section>
 
-                <template v-if="hasDefaultSlot">
-                    <slot />
-                </template>
-                <template v-else>
-                    <div class="space-y-6">
+                <Transition name="student-content-fade" mode="out-in">
+                    <div :key="currentPath" class="student-content-stage">
+                        <template v-if="hasDefaultSlot">
+                            <slot />
+                        </template>
+                        <template v-else>
+                            <div class="space-y-6">
                         <section class="rounded-xl border border-[#034485]/35 bg-white p-5">
                             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div>
@@ -896,8 +898,10 @@ watch(mobileMenuOpen, (open) => {
                                 </div>
                             </div>
                         </section>
+                            </div>
+                        </template>
                     </div>
-                </template>
+                </Transition>
 
             </main>
 
