@@ -704,10 +704,11 @@ function printAcademicSummary() {
         <transition name="modal-fade">
             <div
                 v-if="isSubmissionModalOpen"
-                class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+                class="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
             >
-                <div class="relative w-full max-w-3xl overflow-hidden rounded-[32px] bg-white shadow-2xl">
-                    <div class="border-b border-slate-200 px-5 py-4">
+                <div class="mx-auto flex min-h-full w-full items-center justify-center">
+                    <div class="relative flex w-full max-w-3xl max-h-[calc(100vh-3rem)] flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl">
+                    <div class="shrink-0 border-b border-slate-200 px-5 py-4">
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Selected Period</p>
@@ -729,7 +730,8 @@ function printAcademicSummary() {
                         </div>
                     </div>
 
-                    <form @submit.prevent="submit" class="space-y-5 px-5 py-5">
+                    <form @submit.prevent="submit" class="flex min-h-0 flex-1 flex-col">
+                        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
                         <div class="rounded-3xl border border-[#034485]/15 bg-[#034485]/5 p-4 text-sm text-slate-600">
                             <p class="font-semibold text-slate-800">Instructions</p>
                             <p class="mt-1">
@@ -825,8 +827,10 @@ function printAcademicSummary() {
                                 <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="{ width: `${uploadProgress > 0 ? uploadProgress : 100}%` }" />
                             </div>
                         </div>
+                        </div>
 
-                        <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                        <div class="shrink-0 border-t border-slate-200 bg-white px-5 py-4">
+                        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                             <button
                                 type="button"
                                 @click="closeSubmissionModal"
@@ -844,7 +848,9 @@ function printAcademicSummary() {
                                 {{ isSubmitting ? 'Scanning document...' : 'Submit for Scan' }}
                             </button>
                         </div>
+                        </div>
                     </form>
+                </div>
                 </div>
             </div>
         </transition>
