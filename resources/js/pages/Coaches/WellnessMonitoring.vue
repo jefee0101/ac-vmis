@@ -65,7 +65,7 @@ const rowForms = ref<Record<number, FormState>>(
 
 function openSchedule(scheduleId: number) {
     selectedSchedule.value = scheduleId
-    router.get('/coach/operations', { tab: 'wellness', wellness_schedule_id: scheduleId }, {
+    router.get('/coach/wellness', { schedule_id: scheduleId }, {
         preserveScroll: true,
         preserveState: false,
         replace: true,

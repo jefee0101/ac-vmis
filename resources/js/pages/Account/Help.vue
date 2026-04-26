@@ -120,21 +120,21 @@ const helpContent = computed<HelpContent>(() => {
         },
         {
           title: 'Verify attendance',
-          description: 'Use attendance tools and QR verification to confirm participation and handle manual adjustments when necessary.',
-          href: '/coach/operations?tab=attendance',
-          cta: 'Open Attendance',
+          description: 'Open the coach schedule workspace and record attendance directly from the schedule modal once the session starts.',
+          href: '/coach/schedule',
+          cta: 'Open Schedule',
         },
         {
           title: 'Track wellness concerns',
           description: 'Log wellness updates and monitor issues that may affect athlete readiness or participation.',
-          href: '/coach/operations?tab=wellness',
+          href: '/coach/wellness',
           cta: 'Open Wellness',
         },
       ],
       faqs: [
         {
-          question: 'What if the QR attendance scan does not work?',
-          answer: 'Open the attendance screen for the active schedule, verify that the student-athlete has a valid QR token for the correct session, and use manual attendance override if the scan fails but the athlete is present.',
+          question: 'Where do I record attendance now?',
+          answer: 'Open Coach Schedule, choose the active or completed schedule, and use the attendance sheet modal to mark each athlete before saving the record.',
         },
         {
           question: 'Can I change my roster directly?',

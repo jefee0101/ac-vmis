@@ -14,8 +14,6 @@ class TeamSchedule extends Model
         'start_time',
         'end_time',
         'notes',
-        'qr_window_minutes',
-        'qr_rotation_seconds',
     ];
 
     protected $casts = [
@@ -35,10 +33,5 @@ class TeamSchedule extends Model
     public function wellnessLogs()
     {
         return $this->hasMany(WellnessLog::class, 'schedule_id');
-    }
-
-    public function qrTokens()
-    {
-        return $this->hasMany(ScheduleQrToken::class, 'schedule_id');
     }
 }

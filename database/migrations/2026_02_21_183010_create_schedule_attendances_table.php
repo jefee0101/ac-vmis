@@ -28,6 +28,8 @@ return new class extends Migration
                 'excused'
             ])->default('present');
 
+            $table->string('verification_method')->default('manual_override');
+
             // Who recorded attendance
             $table->foreignId('recorded_by')
                 ->nullable()
@@ -35,7 +37,9 @@ return new class extends Migration
                 ->nullOnDelete();
 
             $table->timestamp('recorded_at')->nullable();
+            $table->timestamp('verified_at')->nullable();
             $table->text('notes')->nullable();
+            $table->text('override_reason')->nullable();
 
             $table->timestamps();
 

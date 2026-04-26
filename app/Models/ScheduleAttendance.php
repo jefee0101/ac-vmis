@@ -11,7 +11,6 @@ class ScheduleAttendance extends Model
         'student_id',
         'status',
         'verification_method',
-        'qr_token_id',
         'recorded_by',
         'recorded_at',
         'verified_at',
@@ -43,10 +42,5 @@ class ScheduleAttendance extends Model
     public function recorder()
     {
         return $this->belongsTo(User::class, 'recorded_by');
-    }
-
-    public function qrToken()
-    {
-        return $this->belongsTo(ScheduleQrToken::class, 'qr_token_id');
     }
 }

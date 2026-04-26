@@ -217,7 +217,7 @@ class StudentAthleteController extends Controller
         if ($student && $teamIds->isNotEmpty()) {
             $pendingResponses = TeamSchedule::query()
                 ->whereIn('team_id', $teamIds)
-                ->where('start_time', '>=', $now)
+                ->whereBetween('start_time', [$lastThirtyDays, $now])
                 ->leftJoin('schedule_attendances as sa', function ($join) use ($student) {
                     $join->on('sa.schedule_id', '=', 'team_schedules.id')
                         ->where('sa.student_id', $student->id);

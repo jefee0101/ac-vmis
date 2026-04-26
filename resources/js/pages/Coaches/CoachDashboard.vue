@@ -125,14 +125,14 @@ const nextCountdown = computed(() => {
             <button
               type="button"
               class="w-full rounded-full bg-[#034485] px-4 py-2 text-sm font-semibold text-white hover:bg-[#033a70] sm:w-auto"
-              @click="goTo('/coach/operations?tab=attendance0')"
+              @click="goTo('/coach/schedule')"
             >
               Record Attendance
             </button>
             <button
               type="button"
               class="w-full rounded-full border border-[#034485]/40 px-4 py-2 text-sm font-semibold text-[#034485] hover:border-[#034485]/70 hover:bg-[#034485]/5 sm:w-auto"
-              @click="goTo('/coach/schedule0')"
+              @click="goTo('/coach/schedule')"
             >
               Create Schedule
             </button>
@@ -170,7 +170,7 @@ const nextCountdown = computed(() => {
         <div class="mt-4 grid gap-3 md:grid-cols-3">
           <button
             type="button"
-            @click="goTo('/coach/schedule0')"
+            @click="goTo('/coach/schedule')"
             class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-start gap-3">
@@ -188,7 +188,7 @@ const nextCountdown = computed(() => {
 
           <button
             type="button"
-            @click="goTo('/coach/operations?tab=attendance0')"
+            @click="goTo('/coach/schedule')"
             class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-start gap-3">
@@ -198,8 +198,8 @@ const nextCountdown = computed(() => {
                 </svg>
               </span>
               <div class="min-w-0">
-                <p class="text-sm font-semibold text-slate-900">Operations Hub</p>
-                <p class="text-xs text-slate-500">Attendance records and post-training condition entries in one workspace.</p>
+                <p class="text-sm font-semibold text-slate-900">Attendance Workflow</p>
+                <p class="text-xs text-slate-500">Open a schedule and record attendance directly from the schedule modal.</p>
                 <p v-if="safeMetrics.attendance_needs_review > 0 || safeMetrics.wellness_pending > 0" class="mt-1 text-[11px] font-semibold text-rose-600">
                   {{ safeMetrics.attendance_needs_review }} attendance records pending • {{ safeMetrics.wellness_pending }} condition records pending
                 </p>
@@ -209,7 +209,7 @@ const nextCountdown = computed(() => {
 
           <button
             type="button"
-            @click="goTo('/coach/academics0')"
+            @click="goTo('/coach/academics')"
             class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
           >
             <div class="flex items-start gap-3">
@@ -280,7 +280,7 @@ const nextCountdown = computed(() => {
 
       <div class="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.2rem)] z-30 px-4 md:hidden">
         <div class="mx-auto flex max-w-md gap-2 rounded-xl border border-[#034485]/30 bg-white/95 p-2 backdrop-blur">
-          <button type="button" class="flex-1 rounded-md bg-[#034485] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/operations?tab=attendance')">Record Attendance</button>
+          <button type="button" class="flex-1 rounded-md bg-[#034485] px-3 py-2 text-xs font-semibold text-white" @click="goTo('/coach/schedule')">Record Attendance</button>
           <button type="button" class="flex-1 rounded-md border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-[#034485]" @click="goTo('/coach/schedule')">Create Schedule</button>
         </div>
       </div>

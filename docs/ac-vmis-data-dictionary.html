@@ -17,8 +17,9 @@
 </head>
 <body>
 <h1>AC-VMIS Data Dictionary</h1>
-<p>This document presents the current AC-VMIS database structure as of April 25, 2026. The <code>Constraints</code> column summarizes each field&#039;s primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.</p>
+<p>This document presents the current AC-VMIS database structure as of April 26, 2026. The <code>Constraints</code> column summarizes each field&#039;s primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.</p>
 <p>The academic eligibility module now uses an OCR-assisted workflow centered on uploaded documents, OCR runs, parsed summaries, and final eligibility evaluations with administrator override support.</p>
+<p>Legacy development tables such as <code>account_approvals</code>, <code>announcements</code>, <code>schedule_qr_tokens</code>, <code>academic_evaluation_documents</code>, and <code>academic_document_parsed_subjects</code> are intentionally excluded because they do not represent the current production-oriented schema.</p>
 <h2><code>academic_documents</code></h2>
 <table>
   <thead>
@@ -162,6 +163,30 @@
       <td><code>decimal(5,2)</code></td>
       <td>Nullable</td>
       <td>Stores the average OCR confidence score for the processed document.</td>
+    </tr>
+    <tr>
+      <td><code>validation_status</code></td>
+      <td><code>enum(&amp;#039;pending&amp;#039;,&amp;#039;valid&amp;#039;,&amp;#039;manual_review&amp;#039;)</code></td>
+      <td>Not null; default <code>&amp;#039;pending&amp;#039;</code></td>
+      <td>Indicates the result of the post-OCR validation check applied to the extracted document data.</td>
+    </tr>
+    <tr>
+      <td><code>validation_summary</code></td>
+      <td><code>text</code></td>
+      <td>Nullable</td>
+      <td>Stores a human-readable summary of the validation outcome.</td>
+    </tr>
+    <tr>
+      <td><code>validation_flags</code></td>
+      <td><code>json</code></td>
+      <td>Nullable</td>
+      <td>Stores structured validation flags or issues detected during automated review.</td>
+    </tr>
+    <tr>
+      <td><code>validation_checked_at</code></td>
+      <td><code>timestamp</code></td>
+      <td>Nullable</td>
+      <td>Records the date and time when validation was last evaluated for the OCR run.</td>
     </tr>
     <tr>
       <td><code>processed_at</code></td>
@@ -344,7 +369,7 @@
       <td><code>final_status</code></td>
       <td><code>enum(&amp;#039;eligible&amp;#039;,&amp;#039;pending_review&amp;#039;,&amp;#039;ineligible&amp;#039;)</code></td>
       <td>Nullable</td>
-      <td>Stores the final eligibility outcome assigned to the student.</td>
+      <td>Stores the official eligibility outcome confirmed for the student after automated processing, review, or override.</td>
     </tr>
     <tr>
       <td><code>review_required</code></td>
@@ -1295,15 +1320,9 @@
     </tr>
     <tr>
       <td><code>verification_method</code></td>
-      <td><code>enum(&amp;#039;self_response&amp;#039;,&amp;#039;qr_verified&amp;#039;,&amp;#039;manual_override&amp;#039;)</code></td>
-      <td>Not null; default <code>&amp;#039;self_response&amp;#039;</code></td>
-      <td>Indicates the method used to verify the attendance record.</td>
-    </tr>
-    <tr>
-      <td><code>qr_token_id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>schedule_qr_tokens.id</code>; nullable</td>
-      <td>Identifies the QR token used for attendance verification, when applicable.</td>
+      <td><code>varchar(255)</code></td>
+      <td>Not null; default <code>&amp;#039;manual_override&amp;#039;</code></td>
+      <td>Indicates the workflow used to record the attendance entry.</td>
     </tr>
     <tr>
       <td><code>recorded_by</code></td>
@@ -1334,79 +1353,6 @@
       <td><code>text</code></td>
       <td>Nullable</td>
       <td>Stores the justification for a manual attendance override.</td>
-    </tr>
-    <tr>
-      <td><code>created_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was created.</td>
-    </tr>
-    <tr>
-      <td><code>updated_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was last updated.</td>
-    </tr>
-  </tbody>
-</table>
-<h2><code>schedule_qr_tokens</code></h2>
-<table>
-  <thead>
-    <tr>
-      <th>Field Name</th>
-      <th>Data Type</th>
-      <th>Constraints</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Primary key; auto-increment; not null</td>
-      <td>Unique identifier of the schedule QR token record.</td>
-    </tr>
-    <tr>
-      <td><code>schedule_id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>team_schedules.id</code>; not null</td>
-      <td>Identifies the scheduled activity for which the QR token was issued.</td>
-    </tr>
-    <tr>
-      <td><code>student_id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>students.id</code>; not null</td>
-      <td>Identifies the student for whom the QR token was issued.</td>
-    </tr>
-    <tr>
-      <td><code>token_hash</code></td>
-      <td><code>varchar(64)</code></td>
-      <td>Not null</td>
-      <td>Stores the hashed QR token value used for secure verification.</td>
-    </tr>
-    <tr>
-      <td><code>issued_at</code></td>
-      <td><code>datetime</code></td>
-      <td>Not null</td>
-      <td>Records the date and time when the QR token was issued.</td>
-    </tr>
-    <tr>
-      <td><code>expires_at</code></td>
-      <td><code>datetime</code></td>
-      <td>Not null</td>
-      <td>Records the date and time when the QR token expires.</td>
-    </tr>
-    <tr>
-      <td><code>used_at</code></td>
-      <td><code>datetime</code></td>
-      <td>Nullable</td>
-      <td>Records the date and time when the QR token was used.</td>
-    </tr>
-    <tr>
-      <td><code>used_by</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>users.id</code>; nullable</td>
-      <td>Identifies the user who consumed the token during verification.</td>
     </tr>
     <tr>
       <td><code>created_at</code></td>
@@ -1565,7 +1511,7 @@
       <td><code>current_grade_level</code></td>
       <td><code>varchar(255)</code></td>
       <td>Not null</td>
-      <td>Stores the student&#039;s current grade level or year level designation.</td>
+      <td>Stores the student&#039;s current grade level or year level designation as the active academic level field used by the system.</td>
     </tr>
     <tr>
       <td><code>approval_status</code></td>
@@ -1789,7 +1735,7 @@
     <tr>
       <td><code>jersey_number</code></td>
       <td><code>varchar(255)</code></td>
-      <td>Nullable</td>
+      <td>Nullable; not currently unique per team</td>
       <td>Stores the jersey number assigned to the player.</td>
     </tr>
     <tr>
@@ -1876,18 +1822,6 @@
       <td><code>text</code></td>
       <td>Nullable</td>
       <td>Stores supplementary details regarding the scheduled activity.</td>
-    </tr>
-    <tr>
-      <td><code>qr_window_minutes</code></td>
-      <td><code>smallint(5) unsigned</code></td>
-      <td>Not null; default <code>20</code></td>
-      <td>Stores the attendance QR validity window in minutes.</td>
-    </tr>
-    <tr>
-      <td><code>qr_rotation_seconds</code></td>
-      <td><code>smallint(5) unsigned</code></td>
-      <td>Not null; default <code>25</code></td>
-      <td>Stores the QR token rotation interval in seconds.</td>
     </tr>
     <tr>
       <td><code>created_at</code></td>
@@ -2087,7 +2021,7 @@
     <tr>
       <td><code>user_id</code></td>
       <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>users.id</code>; not null</td>
+      <td>Foreign key to <code>users.id</code>; unique; not null</td>
       <td>Identifies the user to whom the settings apply.</td>
     </tr>
     <tr>

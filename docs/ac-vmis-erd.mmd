@@ -51,7 +51,7 @@ erDiagram
 
     USER_SETTINGS {
         bigint id PK
-        bigint user_id FK
+        bigint user_id FK, UK
         boolean notification_email_enabled
         boolean notify_approvals
         boolean notify_schedule_changes
@@ -119,21 +119,6 @@ erDiagram
         datetime start_time
         datetime end_time
         text notes
-        smallint qr_window_minutes
-        smallint qr_rotation_seconds
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    SCHEDULE_QR_TOKENS {
-        bigint id PK
-        bigint schedule_id FK
-        bigint student_id FK
-        varchar token_hash
-        datetime issued_at
-        datetime expires_at
-        datetime used_at
-        bigint used_by FK
         timestamp created_at
         timestamp updated_at
     }
@@ -144,7 +129,6 @@ erDiagram
         bigint student_id FK
         enum status
         enum verification_method
-        bigint qr_token_id FK
         bigint recorded_by FK
         timestamp recorded_at
         timestamp verified_at
@@ -246,6 +230,10 @@ erDiagram
         enum run_status
         longtext raw_text
         decimal mean_confidence
+        enum validation_status
+        text validation_summary
+        json validation_flags
+        timestamp validation_checked_at
         timestamp processed_at
         text error_message
         timestamp created_at
@@ -357,7 +345,6 @@ erDiagram
     USERS ||--o{ ACADEMIC_PERIOD_MESSAGES : "creates"
     USERS ||--o{ ATHLETE_HEALTH_CLEARANCES : "reviews"
     USERS ||--o{ SCHEDULE_ATTENDANCES : "records"
-    USERS ||--o{ SCHEDULE_QR_TOKENS : "uses"
     USERS ||--o{ STUDENT_APPROVAL_HISTORIES : "approves or rejects"
     USERS ||--o{ TEAM_STAFF_ASSIGNMENTS : "creates"
     USERS ||--o{ TEAMS : "archives"
@@ -373,11 +360,8 @@ erDiagram
     COACHES ||--o{ TEAM_STAFF_ASSIGNMENTS : "serves in"
 
     TEAMS ||--o{ TEAM_SCHEDULES : "has"
-    TEAM_SCHEDULES ||--o{ SCHEDULE_QR_TOKENS : "generates"
-    STUDENTS ||--o{ SCHEDULE_QR_TOKENS : "receives"
     TEAM_SCHEDULES ||--o{ SCHEDULE_ATTENDANCES : "records"
     STUDENTS ||--o{ SCHEDULE_ATTENDANCES : "has"
-    SCHEDULE_QR_TOKENS ||--o{ SCHEDULE_ATTENDANCES : "verifies"
 
     STUDENTS ||--o{ WELLNESS_LOGS : "has"
     TEAM_SCHEDULES ||--o{ WELLNESS_LOGS : "contextualizes"

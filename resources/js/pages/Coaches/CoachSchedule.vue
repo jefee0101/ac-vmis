@@ -31,13 +31,39 @@ watch(
     }
 )
 
+watch(
+    () => props.schedules,
+    (items) => {
+        if (!selectedSchedule.value?.id) return
+        const refreshed = items.find((item: any) => item.id === selectedSchedule.value.id)
+        if (refreshed) {
+            selectedSchedule.value = refreshed
+        }
+    }
+)
+
 const selectedTeam = computed(() => props.teams.find(team => team.id === selectedTeamId.value) ?? null)
 
 // Modal state
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
-const modalMode = ref<'view' | 'form'>('form')
+const modalMode = ref<'view' | 'form' | 'attendance'>('form')
 const selectedSchedule = ref<any | null>(null)
+const attendanceRows = ref<Array<{
+    student_id: number
+    student_id_number: string | null
+    full_name: string
+    jersey_number: string | number | null
+    athlete_position: string | null
+    status: 'present' | 'absent' | 'late' | 'excused' | null
+    notes: string | null
+    recorded_at: string | null
+    verification_method: string | null
+}>>([])
+const attendanceLoading = ref(false)
+const attendanceSaving = ref(false)
+const attendanceError = ref<string | null>(null)
+const attendanceMessage = ref<string | null>(null)
 
 // VueCal drag creation resolver
 const pendingResolve = ref<any>(null)
@@ -269,7 +295,9 @@ function attendanceState(item: any) {
     if (item.attendance_state) return item.attendance_state
     const attendanceCount = Number(item.attendance_count ?? 0)
     const rosterCount = Number(item.roster_count ?? 0)
-    if (attendanceCount === 0) return 'not_started'
+    if (attendanceCount === 0) {
+        return scheduleStatus(item) === 'completed' ? 'pending' : 'not_started'
+    }
     if (rosterCount > 0 && attendanceCount >= rosterCount) return 'completed'
     return 'in_progress'
 }
@@ -278,7 +306,9 @@ function attendanceLabel(item: any) {
     const attendanceCount = Number(item.attendance_count ?? 0)
     const rosterCount = Number(item.roster_count ?? 0)
     if (rosterCount === 0) return attendanceCount > 0 ? `Attendance ${attendanceCount}` : 'No roster'
-    if (attendanceCount === 0) return 'No attendance'
+    if (attendanceCount === 0) {
+        return scheduleStatus(item) === 'completed' ? 'Attendance Pending' : 'Attendance Not Started'
+    }
     if (attendanceCount >= rosterCount) return `Attendance Complete ${attendanceCount}/${rosterCount}`
     return `Attendance ${attendanceCount}/${rosterCount}`
 }
@@ -287,6 +317,7 @@ function attendanceTone(item: any) {
     const state = attendanceState(item)
     if (state === 'completed') return 'bg-emerald-100 text-emerald-700'
     if (state === 'in_progress') return 'bg-amber-100 text-amber-800'
+    if (state === 'pending') return 'bg-rose-100 text-rose-700'
     return 'bg-rose-100 text-rose-700'
 }
 
@@ -298,8 +329,9 @@ function isLocked(item: any) {
 function attendanceActionLabel(item: any) {
     const status = scheduleStatus(item)
     const hasAttendance = Number(item.attendance_count ?? 0) > 0
-    if (status === 'completed') return hasAttendance ? 'View Attendance Record' : 'Record Attendance'
-    return 'Record Attendance'
+    if (status === 'upcoming') return 'Prepare Attendance'
+    if (status === 'completed') return hasAttendance ? 'Review Attendance' : 'Encode Attendance'
+    return 'Take Attendance'
 }
 
 const groupedSchedules = computed(() => {
@@ -466,11 +498,126 @@ function openViewSchedule(item: any) {
     showModal.value = true
 }
 
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
+}
+
+async function loadAttendanceRoster(scheduleId: number) {
+    attendanceLoading.value = true
+    attendanceError.value = null
+
+    try {
+        const response = await fetch(`/coach/schedules/${scheduleId}/attendance-roster`, {
+            headers: {
+                Accept: 'application/json',
+            },
+            credentials: 'same-origin',
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+            attendanceError.value = data?.message ?? 'Unable to load attendance roster.'
+            return
+        }
+
+        attendanceRows.value = Array.isArray(data?.rows)
+            ? data.rows.map((row: any) => ({
+                ...row,
+                status: row.status ?? null,
+                notes: row.notes ?? '',
+            }))
+            : []
+    } catch {
+        attendanceError.value = 'Unable to load attendance roster right now.'
+    } finally {
+        attendanceLoading.value = false
+    }
+}
+
+function attendanceCanBeSaved(item: any) {
+    return scheduleStatus(item) !== 'upcoming'
+}
+
+function attendanceModalMessage(item: any) {
+    const status = scheduleStatus(item)
+    if (status === 'upcoming') {
+        return 'Attendance opens when the schedule begins. You can review the roster here before the session starts.'
+    }
+    if (status === 'completed') {
+        return 'This schedule has already ended. You can still encode attendance now if no authorized coach was available during the session.'
+    }
+    return 'Select each student as present, late, excused, or absent, then save the attendance sheet.'
+}
+
+function setRosterStatus(status: 'present' | 'absent' | 'late' | 'excused' | null) {
+    attendanceRows.value = attendanceRows.value.map((row) => ({
+        ...row,
+        status,
+        notes: status === 'present' ? '' : row.notes,
+    }))
+}
+
+function attendanceSelectionCount(status: 'present' | 'absent' | 'late' | 'excused') {
+    return attendanceRows.value.filter((row) => row.status === status).length
+}
+
+function attendancePendingCount() {
+    return attendanceRows.value.filter((row) => !row.status).length
+}
+
+async function saveAttendanceSheet() {
+    if (!selectedSchedule.value || !attendanceCanBeSaved(selectedSchedule.value) || attendanceSaving.value) return
+
+    attendanceSaving.value = true
+    attendanceError.value = null
+    attendanceMessage.value = null
+
+    try {
+        const response = await fetch(`/coach/schedules/${selectedSchedule.value.id}/attendance/bulk`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                rows: attendanceRows.value.map((row) => ({
+                    student_id: row.student_id,
+                    status: row.status,
+                    notes: row.status && row.status !== 'present' ? (row.notes ?? '') : '',
+                })),
+            }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+            attendanceError.value = data?.message ?? 'Unable to save attendance sheet.'
+            return
+        }
+
+        attendanceMessage.value = data?.message ?? 'Attendance saved successfully.'
+        await loadAttendanceRoster(selectedSchedule.value.id)
+        router.reload({
+            only: ['schedules'],
+            preserveScroll: true,
+            preserveState: true,
+        })
+    } catch {
+        attendanceError.value = 'Unable to save attendance right now.'
+    } finally {
+        attendanceSaving.value = false
+    }
+}
+
 function openAttendance(item: any) {
-    const returnTo = typeof window === 'undefined'
-        ? '/coach/schedule'
-        : `${window.location.pathname}${window.location.search}`
-    router.get(`/coach/attendance/${item.id}`, { return_to: returnTo })
+    selectedSchedule.value = item
+    modalMode.value = 'attendance'
+    attendanceRows.value = []
+    attendanceError.value = null
+    attendanceMessage.value = null
+    showModal.value = true
+    void loadAttendanceRoster(item.id)
 }
 
 function duplicateSchedule(item: any) {
@@ -519,6 +666,11 @@ function closeModal() {
     editingId.value = null
     modalMode.value = 'form'
     selectedSchedule.value = null
+    attendanceRows.value = []
+    attendanceLoading.value = false
+    attendanceSaving.value = false
+    attendanceError.value = null
+    attendanceMessage.value = null
     resetForm()
 }
 
@@ -769,7 +921,11 @@ onBeforeUnmount(() => {
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule</p>
                         <h2 class="text-lg font-semibold" :class="modalMode === 'view' ? 'text-[#034485]' : 'text-slate-900'">
-                            {{ modalMode === 'view' ? 'Schedule Details' : (editingId ? 'Edit Schedule' : 'Create Schedule') }}
+                            {{ modalMode === 'view'
+                                ? 'Schedule Details'
+                                : modalMode === 'attendance'
+                                    ? 'Attendance Sheet'
+                                    : (editingId ? 'Edit Schedule' : 'Create Schedule') }}
                         </h2>
                     </div>
 
@@ -833,6 +989,157 @@ onBeforeUnmount(() => {
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Notes</p>
                         <p class="mt-2 text-sm text-slate-700 whitespace-pre-line">{{ selectedSchedule?.notes || 'No additional notes provided.' }}</p>
+                    </div>
+                </div>
+
+                <div v-else-if="modalMode === 'attendance'" class="space-y-5 p-6">
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule</p>
+                            <p class="mt-2 text-sm font-semibold text-slate-900">{{ selectedSchedule?.title || '-' }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ selectedSchedule?.type || '-' }} • {{ selectedSchedule?.venue || '-' }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Window</p>
+                            <p class="mt-2 text-sm font-semibold text-slate-900">{{ statusLabel(scheduleStatus(selectedSchedule)) }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ formatPHT(selectedSchedule?.start || null) }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Present</p>
+                            <p class="mt-2 text-2xl font-semibold text-emerald-700">{{ attendanceSelectionCount('present') }}</p>
+                        </div>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Needs Review</p>
+                            <p class="mt-2 text-2xl font-semibold text-amber-700">{{ attendanceSelectionCount('absent') + attendanceSelectionCount('late') + attendanceSelectionCount('excused') }}</p>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-[#034485]/20 bg-[#034485]/5 p-4 text-sm text-slate-700">
+                        {{ selectedSchedule ? attendanceModalMessage(selectedSchedule) : '' }}
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            class="rounded-md border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
+                            @click="setRosterStatus('present')"
+                            :disabled="attendanceLoading"
+                        >
+                            Mark All Present
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-700 hover:border-rose-300"
+                            @click="setRosterStatus('absent')"
+                            :disabled="attendanceLoading"
+                        >
+                            Mark All Absent
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-700 hover:border-amber-300"
+                            @click="setRosterStatus('late')"
+                            :disabled="attendanceLoading"
+                        >
+                            Mark All Late
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border border-sky-200 px-3 py-2 text-xs font-semibold text-sky-700 hover:border-sky-300"
+                            @click="setRosterStatus('excused')"
+                            :disabled="attendanceLoading"
+                        >
+                            Mark All Excused
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-400"
+                            @click="setRosterStatus(null)"
+                            :disabled="attendanceLoading"
+                        >
+                            Clear Selection
+                        </button>
+                    </div>
+
+                    <p v-if="attendanceError" class="text-sm text-rose-700">{{ attendanceError }}</p>
+                    <p v-if="attendanceMessage" class="text-sm text-emerald-700">{{ attendanceMessage }}</p>
+
+                    <div v-if="attendanceLoading" class="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                        Loading attendance roster...
+                    </div>
+
+                    <div v-else-if="attendanceRows.length === 0" class="rounded-xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                        No student-athletes are assigned to this team yet.
+                    </div>
+
+                    <div v-else class="overflow-hidden rounded-2xl border border-slate-200">
+                        <div class="max-h-[26rem] overflow-y-auto">
+                            <table class="w-full min-w-[760px] bg-white text-left text-sm">
+                                <thead class="bg-[#034485] text-white">
+                                    <tr>
+                                        <th class="px-4 py-3">Student</th>
+                                        <th class="px-4 py-3">ID Number</th>
+                                        <th class="px-4 py-3">Jersey</th>
+                                        <th class="px-4 py-3">Position</th>
+                                        <th class="px-4 py-3">Status</th>
+                                        <th class="px-4 py-3">Coach Note</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in attendanceRows" :key="row.student_id" class="border-t border-slate-200 align-top">
+                                        <td class="px-4 py-3 font-medium text-slate-900">{{ row.full_name }}</td>
+                                        <td class="px-4 py-3 text-slate-700">{{ row.student_id_number || '-' }}</td>
+                                        <td class="px-4 py-3 text-slate-700">{{ row.jersey_number || '-' }}</td>
+                                        <td class="px-4 py-3 text-slate-700">{{ row.athlete_position || '-' }}</td>
+                                        <td class="px-4 py-3">
+                                            <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                                                    :class="row.status === 'present' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    @click="row.status = 'present'; row.notes = ''"
+                                                >
+                                                    Present
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                                                    :class="row.status === 'late' ? 'bg-amber-500 text-slate-950' : 'text-slate-600 hover:bg-slate-100'"
+                                                    @click="row.status = 'late'"
+                                                >
+                                                    Late
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                                                    :class="row.status === 'excused' ? 'bg-sky-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    @click="row.status = 'excused'"
+                                                >
+                                                    Excused
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
+                                                    :class="row.status === 'absent' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    @click="row.status = 'absent'"
+                                                >
+                                                    Absent
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <textarea
+                                                v-model="row.notes"
+                                                rows="2"
+                                                :disabled="row.status === 'present' || row.status === null"
+                                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
+                                                placeholder="Optional note for absent, late, or excused"
+                                            />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -910,6 +1217,24 @@ onBeforeUnmount(() => {
                         class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#111827]">
                         Save Schedule
                     </button>
+                </div>
+
+                <div v-else-if="modalMode === 'attendance'" class="flex flex-col-reverse gap-2 border-t border-slate-200 px-6 py-4 sm:flex-row sm:justify-between">
+                    <p class="text-xs text-slate-500">
+                        Absent: {{ attendanceSelectionCount('absent') }} • Late: {{ attendanceSelectionCount('late') }} • Excused: {{ attendanceSelectionCount('excused') }} • Unset: {{ attendancePendingCount() }}
+                    </p>
+                    <div class="flex flex-col-reverse gap-2 sm:flex-row">
+                        <button @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400">
+                            Close
+                        </button>
+                        <button
+                            @click="saveAttendanceSheet"
+                            :disabled="attendanceSaving || !selectedSchedule || !attendanceCanBeSaved(selectedSchedule)"
+                            class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {{ attendanceSaving ? 'Saving...' : 'Save Attendance' }}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

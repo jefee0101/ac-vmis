@@ -4,6 +4,8 @@ This document presents the AC-VMIS Entity-Relationship Diagram using Crow's Foot
 
 The current academic module includes an OCR-assisted eligibility workflow. Uploaded grade documents are stored in `academic_documents`, processed through `academic_document_ocr_runs`, summarized in parsed output tables, and finalized in `academic_eligibility_evaluations` with support for administrator review and override.
 
+The current attendance workflow is schedule-based and coach-led. Legacy student QR attendance tables and routes are intentionally excluded from the final ERD because attendance is now recorded through the coach schedule modal backed by `team_schedules` and `schedule_attendances`.
+
 ## Diagram
 
 ```mermaid
@@ -60,7 +62,7 @@ erDiagram
 
     USER_SETTINGS {
         bigint id PK
-        bigint user_id FK
+        bigint user_id FK, UK
         boolean notification_email_enabled
         boolean notify_approvals
         boolean notify_schedule_changes
@@ -128,21 +130,6 @@ erDiagram
         datetime start_time
         datetime end_time
         text notes
-        smallint qr_window_minutes
-        smallint qr_rotation_seconds
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    SCHEDULE_QR_TOKENS {
-        bigint id PK
-        bigint schedule_id FK
-        bigint student_id FK
-        varchar token_hash
-        datetime issued_at
-        datetime expires_at
-        datetime used_at
-        bigint used_by FK
         timestamp created_at
         timestamp updated_at
     }
@@ -153,7 +140,6 @@ erDiagram
         bigint student_id FK
         enum status
         enum verification_method
-        bigint qr_token_id FK
         bigint recorded_by FK
         timestamp recorded_at
         timestamp verified_at
@@ -255,6 +241,10 @@ erDiagram
         enum run_status
         longtext raw_text
         decimal mean_confidence
+        enum validation_status
+        text validation_summary
+        json validation_flags
+        timestamp validation_checked_at
         timestamp processed_at
         text error_message
         timestamp created_at
@@ -366,7 +356,6 @@ erDiagram
     USERS ||--o{ ACADEMIC_PERIOD_MESSAGES : "creates"
     USERS ||--o{ ATHLETE_HEALTH_CLEARANCES : "reviews"
     USERS ||--o{ SCHEDULE_ATTENDANCES : "records"
-    USERS ||--o{ SCHEDULE_QR_TOKENS : "uses"
     USERS ||--o{ STUDENT_APPROVAL_HISTORIES : "approves or rejects"
     USERS ||--o{ TEAM_STAFF_ASSIGNMENTS : "creates"
     USERS ||--o{ TEAMS : "archives"
@@ -382,11 +371,8 @@ erDiagram
     COACHES ||--o{ TEAM_STAFF_ASSIGNMENTS : "serves in"
 
     TEAMS ||--o{ TEAM_SCHEDULES : "has"
-    TEAM_SCHEDULES ||--o{ SCHEDULE_QR_TOKENS : "generates"
-    STUDENTS ||--o{ SCHEDULE_QR_TOKENS : "receives"
     TEAM_SCHEDULES ||--o{ SCHEDULE_ATTENDANCES : "records"
     STUDENTS ||--o{ SCHEDULE_ATTENDANCES : "has"
-    SCHEDULE_QR_TOKENS ||--o{ SCHEDULE_ATTENDANCES : "verifies"
 
     STUDENTS ||--o{ WELLNESS_LOGS : "has"
     TEAM_SCHEDULES ||--o{ WELLNESS_LOGS : "contextualizes"
@@ -414,6 +400,36 @@ erDiagram
     ANNOUNCEMENT_EVENTS ||--o{ ANNOUNCEMENT_RECIPIENTS : "targets"
 ```
 
+## Review Decisions
+
+The final ERD intentionally keeps only the active domain schema. The following legacy tables are excluded because they represent replaced workflows or temporary normalization steps:
+
+- `account_approvals`
+- `announcements`
+- `schedule_qr_tokens`
+- `academic_evaluation_documents`
+- `academic_document_parsed_subjects`
+
+The diagram also reflects the post-normalization announcement design, where reusable content lives in `announcement_events` and user-specific read state lives in `announcement_recipients`.
+
+## Refactor Notes
+
+The current schema is close to 3NF for the active workflows, but these follow-up refinements are still recommended:
+
+- Add `UNIQUE(team_id, jersey_number)` on `team_players` if jersey numbers must be unique within a team roster.
+- Keep `students.current_grade_level` only if it remains the canonical academic level field for both SHS and college students; otherwise split or standardize it further.
+- Keep `academic_eligibility_evaluations.final_status` only as the official adjudicated result. If it is always derived from `gpa`, it should be treated as redundant.
+- Rename the application model that maps to `announcement_recipients` from `Announcement` to a recipient-specific name to match the normalized schema more clearly.
+- Consider normalizing `athlete_health_clearances.conditions`, `allergies`, and `restrictions` into child tables if those values need structured reporting rather than free-text notes.
+
+## Workflow Gap
+
+Notifications are supported by `announcement_events`, `announcement_recipients`, and `user_settings`, but support tickets are not yet represented in the current schema or codebase. A future support module would likely introduce:
+
+- `support_tickets`
+- `support_ticket_messages`
+- `support_ticket_attachments`
+
 ## Normalization Note
 
 The AC-VMIS database design is consistent with Third Normal Form (3NF) for the core domain model because:
@@ -423,6 +439,13 @@ The AC-VMIS database design is consistent with Third Normal Form (3NF) for the c
 3. Non-key attributes are stored in the entity to which they are directly dependent, thereby reducing redundancy and update anomalies.
 4. Lookup and classification data are separated into independent entities such as `sports` and `academic_document_types`.
 5. Workflow history and audit data are normalized into dedicated entities such as `student_approval_histories`, `account_action_logs`, `academic_document_ocr_runs`, and `academic_period_messages`.
+
+Important examples of already-completed normalization include:
+
+- moving personal name fields from `students` and `coaches` into `users`
+- replacing direct coach columns on `teams` with `team_staff_assignments`
+- replacing duplicated per-user announcement content with `announcement_events` plus `announcement_recipients`
+- removing legacy QR attendance structures in favor of the schedule-based coach attendance workflow
 
 The academic eligibility module follows the same normalization approach by separating:
 

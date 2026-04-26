@@ -1,8 +1,10 @@
 # AC-VMIS Data Dictionary
 
-This document presents the current AC-VMIS database structure as of April 25, 2026. The `Constraints` column summarizes each field's primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.
+This document presents the current AC-VMIS database structure as of April 26, 2026. The `Constraints` column summarizes each field's primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.
 
 The academic eligibility module now uses an OCR-assisted workflow centered on uploaded documents, OCR runs, parsed summaries, and final eligibility evaluations with administrator override support.
+
+Legacy development tables such as `account_approvals`, `announcements`, `schedule_qr_tokens`, `academic_evaluation_documents`, and `academic_document_parsed_subjects` are intentionally excluded because they do not represent the current production-oriented schema.
 
 ## `academic_documents`
 
@@ -33,6 +35,10 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `run_status` | `enum('pending','processed','failed','needs_review')` | Not null; default `'pending'` | Indicates the processing outcome or current state of the OCR run. |
 | `raw_text` | `longtext` | Nullable | Stores the raw text extracted from the document. |
 | `mean_confidence` | `decimal(5,2)` | Nullable | Stores the average OCR confidence score for the processed document. |
+| `validation_status` | `enum('pending','valid','manual_review')` | Not null; default `'pending'` | Indicates the result of the post-OCR validation check applied to the extracted document data. |
+| `validation_summary` | `text` | Nullable | Stores a human-readable summary of the validation outcome. |
+| `validation_flags` | `json` | Nullable | Stores structured validation flags or issues detected during automated review. |
+| `validation_checked_at` | `timestamp` | Nullable | Records the date and time when validation was last evaluated for the OCR run. |
 | `processed_at` | `timestamp` | Nullable | Records the date and time when OCR processing was completed. |
 | `error_message` | `text` | Nullable | Stores the error details when the OCR run fails. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
@@ -71,7 +77,7 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `academic_document_ocr_run_id` | `bigint(20) unsigned` | Foreign key to `academic_document_ocr_runs.id`; nullable | Identifies the OCR run used as the basis of the evaluation, when applicable. |
 | `gpa` | `decimal(4,2)` | Nullable | Stores the GPA or equivalent rating used during evaluation. |
 | `evaluation_source` | `enum('manual','rule_based','rule_based_reviewed')` | Not null; default `'manual'` | Indicates whether the evaluation was produced manually or through rule-based processing. |
-| `final_status` | `enum('eligible','pending_review','ineligible')` | Nullable | Stores the final eligibility outcome assigned to the student. |
+| `final_status` | `enum('eligible','pending_review','ineligible')` | Nullable | Stores the official eligibility outcome confirmed for the student after automated processing, review, or override. |
 | `review_required` | `tinyint(1)` | Not null; default `0` | Indicates whether the evaluation requires additional human review. |
 | `evaluated_by` | `bigint(20) unsigned` | Foreign key to `users.id`; nullable | Identifies the user who finalized or recorded the evaluation. |
 | `evaluated_at` | `timestamp` | Nullable | Records the date and time when the evaluation was completed. |
@@ -278,28 +284,12 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `schedule_id` | `bigint(20) unsigned` | Foreign key to `team_schedules.id`; not null; part of unique combination with `student_id` | Identifies the scheduled activity for which attendance was recorded. |
 | `student_id` | `bigint(20) unsigned` | Foreign key to `students.id`; not null; part of unique combination with `schedule_id` | Identifies the student whose attendance was recorded. |
 | `status` | `enum('present','absent','late','excused')` | Not null; default `'present'` | Stores the attendance outcome assigned to the student. |
-| `verification_method` | `enum('self_response','qr_verified','manual_override')` | Not null; default `'self_response'` | Indicates the method used to verify the attendance record. |
-| `qr_token_id` | `bigint(20) unsigned` | Foreign key to `schedule_qr_tokens.id`; nullable | Identifies the QR token used for attendance verification, when applicable. |
+| `verification_method` | `varchar(255)` | Not null; default `'manual_override'` | Indicates the workflow used to record the attendance entry. |
 | `recorded_by` | `bigint(20) unsigned` | Foreign key to `users.id`; nullable | Identifies the user who recorded or updated the attendance entry. |
 | `recorded_at` | `timestamp` | Nullable | Records the date and time when attendance was recorded. |
 | `verified_at` | `timestamp` | Nullable | Records the date and time when attendance was verified. |
 | `notes` | `text` | Nullable | Stores supplementary remarks regarding attendance. |
 | `override_reason` | `text` | Nullable | Stores the justification for a manual attendance override. |
-| `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
-| `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
-
-## `schedule_qr_tokens`
-
-| Field Name | Data Type | Constraints | Description |
-| --- | --- | --- | --- |
-| `id` | `bigint(20) unsigned` | Primary key; auto-increment; not null | Unique identifier of the schedule QR token record. |
-| `schedule_id` | `bigint(20) unsigned` | Foreign key to `team_schedules.id`; not null | Identifies the scheduled activity for which the QR token was issued. |
-| `student_id` | `bigint(20) unsigned` | Foreign key to `students.id`; not null | Identifies the student for whom the QR token was issued. |
-| `token_hash` | `varchar(64)` | Not null | Stores the hashed QR token value used for secure verification. |
-| `issued_at` | `datetime` | Not null | Records the date and time when the QR token was issued. |
-| `expires_at` | `datetime` | Not null | Records the date and time when the QR token expires. |
-| `used_at` | `datetime` | Nullable | Records the date and time when the QR token was used. |
-| `used_by` | `bigint(20) unsigned` | Foreign key to `users.id`; nullable | Identifies the user who consumed the token during verification. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 
@@ -334,7 +324,7 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `gender` | `enum('Male','Female','Other')` | Not null | Stores the student's gender. |
 | `home_address` | `text` | Not null | Stores the student's residential address. |
 | `course_or_strand` | `varchar(255)` | Nullable | Stores the student's academic course or strand. |
-| `current_grade_level` | `varchar(255)` | Not null | Stores the student's current grade level or year level designation. |
+| `current_grade_level` | `varchar(255)` | Not null | Stores the student's current grade level or year level designation as the active academic level field used by the system. |
 | `approval_status` | `enum('pending','approved','rejected')` | Not null; default `'pending'` | Indicates the current approval outcome of the student registration. |
 | `student_status` | `enum('Enrolled','Dropped','Graduated')` | Not null; default `'Enrolled'` | Indicates the current enrollment status of the student. |
 | `phone_number` | `varchar(255)` | Not null | Stores the student's contact number. |
@@ -380,7 +370,7 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `id` | `bigint(20) unsigned` | Primary key; auto-increment; not null | Unique identifier of the team-player assignment record. |
 | `team_id` | `bigint(20) unsigned` | Foreign key to `teams.id`; not null; part of unique combination with `student_id` | Identifies the team to which the student is assigned. |
 | `student_id` | `bigint(20) unsigned` | Foreign key to `students.id`; not null; part of unique combination with `team_id` | Identifies the student assigned as a player. |
-| `jersey_number` | `varchar(255)` | Nullable | Stores the jersey number assigned to the player. |
+| `jersey_number` | `varchar(255)` | Nullable; not currently unique per team | Stores the jersey number assigned to the player. |
 | `athlete_position` | `varchar(255)` | Nullable | Stores the player's assigned position within the team. |
 | `player_status` | `enum('active','injured','suspended')` | Not null; default `'active'` | Indicates the player's current participation status. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
@@ -398,8 +388,6 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | `start_time` | `datetime` | Not null | Records the start date and time of the activity. |
 | `end_time` | `datetime` | Not null | Records the end date and time of the activity. |
 | `notes` | `text` | Nullable | Stores supplementary details regarding the scheduled activity. |
-| `qr_window_minutes` | `smallint(5) unsigned` | Not null; default `20` | Stores the attendance QR validity window in minutes. |
-| `qr_rotation_seconds` | `smallint(5) unsigned` | Not null; default `25` | Stores the QR token rotation interval in seconds. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 
@@ -441,7 +429,7 @@ The academic eligibility module now uses an OCR-assisted workflow centered on up
 | Field Name | Data Type | Constraints | Description |
 | --- | --- | --- | --- |
 | `id` | `bigint(20) unsigned` | Primary key; auto-increment; not null | Unique identifier of the user settings record. |
-| `user_id` | `bigint(20) unsigned` | Foreign key to `users.id`; not null | Identifies the user to whom the settings apply. |
+| `user_id` | `bigint(20) unsigned` | Foreign key to `users.id`; unique; not null | Identifies the user to whom the settings apply. |
 | `notification_email_enabled` | `tinyint(1)` | Not null; default `1` | Indicates whether email notifications are enabled for the user. |
 | `notify_approvals` | `tinyint(1)` | Not null; default `1` | Indicates whether approval-related notifications are enabled. |
 | `notify_schedule_changes` | `tinyint(1)` | Not null; default `1` | Indicates whether schedule change notifications are enabled. |

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Coaches;
 
 use App\Http\Controllers\Controller;
+use App\Models\ScheduleAttendance;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Models\Team;
@@ -19,6 +21,78 @@ class CoachScheduleController extends Controller
 {
     public function __construct(private SystemNotificationService $notifications)
     {
+    }
+
+    private function authorizedTeamIdsForCurrentCoach(Request $request): array
+    {
+        $coach = $request->user()?->coach;
+        abort_unless($coach, 403);
+
+        return Team::query()
+            ->forCoach($coach->id)
+            ->pluck('id')
+            ->all();
+    }
+
+    private function attendanceStatusForSchedule(TeamSchedule $schedule): string
+    {
+        $tz = config('app.timezone');
+        $start = Carbon::parse($schedule->start_time, $tz);
+        $end = Carbon::parse($schedule->end_time, $tz);
+        $now = Carbon::now($tz);
+
+        if ($end->lt($now)) {
+            return 'completed';
+        }
+
+        if ($start->lte($now) && $end->gte($now)) {
+            return 'in_progress';
+        }
+
+        return 'upcoming';
+    }
+
+    private function buildEditableAttendanceRows(Team $team, int $scheduleId): array
+    {
+        $players = TeamPlayer::query()
+            ->with('student')
+            ->where('team_id', $team->id)
+            ->join('students', 'team_players.student_id', '=', 'students.id')
+            ->join('users as su', 'su.id', '=', 'students.user_id')
+            ->orderBy('su.last_name')
+            ->orderBy('su.first_name')
+            ->select('team_players.*')
+            ->get()
+            ->filter(fn ($player) => $player->student !== null)
+            ->values();
+
+        $attendanceByStudent = ScheduleAttendance::query()
+            ->where('schedule_id', $scheduleId)
+            ->whereIn('student_id', $players->pluck('student_id')->all())
+            ->get()
+            ->keyBy('student_id');
+
+        return $players->map(function ($player) use ($attendanceByStudent) {
+            $student = $player->student;
+            $attendance = $attendanceByStudent->get($student->id);
+
+            return [
+                'student_id' => $student->id,
+                'student_id_number' => $student->student_id_number,
+                'full_name' => trim(
+                    ($student->last_name ?? '')
+                    . ', '
+                    . ($student->first_name ?? '')
+                    . (!empty($student->middle_name) ? ' ' . $student->middle_name : '')
+                ),
+                'jersey_number' => $player->jersey_number,
+                'athlete_position' => $player->athlete_position,
+                'status' => $attendance?->status,
+                'notes' => $attendance?->notes,
+                'recorded_at' => $attendance?->recorded_at?->toIso8601String(),
+                'verification_method' => $attendance?->verification_method,
+            ];
+        })->values()->all();
     }
 
     public function index(Request $request)
@@ -349,6 +423,104 @@ class CoachScheduleController extends Controller
             'schedules' => $schedules,
             'rangeLabel' => $rangeLabel,
             'generatedAt' => now()->format('M j, Y g:i A'),
+        ]);
+    }
+
+    public function roster(Request $request, TeamSchedule $schedule): JsonResponse
+    {
+        $teamIds = $this->authorizedTeamIdsForCurrentCoach($request);
+        abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
+
+        $team = Team::with('sport')->findOrFail($schedule->team_id);
+        $scheduleStatus = $this->attendanceStatusForSchedule($schedule);
+        $rows = $this->buildEditableAttendanceRows($team, $schedule->id);
+
+        return response()->json([
+            'schedule' => [
+                'id' => $schedule->id,
+                'title' => $schedule->title,
+                'type' => $schedule->type,
+                'venue' => $schedule->venue,
+                'start' => Carbon::parse($schedule->start_time)->toIso8601String(),
+                'end' => Carbon::parse($schedule->end_time)->toIso8601String(),
+                'status' => $scheduleStatus,
+                'can_record_now' => $scheduleStatus !== 'upcoming',
+                'attendance_count' => ScheduleAttendance::query()->where('schedule_id', $schedule->id)->count(),
+                'roster_count' => count($rows),
+            ],
+            'team' => [
+                'id' => $team->id,
+                'team_name' => $team->team_name,
+                'sport' => $team->sport?->name ?? $team->sport_id ?? 'unknown',
+            ],
+            'rows' => $rows,
+        ]);
+    }
+
+    public function bulkAttendance(Request $request, TeamSchedule $schedule): JsonResponse
+    {
+        $teamIds = $this->authorizedTeamIdsForCurrentCoach($request);
+        abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule.');
+
+        abort_if(
+            $this->attendanceStatusForSchedule($schedule) === 'upcoming',
+            422,
+            'Attendance can only be recorded once the schedule has started.'
+        );
+
+        $validated = $request->validate([
+            'rows' => 'required|array',
+            'rows.*.student_id' => 'required|integer',
+            'rows.*.status' => 'nullable|in:present,absent,late,excused',
+            'rows.*.notes' => 'nullable|string|max:500',
+        ]);
+
+        $memberIds = TeamPlayer::query()
+            ->where('team_id', $schedule->team_id)
+            ->pluck('student_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $rows = collect($validated['rows'] ?? [])
+            ->keyBy(fn (array $row) => (int) $row['student_id']);
+
+        foreach ($memberIds as $studentId) {
+            $row = $rows->get($studentId);
+            if (!$row) {
+                continue;
+            }
+
+            $status = $row['status'] ?? null;
+            $notes = trim((string) ($row['notes'] ?? ''));
+
+            if (!$status) {
+                ScheduleAttendance::query()
+                    ->where('schedule_id', $schedule->id)
+                    ->where('student_id', $studentId)
+                    ->delete();
+                continue;
+            }
+
+            ScheduleAttendance::updateOrCreate(
+                [
+                    'schedule_id' => $schedule->id,
+                    'student_id' => $studentId,
+                ],
+                [
+                    'status' => $status,
+                    'verification_method' => 'manual_override',
+                    'recorded_by' => Auth::id(),
+                    'recorded_at' => now(),
+                    'verified_at' => now(),
+                    'notes' => $notes !== '' ? $notes : null,
+                    'override_reason' => in_array($status, ['absent', 'late', 'excused'], true) && $notes !== '' ? $notes : null,
+                ]
+            );
+        }
+
+        return response()->json([
+            'message' => 'Attendance saved successfully.',
+            'attendance_count' => ScheduleAttendance::query()->where('schedule_id', $schedule->id)->count(),
         ]);
     }
 

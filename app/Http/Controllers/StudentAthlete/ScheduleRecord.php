@@ -10,17 +10,12 @@ use App\Models\Team;
 use App\Models\Student;
 use App\Models\TeamSchedule;
 use App\Models\ScheduleAttendance;
-use App\Models\ScheduleQrToken;
 use App\Services\AcademicHoldService;
-use App\Services\SystemNotificationService;
 use Carbon\Carbon;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Schema;
 
 class ScheduleRecord extends Controller
 {
     public function __construct(
-        private SystemNotificationService $notifications,
         private AcademicHoldService $holdService,
     )
     {
@@ -97,7 +92,6 @@ class ScheduleRecord extends Controller
             ->get()
             ->map(function ($schedule) use ($attendanceBySchedule, $team) {
                 $attendance = $attendanceBySchedule->get($schedule->id);
-                $window = $this->checkinWindow($schedule);
 
                 return [
                     'id' => $schedule->id,
@@ -110,9 +104,6 @@ class ScheduleRecord extends Controller
                     'end' => Carbon::parse($schedule->end_time)->toIso8601String(),
                     'attendance_status' => optional($attendance)->status,
                     'attendance_notes' => optional($attendance)->notes,
-                    'checkin_window_open' => $window['is_open'],
-                    'checkin_window_reason' => $window['reason'],
-                    'checkin_window_closes_at' => $window['closes_at']?->toIso8601String(),
                 ];
             });
 
@@ -133,155 +124,4 @@ class ScheduleRecord extends Controller
             'schedules' => $schedules,
         ]);
     }
-
-    public function updateScheduleAttendance(Request $request, $id)
-    {
-        $student = Student::where('user_id', Auth::id())->firstOrFail();
-        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
-
-        $validated = $request->validate([
-            'status' => 'required|in:present,absent,excused',
-            'notes' => 'nullable|string|max:1000',
-        ]);
-
-        if (in_array($validated['status'], ['absent', 'excused'], true) && empty(trim($validated['notes'] ?? ''))) {
-            return back()->withErrors([
-                'notes' => 'Please provide a reason for this status.',
-            ]);
-        }
-
-        $schedule = TeamSchedule::findOrFail($id);
-
-        $teamIds = Team::whereHas('players', function ($q) use ($student) {
-            $q->where('student_id', $student->id);
-        })->pluck('id')->all();
-
-        abort_unless(in_array($schedule->team_id, $teamIds, true), 403, 'Unauthorized schedule attendance update.');
-
-        $window = $this->checkinWindow($schedule);
-        if (!$window['is_open']) {
-            return back()->withErrors([
-                'attendance' => "Attendance updates are closed. {$window['reason']}",
-            ]);
-        }
-
-        $existing = ScheduleAttendance::query()
-            ->where('schedule_id', $schedule->id)
-            ->where('student_id', $student->id)
-            ->first();
-        $previousStatus = $existing?->status;
-
-        $attendancePayload = [
-            'status' => $validated['status'],
-            'recorded_by' => Auth::id(),
-            'recorded_at' => now(),
-            'notes' => $validated['notes'] ?? null,
-        ];
-
-        // Backward-compatible: if QR migration columns are not yet present,
-        // keep base attendance recording functional.
-        if (Schema::hasColumn('schedule_attendances', 'verification_method')) {
-            $attendancePayload['verification_method'] = 'self_response';
-        }
-
-        $attendance = ScheduleAttendance::updateOrCreate(
-            [
-                'schedule_id' => $schedule->id,
-                'student_id' => $student->id,
-            ],
-            $attendancePayload
-        );
-
-        if ($previousStatus !== $attendance->status) {
-            $status = strtoupper((string) $attendance->status);
-            $this->notifications->announce(
-                Auth::id(),
-                'Attendance Status Updated',
-                sprintf(
-                    'Attendance marked: %s for %s (%s).',
-                    $status,
-                    $schedule->title,
-                    Carbon::parse($schedule->start_time)->format('M j')
-                ),
-                'schedule',
-                Auth::id(),
-                'notify_attendance_changes'
-            );
-        }
-
-        return back();
-    }
-
-    public function qrToken(Request $request, $id)
-    {
-        $student = Student::where('user_id', Auth::id())->firstOrFail();
-        abort_unless(!$this->holdService->evaluate($student)['status'], 403, 'Schedule access is paused during the academic submission window.');
-        $schedule = TeamSchedule::findOrFail($id);
-
-        $team = Team::whereHas('players', function ($q) use ($student) {
-            $q->where('student_id', $student->id);
-        })->first();
-
-        abort_unless($team && $schedule->team_id === $team->id, 403, 'Unauthorized schedule QR request.');
-        $window = $this->checkinWindow($schedule);
-        if (!$window['is_open']) {
-            return response()->json([
-                'message' => "QR check-in is unavailable. {$window['reason']}",
-            ], 422);
-        }
-
-        $rotation = max(20, (int) ($schedule->qr_rotation_seconds ?? 25));
-        $expiresAt = min(
-            now()->copy()->addSeconds($rotation),
-            $window['closes_at']
-        );
-
-        $rawToken = Str::random(48);
-        $token = ScheduleQrToken::create([
-            'schedule_id' => $schedule->id,
-            'student_id' => $student->id,
-            'token_hash' => hash('sha256', $rawToken),
-            'issued_at' => now(),
-            'expires_at' => $expiresAt,
-        ]);
-
-        return response()->json([
-            'token' => $rawToken,
-            'expires_at' => $token->expires_at?->toIso8601String(),
-            'rotation_seconds' => $rotation,
-            'window_closes_at' => $window['closes_at']->toIso8601String(),
-        ]);
-    }
-
-    private function checkinWindow(TeamSchedule $schedule): array
-    {
-        $tz = config('app.timezone');
-        $startsAt = Carbon::parse($schedule->start_time, $tz);
-        $windowMinutes = max(1, (int) ($schedule->qr_window_minutes ?? 20));
-        $closesAt = $startsAt->copy()->addMinutes($windowMinutes);
-        $now = now($tz);
-
-        if ($now->lt($startsAt)) {
-            return [
-                'is_open' => false,
-                'reason' => 'Check-in starts when the schedule starts.',
-                'closes_at' => $closesAt,
-            ];
-        }
-
-        if ($now->gt($closesAt)) {
-            return [
-                'is_open' => false,
-                'reason' => 'Check-in window already closed.',
-                'closes_at' => $closesAt,
-            ];
-        }
-
-        return [
-            'is_open' => true,
-            'reason' => null,
-            'closes_at' => $closesAt,
-        ];
-    }
-
 }

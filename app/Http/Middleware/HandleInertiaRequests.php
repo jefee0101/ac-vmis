@@ -342,9 +342,9 @@ class HandleInertiaRequests extends Middleware
                                     ],
                                     [
                                         'key' => 'student_status',
-                                        'label' => 'Student status from a schedule',
+                                        'label' => 'Attendance updates from schedules',
                                         'count' => $statusUpdates,
-                                        'href' => '/coach/operations',
+                                        'href' => '/coach/schedule',
                                     ],
                                 ];
 

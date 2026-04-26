@@ -68,10 +68,6 @@ const heroSummary = computed(() => {
         parts.push(`${upcomingSessionsCount.value} upcoming ${upcomingSessionsCount.value === 1 ? 'session' : 'sessions'} this week`)
     }
 
-    if (Number(kpis.value.pending_responses || 0) > 0) {
-        parts.push(`${kpis.value.pending_responses} pending attendance ${Number(kpis.value.pending_responses) === 1 ? 'response' : 'responses'}`)
-    }
-
     if (Number(academicSubmissions.value.pending || 0) > 0) {
         parts.push(`${academicSubmissions.value.pending} academic ${Number(academicSubmissions.value.pending) === 1 ? 'submission is' : 'submissions are'} still pending`)
     }
@@ -566,9 +562,9 @@ watch(mobileMenuOpen, (open) => {
                                 <p class="mt-1 text-xs text-slate-500">Present and excused sessions over the last 30 days.</p>
                             </article>
                             <article class="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                                <p class="text-xs text-amber-700">Pending Responses</p>
+                                <p class="text-xs text-amber-700">Coach Attendance Queue</p>
                                 <p class="mt-1 text-2xl font-bold text-amber-900">{{ kpis.pending_responses ?? 0 }}</p>
-                                <p class="mt-1 text-xs text-amber-800/80">Attendance confirmations waiting in your schedule.</p>
+                                <p class="mt-1 text-xs text-amber-800/80">Sessions still waiting for coach-posted attendance.</p>
                             </article>
                             <article class="rounded-xl border border-[#034485]/35 bg-white p-4">
                                 <p class="text-xs text-slate-500">Academic Standing</p>
@@ -606,11 +602,11 @@ watch(mobileMenuOpen, (open) => {
                                         </span>
                                         <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-900">My Schedule</p>
-                                            <p class="text-xs text-slate-500">View activities, times, venues, and attendance prompts.</p>
+                                            <p class="text-xs text-slate-500">View activities, times, venues, and posted attendance results.</p>
                                         </div>
                                     </div>
                                     <p class="mt-3 text-[11px] font-semibold" :class="Number(kpis.pending_responses || 0) > 0 ? 'text-amber-700' : 'text-slate-500'">
-                                        {{ Number(kpis.pending_responses || 0) > 0 ? `${kpis.pending_responses} pending attendance responses` : 'No pending attendance responses' }}
+                                        {{ Number(kpis.pending_responses || 0) > 0 ? `${kpis.pending_responses} sessions still waiting for coach attendance` : 'Coach-posted attendance is up to date' }}
                                     </p>
                                 </button>
 
@@ -757,11 +753,11 @@ watch(mobileMenuOpen, (open) => {
                                     <div class="rounded-lg border border-slate-200 p-3">
                                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div class="min-w-0">
-                                                <p class="text-sm font-semibold text-slate-900">Attendance Response</p>
+                                                <p class="text-sm font-semibold text-slate-900">Attendance Posting</p>
                                                 <p class="mt-1 text-xs text-slate-500">
                                                     {{ Number(kpis.pending_responses || 0) > 0
-                                                        ? 'You still have attendance responses waiting in your schedule.'
-                                                        : 'You are caught up on attendance confirmations.' }}
+                                                        ? 'Some schedules are still waiting for the coach or assistant coach to post attendance.'
+                                                        : 'Attendance has been posted for all current coach-managed sessions.' }}
                                                 </p>
                                             </div>
                                             <button
