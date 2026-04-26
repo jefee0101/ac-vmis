@@ -324,11 +324,11 @@ function stripeColors(sport: any) {
                                 class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
                                 :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                             >
-                                <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
-                                    <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
-                                    <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
+                                <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
+                                    <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
+                                    <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                 </div>
-                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0">
                                         <div class="font-medium leading-tight text-slate-900">{{ item.title }}</div>
                                         <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
@@ -346,16 +346,16 @@ function stripeColors(sport: any) {
                                     </div>
                                 </div>
 
-                                <div class="mt-2 flex flex-wrap gap-2 text-[11px]">
+                                <div class="relative z-10 mt-2 flex flex-wrap gap-2 text-[11px]">
                                     <span class="rounded-full border px-2 py-0.5" :class="timingClass(item)">{{ timingLabel(item) }}</span>
                                     <span v-if="isToday(item)" class="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700">Today</span>
                                 </div>
 
-                                <div class="mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
-                                <div class="text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
-                                <div v-if="item.notes" class="mt-2 text-xs text-slate-500">{{ item.notes }}</div>
-                                <div v-if="item.attendance_notes" class="mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
-                                <div class="mt-3 rounded-xl border border-[#034485]/15 bg-[#034485]/5 px-3 py-2 text-[11px] text-slate-600">
+                                <div class="relative z-10 mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
+                                <div class="relative z-10 text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
+                                <div v-if="item.notes" class="relative z-10 mt-2 text-xs text-slate-500">{{ item.notes }}</div>
+                                <div v-if="item.attendance_notes" class="relative z-10 mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
+                                <div class="relative z-10 mt-3 rounded-xl border border-[#034485]/15 bg-[#034485]/5 px-3 py-2 text-[11px] text-slate-600">
                                     Attendance for this schedule will be posted by the coach or assistant coach once the session begins.
                                 </div>
                             </div>
@@ -374,11 +374,11 @@ function stripeColors(sport: any) {
                                     class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
                                     :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                                 >
-                                    <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
-                                        <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
-                                        <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
+                                    <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
+                                        <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
+                                        <span class="h-full w-1 rounded-full" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
                                     </div>
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                         <div class="min-w-0">
                                             <div class="font-medium leading-tight text-slate-900">{{ item.title }}</div>
                                             <div class="text-xs text-slate-500">{{ item.type }} • {{ item.venue || '-' }}</div>
@@ -396,14 +396,14 @@ function stripeColors(sport: any) {
                                         </div>
                                     </div>
 
-                                    <div class="mt-2 flex flex-wrap gap-2 text-[11px]">
+                                    <div class="relative z-10 mt-2 flex flex-wrap gap-2 text-[11px]">
                                         <span class="rounded-full border px-2 py-0.5" :class="timingClass(item)">{{ timingLabel(item) }}</span>
                                     </div>
 
-                                    <div class="mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
-                                    <div class="text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
-                                    <div v-if="item.notes" class="mt-2 text-xs text-slate-500">{{ item.notes }}</div>
-                                    <div v-if="item.attendance_notes" class="mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
+                                    <div class="relative z-10 mt-2 text-xs text-slate-600">{{ formatPHT(item.start) }}</div>
+                                    <div class="relative z-10 text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
+                                    <div v-if="item.notes" class="relative z-10 mt-2 text-xs text-slate-500">{{ item.notes }}</div>
+                                    <div v-if="item.attendance_notes" class="relative z-10 mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
                                 </div>
                             </div>
                         </div>

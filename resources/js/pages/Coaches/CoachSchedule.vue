@@ -565,6 +565,22 @@ function attendancePendingCount() {
     return attendanceRows.value.filter((row) => !row.status).length
 }
 
+function rosterStatusLabel(status: 'present' | 'absent' | 'late' | 'excused' | null) {
+    if (status === 'present') return 'Present'
+    if (status === 'late') return 'Late'
+    if (status === 'excused') return 'Excused'
+    if (status === 'absent') return 'Absent'
+    return 'Not set'
+}
+
+function rosterStatusBadgeTone(status: 'present' | 'absent' | 'late' | 'excused' | null) {
+    if (status === 'present') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    if (status === 'late') return 'border-amber-200 bg-amber-50 text-amber-800'
+    if (status === 'excused') return 'border-sky-200 bg-sky-50 text-sky-700'
+    if (status === 'absent') return 'border-rose-200 bg-rose-50 text-rose-700'
+    return 'border-slate-200 bg-slate-50 text-slate-500'
+}
+
 async function saveAttendanceSheet() {
     if (!selectedSchedule.value || !attendanceCanBeSaved(selectedSchedule.value) || attendanceSaving.value) return
 
@@ -1092,35 +1108,51 @@ onBeforeUnmount(() => {
                                         <td class="px-4 py-3 text-slate-700">{{ row.jersey_number || '-' }}</td>
                                         <td class="px-4 py-3 text-slate-700">{{ row.athlete_position || '-' }}</td>
                                         <td class="px-4 py-3">
-                                            <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                                            <div class="mb-2">
+                                                <span
+                                                    class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                                                    :class="rosterStatusBadgeTone(row.status)"
+                                                >
+                                                    Current: {{ rosterStatusLabel(row.status) }}
+                                                </span>
+                                            </div>
+                                            <div class="grid min-w-[17rem] grid-cols-2 gap-2">
                                                 <button
                                                     type="button"
-                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                                                    :class="row.status === 'present' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    class="rounded-xl border px-3 py-2 text-xs font-semibold transition"
+                                                    :class="row.status === 'present'
+                                                        ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100'"
                                                     @click="row.status = 'present'; row.notes = ''"
                                                 >
                                                     Present
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                                                    :class="row.status === 'late' ? 'bg-amber-500 text-slate-950' : 'text-slate-600 hover:bg-slate-100'"
+                                                    class="rounded-xl border px-3 py-2 text-xs font-semibold transition"
+                                                    :class="row.status === 'late'
+                                                        ? 'border-amber-500 bg-amber-500 text-slate-950 shadow-sm'
+                                                        : 'border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100'"
                                                     @click="row.status = 'late'"
                                                 >
                                                     Late
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                                                    :class="row.status === 'excused' ? 'bg-sky-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    class="rounded-xl border px-3 py-2 text-xs font-semibold transition"
+                                                    :class="row.status === 'excused'
+                                                        ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
+                                                        : 'border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 hover:bg-sky-100'"
                                                     @click="row.status = 'excused'"
                                                 >
                                                     Excused
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    class="rounded-full px-3 py-1 text-xs font-semibold transition"
-                                                    :class="row.status === 'absent' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+                                                    class="rounded-xl border px-3 py-2 text-xs font-semibold transition"
+                                                    :class="row.status === 'absent'
+                                                        ? 'border-rose-600 bg-rose-600 text-white shadow-sm'
+                                                        : 'border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100'"
                                                     @click="row.status = 'absent'"
                                                 >
                                                     Absent
