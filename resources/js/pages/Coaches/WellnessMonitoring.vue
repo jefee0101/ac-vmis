@@ -109,7 +109,7 @@ function statusLabel(status: string) {
     <div class="space-y-4">
         <div class="flex flex-col gap-1">
             <h1 class="text-2xl font-bold text-slate-900">Wellness Monitoring</h1>
-            <p class="text-sm text-slate-500">Post-practice or game logs for athletes who attended.</p>
+            <p class="text-sm text-slate-500">Record post-session wellness observations for athletes who attended a completed practice or game.</p>
         </div>
 
         <div v-if="!team" class="rounded-xl border border-slate-200 bg-white p-6 text-slate-500">
@@ -136,6 +136,9 @@ function statusLabel(status: string) {
                 </select>
                 <p v-if="schedules.length === 0" class="mt-2 text-xs text-slate-500">
                     No completed practice/game schedules available yet.
+                </p>
+                <p v-else class="mt-2 text-xs text-slate-500">
+                    Only athletes marked present, late, or excused in attendance can be logged for wellness.
                 </p>
             </div>
 
@@ -216,7 +219,7 @@ function statusLabel(status: string) {
                                 class="px-3 py-1.5 rounded bg-[#F53003] text-white hover:bg-[#d42a02] transition"
                                 :disabled="savingKey === `${selectedSchedule}:${row.student_id}`"
                             >
-                                Save Wellness Log
+                                Save Wellness Evaluation
                             </button>
                         </div>
                     </div>

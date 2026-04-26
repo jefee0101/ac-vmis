@@ -153,11 +153,6 @@ class User extends Authenticatable
         return $this->hasMany(WellnessLog::class, 'logged_by');
     }
 
-    public function wellnessAttachments()
-    {
-        return $this->hasMany(WellnessAttachment::class, 'uploaded_by');
-    }
-
     public function uploadedAcademicDocuments()
     {
         return $this->hasMany(AcademicDocument::class, 'uploaded_by');

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AcademicHold;
 use App\Models\AcademicPeriod;
 use App\Models\AcademicDocument;
+use App\Models\AcademicEligibilityEvaluation;
 use App\Models\Student;
 use App\Models\TeamPlayer;
 
@@ -18,6 +19,7 @@ class AcademicHoldService
         $hasActiveWindow = $openPeriodIds->isNotEmpty();
         $hasTeam = TeamPlayer::query()->where('student_id', $student->id)->exists();
         $hasSubmittedAll = false;
+        $hasEligibleAll = false;
 
         if ($hasActiveWindow) {
             $submittedCount = AcademicDocument::query()
@@ -27,20 +29,31 @@ class AcademicHoldService
                 ->distinct('academic_period_id')
                 ->count('academic_period_id');
             $hasSubmittedAll = $submittedCount >= $openPeriodIds->count();
+
+            $eligibleCount = AcademicEligibilityEvaluation::query()
+                ->where('student_id', $student->id)
+                ->whereIn('academic_period_id', $openPeriodIds)
+                ->where('final_status', 'eligible')
+                ->distinct('academic_period_id')
+                ->count('academic_period_id');
+            $hasEligibleAll = $eligibleCount >= $openPeriodIds->count();
         }
 
         $status = null;
         $reason = null;
         $sourcePeriodId = $hasActiveWindow ? (int) ($openPeriodIds->sortDesc()->first() ?? 0) : null;
-        if ($hasActiveWindow && !$hasSubmittedAll) {
+        if ($hasActiveWindow && !$hasEligibleAll) {
             $status = $hasTeam ? 'Suspended' : 'Unenrolled';
-            $reason = AcademicHold::REASON_MISSING_SUBMISSIONS;
+            $reason = $hasSubmittedAll
+                ? AcademicHold::REASON_PENDING_ELIGIBILITY
+                : AcademicHold::REASON_MISSING_SUBMISSIONS;
         }
 
         return [
             'hasActiveWindow' => $hasActiveWindow,
             'hasTeam' => $hasTeam,
             'hasSubmittedAll' => $hasSubmittedAll,
+            'hasEligibleAll' => $hasEligibleAll,
             'status' => $status,
             'reason' => $reason,
             'source_period_id' => $sourcePeriodId ?: null,
@@ -56,7 +69,7 @@ class AcademicHoldService
             ->orderByDesc('started_at')
             ->first();
 
-        if ($state['hasActiveWindow'] && !$state['hasSubmittedAll']) {
+        if ($state['hasActiveWindow'] && !$state['hasEligibleAll']) {
             $target = strtolower((string) ($state['status'] ?? ''));
 
             if ($target !== '') {

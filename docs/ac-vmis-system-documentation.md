@@ -194,7 +194,7 @@ Academic processing follows a layered structure:
 
 This design supports both automated processing and administrator review. Clear OCR outcomes may be auto-processed, while low-confidence or ambiguous outcomes remain subject to manual confirmation.
 
-Health-related data is stored through `athlete_health_clearances`, `wellness_logs`, and `wellness_attachments`, allowing the system to preserve both compliance and observation records. Notification data is stored through `announcement_events` and `announcement_recipients`, while user notification preferences are stored in `user_settings`.
+Health-related data is stored through `athlete_health_clearances` and `wellness_logs`, allowing the system to preserve both compliance and observation records. Notification data is stored through `announcement_events` and `announcement_recipients`, while user notification preferences are stored in `user_settings`.
 
 Administrative accountability is reinforced through `student_approval_histories`, `account_action_logs`, and related timestamped records that document important system actions.
 

@@ -164,15 +164,6 @@ erDiagram
         timestamp updated_at
     }
 
-    WELLNESS_ATTACHMENTS {
-        bigint id PK
-        bigint wellness_log_id FK
-        varchar file_path
-        bigint uploaded_by FK
-        timestamp created_at
-        timestamp updated_at
-    }
-
     ATHLETE_HEALTH_CLEARANCES {
         bigint id PK
         bigint student_id FK
@@ -359,7 +350,6 @@ erDiagram
     USERS ||--o{ STUDENT_APPROVAL_HISTORIES : "approves or rejects"
     USERS ||--o{ TEAM_STAFF_ASSIGNMENTS : "creates"
     USERS ||--o{ TEAMS : "archives"
-    USERS ||--o{ WELLNESS_ATTACHMENTS : "uploads"
     USERS ||--o{ WELLNESS_LOGS : "records"
 
     SPORTS ||--o{ TEAMS : "categorizes"
@@ -376,8 +366,6 @@ erDiagram
 
     STUDENTS ||--o{ WELLNESS_LOGS : "has"
     TEAM_SCHEDULES ||--o{ WELLNESS_LOGS : "contextualizes"
-    WELLNESS_LOGS ||--o{ WELLNESS_ATTACHMENTS : "contains"
-
     STUDENTS ||--o{ ATHLETE_HEALTH_CLEARANCES : "has"
 
     ACADEMIC_PERIODS ||--o{ ACADEMIC_PERIOD_MESSAGES : "announces"
@@ -409,6 +397,7 @@ The final ERD intentionally keeps only the active domain schema. The following l
 - `schedule_qr_tokens`
 - `academic_evaluation_documents`
 - `academic_document_parsed_subjects`
+- `wellness_attachments`
 
 The diagram also reflects the post-normalization announcement design, where reusable content lives in `announcement_events` and user-specific read state lives in `announcement_recipients`.
 

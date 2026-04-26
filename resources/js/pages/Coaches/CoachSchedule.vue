@@ -334,6 +334,21 @@ function attendanceActionLabel(item: any) {
     return 'Take Attendance'
 }
 
+function canOpenWellness(item: any) {
+    return scheduleStatus(item) === 'completed'
+        && ['practice', 'game'].includes(String(item.type || '').toLowerCase())
+        && Number(item.attendance_count ?? 0) > 0
+}
+
+function openWellness(item: any) {
+    if (!canOpenWellness(item)) return
+
+    router.get('/coach/wellness', { schedule_id: item.id }, {
+        preserveScroll: true,
+        preserveState: false,
+    })
+}
+
 const groupedSchedules = computed(() => {
     const groups = {
         upcoming: [] as any[],
@@ -864,6 +879,13 @@ onBeforeUnmount(() => {
                                     View Details
                                 </button>
                                 <button
+                                    v-if="canOpenWellness(item)"
+                                    @click="openWellness(item)"
+                                    class="rounded-md border border-[#034485]/25 px-3 py-1.5 text-xs font-semibold text-[#034485] hover:border-[#034485]/45 hover:bg-[#034485]/5"
+                                >
+                                    Open Wellness
+                                </button>
+                                <button
                                     v-if="scheduleStatus(item) === 'completed'"
                                     @click="duplicateSchedule(item)"
                                     class="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
@@ -1241,11 +1263,11 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div v-if="modalMode === 'form'" class="flex flex-col-reverse gap-2 border-t border-slate-200 px-6 py-4 sm:flex-row sm:justify-end">
-                    <button @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400">
+                    <button type="button" @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400">
                         Cancel
                     </button>
 
-                    <button @click="saveSchedule"
+                    <button type="button" @click="saveSchedule"
                         class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#111827]">
                         Save Schedule
                     </button>
@@ -1256,10 +1278,11 @@ onBeforeUnmount(() => {
                         Absent: {{ attendanceSelectionCount('absent') }} • Late: {{ attendanceSelectionCount('late') }} • Excused: {{ attendanceSelectionCount('excused') }} • Unset: {{ attendancePendingCount() }}
                     </p>
                     <div class="flex flex-col-reverse gap-2 sm:flex-row">
-                        <button @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400">
+                        <button type="button" @click="closeModal" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400">
                             Close
                         </button>
                         <button
+                            type="button"
                             @click="saveAttendanceSheet"
                             :disabled="attendanceSaving || !selectedSchedule || !attendanceCanBeSaved(selectedSchedule)"
                             class="rounded-md bg-[#1f2937] px-4 py-2 text-sm font-semibold text-white hover:bg-[#111827] disabled:cursor-not-allowed disabled:opacity-50"

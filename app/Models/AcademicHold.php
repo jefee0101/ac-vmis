@@ -10,6 +10,7 @@ class AcademicHold extends Model
     use HasFactory;
 
     public const REASON_MISSING_SUBMISSIONS = 'missing_submissions';
+    public const REASON_PENDING_ELIGIBILITY = 'pending_eligibility';
     public const REASON_LEGACY_STUDENT_STATUS = 'legacy_student_status';
     public const REASON_MANUAL_HOLD = 'manual_hold';
 

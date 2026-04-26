@@ -19,7 +19,7 @@
 <h1>AC-VMIS Data Dictionary</h1>
 <p>This document presents the current AC-VMIS database structure as of April 26, 2026. The <code>Constraints</code> column summarizes each field&#039;s primary key, foreign key, uniqueness, nullability, and default-value requirements using formal and consistent terminology suitable for thesis documentation.</p>
 <p>The academic eligibility module now uses an OCR-assisted workflow centered on uploaded documents, OCR runs, parsed summaries, and final eligibility evaluations with administrator override support.</p>
-<p>Legacy development tables such as <code>account_approvals</code>, <code>announcements</code>, <code>schedule_qr_tokens</code>, <code>academic_evaluation_documents</code>, and <code>academic_document_parsed_subjects</code> are intentionally excluded because they do not represent the current production-oriented schema.</p>
+<p>Legacy development tables such as <code>account_approvals</code>, <code>announcements</code>, <code>schedule_qr_tokens</code>, <code>academic_evaluation_documents</code>, <code>academic_document_parsed_subjects</code>, and <code>wellness_attachments</code> are intentionally excluded because they do not represent the current production-oriented schema.</p>
 <h2><code>academic_documents</code></h2>
 <table>
   <thead>
@@ -2089,55 +2089,6 @@
       <td><code>varchar(60)</code></td>
       <td>Not null; default <code>&amp;#039;Asia/Manila&amp;#039;</code></td>
       <td>Stores the user&#039;s preferred time zone.</td>
-    </tr>
-    <tr>
-      <td><code>created_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was created.</td>
-    </tr>
-    <tr>
-      <td><code>updated_at</code></td>
-      <td><code>timestamp</code></td>
-      <td>Nullable</td>
-      <td>Timestamp indicating when the record was last updated.</td>
-    </tr>
-  </tbody>
-</table>
-<h2><code>wellness_attachments</code></h2>
-<table>
-  <thead>
-    <tr>
-      <th>Field Name</th>
-      <th>Data Type</th>
-      <th>Constraints</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Primary key; auto-increment; not null</td>
-      <td>Unique identifier of the wellness attachment record.</td>
-    </tr>
-    <tr>
-      <td><code>wellness_log_id</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>wellness_logs.id</code>; not null</td>
-      <td>Identifies the wellness log to which the attachment belongs.</td>
-    </tr>
-    <tr>
-      <td><code>file_path</code></td>
-      <td><code>varchar(255)</code></td>
-      <td>Not null</td>
-      <td>Stores the file location of the attachment.</td>
-    </tr>
-    <tr>
-      <td><code>uploaded_by</code></td>
-      <td><code>bigint(20) unsigned</code></td>
-      <td>Foreign key to <code>users.id</code>; nullable</td>
-      <td>Identifies the user who uploaded the attachment.</td>
     </tr>
     <tr>
       <td><code>created_at</code></td>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 import AccountShell from '@/components/Account/AccountShell.vue';
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
@@ -21,7 +21,6 @@ const passwordForm = useForm({
     new_password_confirmation: '',
 });
 
-const passwordSaved = ref(false);
 const showCurrentPassword = ref(false);
 const showNewPassword = ref(false);
 const showConfirmPassword = ref(false);
@@ -29,33 +28,71 @@ const showConfirmPassword = ref(false);
 const page = usePage();
 const currentEmail = computed(() => String(page.props.auth?.user?.email ?? ''));
 const mustChangePassword = computed(() => Boolean(page.props.auth?.user?.must_change_password));
+const themePreference = computed(() => String((page.props.auth as any)?.settings?.theme_preference ?? 'light'));
+const isDarkTheme = computed(() => themePreference.value === 'dark');
 
 const emailForm = useForm({
     email: currentEmail.value,
 });
 
-const emailSaved = ref(false);
 const deleteForm = useForm({});
+const toast = ref<{ tone: 'success' | 'error'; message: string } | null>(null);
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showToast(message: string, tone: 'success' | 'error') {
+    toast.value = { tone, message };
+
+    if (toastTimer) {
+        clearTimeout(toastTimer);
+    }
+
+    toastTimer = setTimeout(() => {
+        toast.value = null;
+        toastTimer = null;
+    }, 2800);
+}
+
+watch(
+    () => (page.props.flash as any)?.success,
+    (value) => {
+        if (value) showToast(String(value), 'success');
+    },
+    { immediate: true }
+);
+
+watch(
+    () => (page.props.flash as any)?.error,
+    (value) => {
+        if (value) showToast(String(value), 'error');
+    },
+    { immediate: true }
+);
+
+onBeforeUnmount(() => {
+    if (toastTimer) {
+        clearTimeout(toastTimer);
+    }
+});
 
 function submitPassword() {
-    passwordSaved.value = false;
     passwordForm.put('/account/password', {
         preserveScroll: true,
         onSuccess: () => {
-            passwordSaved.value = true;
             passwordForm.reset();
-            setTimeout(() => (passwordSaved.value = false), 2200);
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors || {})[0];
+            showToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to update password.'), 'error');
         },
     });
 }
 
 function submitEmail() {
-    emailSaved.value = false;
     emailForm.put('/account/account-settings', {
         preserveScroll: true,
-        onSuccess: () => {
-            emailSaved.value = true;
-            setTimeout(() => (emailSaved.value = false), 2200);
+        onError: (errors) => {
+            const firstError = Object.values(errors || {})[0];
+            showToast(Array.isArray(firstError) ? String(firstError[0]) : String(firstError || 'Unable to update email.'), 'error');
         },
     });
 }
@@ -70,6 +107,25 @@ function confirmDelete() {
     <Head title="Account Settings" />
 
     <AccountShell active="account">
+        <transition name="toast-fade">
+            <div
+                v-if="toast"
+                class="fixed right-4 top-4 z-[70] w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur"
+                :class="[
+                    isDarkTheme ? 'shadow-slate-950/40' : 'shadow-slate-900/15',
+                    toast.tone === 'success'
+                        ? (isDarkTheme
+                            ? 'border-emerald-500/35 bg-slate-900/95 text-emerald-200'
+                            : 'border-emerald-200 bg-emerald-50/95 text-emerald-800')
+                        : (isDarkTheme
+                            ? 'border-rose-500/35 bg-slate-900/95 text-rose-200'
+                            : 'border-rose-200 bg-rose-50/95 text-rose-800')
+                ]"
+            >
+                <p class="text-sm font-semibold">{{ toast.message }}</p>
+            </div>
+        </transition>
+
         <div v-if="mustChangePassword" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             Password update required. Set a new password to continue using AC-VMIS.
         </div>
@@ -205,7 +261,6 @@ function confirmDelete() {
                 >
                     {{ passwordForm.processing ? 'Updating...' : 'Update Password' }}
                 </button>
-                <p v-if="passwordSaved" class="text-sm text-green-700">Password updated.</p>
             </div>
 
             <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
@@ -240,7 +295,6 @@ function confirmDelete() {
                 >
                     {{ emailForm.processing ? 'Saving...' : 'Update Email' }}
                 </button>
-                <p v-if="emailSaved" class="text-sm text-green-700">Email updated.</p>
             </div>
         </form>
 
@@ -272,6 +326,17 @@ function confirmDelete() {
 .settings-label,
 .settings-icon {
     color: #64748b;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
 }
 
 </style>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
@@ -55,10 +55,18 @@ const selectedPeriodId = ref<number | null>(props.selectedPeriodId)
 const activeTab = ref<'periods' | 'evaluations'>('periods')
 const isLoading = ref(false)
 const showFilters = ref(false)
+const periodSaving = ref(false)
 const deletePeriodDialogOpen = ref(false)
 const auditDialogOpen = ref(false)
 const auditNote = ref('')
 const pendingEvaluation = ref<EvaluationsRow | null>(null)
+const periodErrors = ref<Record<string, string>>({})
+const toast = ref<{ open: boolean; tone: 'success' | 'error'; title: string; description: string }>({
+    open: false,
+    tone: 'success',
+    title: '',
+    description: '',
+})
 const noticeDialog = ref<{ open: boolean; title: string; description: string }>({
     open: false,
     title: '',
@@ -99,6 +107,43 @@ const activeFilterCount = computed(() => {
 const tabIndex = computed(() => {
     return activeTab.value === 'periods' ? 0 : 1
 })
+
+let toastTimer: number | null = null
+
+function showToast(tone: 'success' | 'error', title: string, description: string) {
+    toast.value = {
+        open: true,
+        tone,
+        title,
+        description,
+    }
+
+    if (toastTimer) {
+        window.clearTimeout(toastTimer)
+    }
+
+    toastTimer = window.setTimeout(() => {
+        toast.value.open = false
+        toastTimer = null
+    }, 3200)
+}
+
+watch(
+    () => props.selectedPeriodId,
+    (value) => {
+        selectedPeriodId.value = value ?? null
+    },
+)
+
+watch(
+    () => props.periods,
+    (periods) => {
+        if (!selectedPeriodId.value && periods.length) {
+            selectedPeriodId.value = periods[0].id
+        }
+    },
+    { deep: true },
+)
 
 
 function termLabel(termCode: string) {
@@ -207,12 +252,39 @@ function setTab(tab: 'periods' | 'evaluations') {
 }
 
 function createPeriod() {
+    periodSaving.value = true
+    periodErrors.value = {}
+
     router.post('/academics/periods', {
         school_year: schoolYear.value,
         term: term.value,
         starts_on: startsOn.value,
         ends_on: endsOn.value,
         announcement: announcement.value,
+    }, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            schoolYear.value = ''
+            term.value = '1st_sem'
+            startsOn.value = ''
+            endsOn.value = ''
+            announcement.value = ''
+            periodErrors.value = {}
+            selectedPeriodId.value = props.periods?.[0]?.id ?? selectedPeriodId.value
+            showToast('success', 'Academic period created', 'The new period is now available in the active period panel.')
+        },
+        onError: (errors) => {
+            periodErrors.value = Object.fromEntries(
+                Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? String(value[0] ?? '') : String(value ?? '')]),
+            )
+
+            const firstError = Object.values(periodErrors.value).find((value) => value.trim() !== '')
+            showToast('error', 'Unable to create period', firstError || 'Please review the academic period details and try again.')
+        },
+        onFinish: () => {
+            periodSaving.value = false
+        },
     })
 }
 
@@ -373,6 +445,19 @@ function changePeriod() {
     <Head title="Academics Workspace" />
 
     <div class="space-y-5">
+        <transition name="toast-fade">
+            <div
+                v-if="toast.open"
+                class="fixed right-4 top-4 z-50 w-full max-w-sm rounded-2xl border px-4 py-3 shadow-lg"
+                :class="toast.tone === 'error'
+                    ? 'border-rose-200 bg-rose-50 text-rose-800'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
+            >
+                <p class="text-sm font-semibold">{{ toast.title }}</p>
+                <p class="mt-1 text-sm">{{ toast.description }}</p>
+            </div>
+        </transition>
+
         <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -531,17 +616,37 @@ function changePeriod() {
                 <div class="rounded-xl border border-[#034485]/45 bg-white p-4">
                     <h2 class="mb-3 text-sm font-semibold text-slate-800">Create Academic Period</h2>
                     <div class="grid grid-cols-1 gap-2 md:grid-cols-5">
-                        <input v-model="schoolYear" placeholder="2026-2027" class="rounded-md border border-slate-300 px-2 py-2 text-sm" />
-                        <select v-model="term" class="rounded-md border border-slate-300 px-2 py-2 text-sm">
+                        <div>
+                            <input v-model="schoolYear" placeholder="2026-2027" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                            <p v-if="periodErrors.school_year" class="mt-1 text-xs text-rose-600">{{ periodErrors.school_year }}</p>
+                        </div>
+                        <div>
+                        <select v-model="term" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm">
                             <option value="1st_sem">1st Sem</option>
                             <option value="2nd_sem">2nd Sem</option>
                             <option value="summer">Summer</option>
                         </select>
-                        <input v-model="startsOn" type="date" class="rounded-md border border-slate-300 px-2 py-2 text-sm" />
-                        <input v-model="endsOn" type="date" class="rounded-md border border-slate-300 px-2 py-2 text-sm" />
-                        <button type="button" class="rounded-md bg-[#1f2937] px-3 py-2 text-sm font-semibold text-white hover:bg-[#334155]" @click="createPeriod">Create</button>
+                            <p v-if="periodErrors.term" class="mt-1 text-xs text-rose-600">{{ periodErrors.term }}</p>
+                        </div>
+                        <div>
+                            <input v-model="startsOn" type="date" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                            <p v-if="periodErrors.starts_on" class="mt-1 text-xs text-rose-600">{{ periodErrors.starts_on }}</p>
+                        </div>
+                        <div>
+                            <input v-model="endsOn" type="date" class="w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                            <p v-if="periodErrors.ends_on" class="mt-1 text-xs text-rose-600">{{ periodErrors.ends_on }}</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-md bg-[#1f2937] px-3 py-2 text-sm font-semibold text-white hover:bg-[#334155] disabled:cursor-not-allowed disabled:opacity-60"
+                            :disabled="periodSaving"
+                            @click="createPeriod"
+                        >
+                            {{ periodSaving ? 'Creating...' : 'Create' }}
+                        </button>
                     </div>
                     <textarea v-model="announcement" rows="2" placeholder="Announcement for students (optional)" class="mt-2 w-full rounded-md border border-slate-300 px-2 py-2 text-sm" />
+                    <p v-if="periodErrors.announcement" class="mt-1 text-xs text-rose-600">{{ periodErrors.announcement }}</p>
                 </div>
                 </div>
 
@@ -676,5 +781,16 @@ function changePeriod() {
 
 .table-fade-move {
     transition: transform 0.2s ease;
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
 }
 </style>

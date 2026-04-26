@@ -4,7 +4,7 @@ This document presents the current AC-VMIS database structure as of April 26, 20
 
 The academic eligibility module now uses an OCR-assisted workflow centered on uploaded documents, OCR runs, parsed summaries, and final eligibility evaluations with administrator override support.
 
-Legacy development tables such as `account_approvals`, `announcements`, `schedule_qr_tokens`, `academic_evaluation_documents`, and `academic_document_parsed_subjects` are intentionally excluded because they do not represent the current production-oriented schema.
+Legacy development tables such as `account_approvals`, `announcements`, `schedule_qr_tokens`, `academic_evaluation_documents`, `academic_document_parsed_subjects`, and `wellness_attachments` are intentionally excluded because they do not represent the current production-oriented schema.
 
 ## `academic_documents`
 
@@ -441,17 +441,6 @@ Legacy development tables such as `account_approvals`, `announcements`, `schedul
 | `wellness_injury_threshold_level` | `tinyint(3) unsigned` | Not null; default `3` | Stores the threshold level used for wellness injury alerts. |
 | `theme_preference` | `varchar(20)` | Not null; default `'system'` | Stores the user's preferred application theme. |
 | `timezone` | `varchar(60)` | Not null; default `'Asia/Manila'` | Stores the user's preferred time zone. |
-| `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
-| `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
-
-## `wellness_attachments`
-
-| Field Name | Data Type | Constraints | Description |
-| --- | --- | --- | --- |
-| `id` | `bigint(20) unsigned` | Primary key; auto-increment; not null | Unique identifier of the wellness attachment record. |
-| `wellness_log_id` | `bigint(20) unsigned` | Foreign key to `wellness_logs.id`; not null | Identifies the wellness log to which the attachment belongs. |
-| `file_path` | `varchar(255)` | Not null | Stores the file location of the attachment. |
-| `uploaded_by` | `bigint(20) unsigned` | Foreign key to `users.id`; nullable | Identifies the user who uploaded the attachment. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 

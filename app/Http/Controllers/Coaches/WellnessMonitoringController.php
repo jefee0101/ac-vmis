@@ -165,7 +165,9 @@ class WellnessMonitoringController extends Controller
                 'logged_by' => Auth::id(),
                 'log_date' => Carbon::now()->toDateString(),
                 'injury_observed' => (bool) $validated['injury_observed'],
-                'injury_notes' => $validated['injury_notes'] ?? null,
+                'injury_notes' => (bool) $validated['injury_observed']
+                    ? ($validated['injury_notes'] ?? null)
+                    : null,
                 'fatigue_level' => (int) $validated['fatigue_level'],
                 'performance_condition' => $validated['performance_condition'],
                 'remarks' => $validated['remarks'] ?? null,

@@ -16,7 +16,10 @@ use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use Throwable;
 
 class AcademicSubmissionController extends Controller
 {
@@ -37,20 +40,24 @@ class AcademicSubmissionController extends Controller
                 'student' => null,
                 'openPeriods' => [],
                 'submissions' => [],
+                'selectedPeriodId' => 0,
+                'resultSubmissionId' => 0,
             ]);
         }
+
+        request()->merge([
+            'period_id' => (int) request()->query('period_id', 0),
+            'result_submission_id' => (int) request()->query('result_submission_id', 0),
+        ]);
 
         return Inertia::render('StudentAthletes/AcademicSubmissions', $this->buildPayload($student));
     }
 
     public function create(Request $request)
     {
-        $student = Student::where('user_id', Auth::id())->firstOrFail();
-
-        $payload = $this->buildPayload($student);
-        $payload['selectedPeriodId'] = (int) $request->query('period_id', 0);
-
-        return Inertia::render('StudentAthletes/AcademicSubmissionForm', $payload);
+        return redirect()->route('AcademicSubmissions', [
+            'period_id' => (int) $request->query('period_id', 0),
+        ]);
     }
 
     private function buildPayload(Student $student): array
@@ -93,6 +100,9 @@ class AcademicSubmissionController extends Controller
             'hasActiveWindow' => $holdState['hasActiveWindow'],
             'hasTeam' => $holdState['hasTeam'],
             'hasSubmittedAll' => $holdState['hasSubmittedAll'],
+            'hasEligibleAll' => $holdState['hasEligibleAll'] ?? false,
+            'selectedPeriodId' => (int) request()->query('period_id', 0),
+            'resultSubmissionId' => (int) request()->query('result_submission_id', 0),
             'openPeriods' => $openPeriods->map(function ($p) use ($evalByPeriod) {
                 $evaluation = $evalByPeriod->get($p->id);
                 $status = $evaluation?->status;
@@ -178,8 +188,54 @@ class AcademicSubmissionController extends Controller
             'notes' => $notes !== '' ? $notes : null,
         ]);
 
+        $toastType = 'success';
+        $toastMessage = 'Academic submission processed successfully';
+
         if ((string) $validated['document_type'] === AcademicDocumentType::CODE_GRADE_REPORT) {
-            ProcessAcademicDocumentOcr::dispatch($document->id);
+            $canRunInlineOcr = $this->ocrValidationColumnsReady();
+
+            if ($canRunInlineOcr) {
+                try {
+                    ProcessAcademicDocumentOcr::dispatchSync($document->id);
+                } catch (Throwable $e) {
+                    Log::warning('Academic document OCR failed during inline student submission.', [
+                        'document_id' => $document->id,
+                        'student_id' => $student->id,
+                        'period_id' => $period->id,
+                        'message' => $e->getMessage(),
+                    ]);
+
+                    $document->update([
+                        'review_status' => AcademicDocument::REVIEW_STATUS_NEEDS_REVIEW,
+                        'reviewed_by' => null,
+                        'reviewed_at' => null,
+                    ]);
+
+                    $canRunInlineOcr = false;
+                }
+            }
+
+            if ($canRunInlineOcr) {
+                $document->refresh()->loadMissing('latestOcrRun.parsedSummary');
+                $ocrRun = $document->latestOcrRun;
+                $evaluation = AcademicEligibilityEvaluation::query()
+                    ->where('student_id', $student->id)
+                    ->where('academic_period_id', $period->id)
+                    ->latest('evaluated_at')
+                    ->first();
+
+                $wasFullyProcessed = $ocrRun
+                    && $ocrRun->run_status !== 'failed'
+                    && in_array($evaluation?->status, ['eligible', 'pending_review', 'ineligible'], true);
+
+                if (!$wasFullyProcessed) {
+                    $toastType = 'error';
+                    $toastMessage = 'Unable to fully process document. Please review or resubmit.';
+                }
+            } else {
+                $toastType = 'error';
+                $toastMessage = 'Unable to fully process document. Please review or resubmit.';
+            }
         }
 
         $periodLabel = "{$period->school_year} - {$period->term}";
@@ -216,7 +272,10 @@ class AcademicSubmissionController extends Controller
             'notify_academic_alerts'
         );
 
-        return back()->with('success', 'Semestral grade document submitted.');
+        return redirect()->route('AcademicSubmissions', [
+            'period_id' => (int) $period->id,
+            'result_submission_id' => (int) $document->id,
+        ])->with($toastType, $toastMessage);
     }
 
     public function print(Request $request)
@@ -321,5 +380,15 @@ class AcademicSubmissionController extends Controller
                 'checked_at' => optional($ocrRun->validation_checked_at)->toDateTimeString(),
             ],
         ];
+    }
+
+    private function ocrValidationColumnsReady(): bool
+    {
+        return Schema::hasColumns('academic_document_ocr_runs', [
+            'validation_status',
+            'validation_summary',
+            'validation_flags',
+            'validation_checked_at',
+        ]);
     }
 }

@@ -40,9 +40,4 @@ class WellnessLog extends Model
     {
         return $this->belongsTo(User::class, 'logged_by');
     }
-
-    public function attachments()
-    {
-        return $this->hasMany(WellnessAttachment::class, 'wellness_log_id');
-    }
 }

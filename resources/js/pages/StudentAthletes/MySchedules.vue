@@ -143,7 +143,7 @@ function statusLabel(status: string | null) {
 function attendanceLabel(item: any) {
     if (item.attendance_status) return statusLabel(item.attendance_status)
     if (isPastSchedule(item)) return 'Pending encoding'
-    return 'Coach will record attendance'
+    return 'Attendance pending'
 }
 
 function statusClass(item: any) {
@@ -355,9 +355,6 @@ function stripeColors(sport: any) {
                                 <div class="relative z-10 text-xs text-slate-600">{{ formatPHT(item.end) }}</div>
                                 <div v-if="item.notes" class="relative z-10 mt-2 text-xs text-slate-500">{{ item.notes }}</div>
                                 <div v-if="item.attendance_notes" class="relative z-10 mt-2 text-xs text-amber-600">Coach note: {{ item.attendance_notes }}</div>
-                                <div class="relative z-10 mt-3 rounded-xl border border-[#034485]/15 bg-[#034485]/5 px-3 py-2 text-[11px] text-slate-600">
-                                    Attendance for this schedule will be posted by the coach or assistant coach once the session begins.
-                                </div>
                             </div>
                         </div>
 

@@ -269,8 +269,10 @@ class HealthWorkspaceController extends Controller
                     'schedule_title' => $log->schedule?->title,
                     'schedule_type' => $log->schedule?->type,
                     'injury_observed' => (bool) $log->injury_observed,
+                    'injury_notes' => $log->injury_notes,
                     'fatigue_level' => $log->fatigue_level,
                     'performance_condition' => $log->performance_condition,
+                    'remarks' => $log->remarks,
                     'logged_by' => $log->logger?->name,
                 ];
             })

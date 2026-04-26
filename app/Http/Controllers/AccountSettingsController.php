@@ -255,7 +255,7 @@ class AccountSettingsController extends Controller
             'must_change_password' => false,
         ]);
 
-        return back();
+        return back()->with('success', 'Password updated successfully.');
     }
 
     public function updateAccountSettings(Request $request)
@@ -275,7 +275,7 @@ class AccountSettingsController extends Controller
             'email' => $validated['email'],
         ]);
 
-        return back();
+        return back()->with('success', 'Email updated successfully.');
     }
 
     public function destroy(Request $request)

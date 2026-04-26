@@ -28,8 +28,10 @@ type WellnessRow = {
     schedule_title: string | null;
     schedule_type: string | null;
     injury_observed: boolean;
+    injury_notes: string | null;
     fatigue_level: number | null;
     performance_condition: string | null;
+    remarks: string | null;
     logged_by: string | null;
 };
 
@@ -427,6 +429,8 @@ function resetWellness() {
                                     <div class="text-xs" :class="row.injury_observed ? 'text-rose-600' : 'text-emerald-600'">
                                         {{ row.injury_observed ? 'Injury observed' : 'No injury observed' }}
                                     </div>
+                                    <div v-if="row.injury_notes" class="text-xs text-slate-500">Injury notes: {{ row.injury_notes }}</div>
+                                    <div v-if="row.remarks" class="text-xs text-slate-500">Remarks: {{ row.remarks }}</div>
                                 </td>
                                 <td class="px-4 py-3">{{ row.logged_by || '-' }}</td>
                             </tr>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Head, Link, usePage } from '@inertiajs/vue3'
-import { computed } from 'vue'
+import { Head, router, usePage } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+import Spinner from '@/components/ui/spinner/Spinner.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 
 defineOptions({
@@ -60,6 +61,8 @@ type Submission = {
     } | null
 }
 
+type ToastTone = 'success' | 'error'
+
 const props = defineProps<{
     student: {
         id: number
@@ -75,12 +78,27 @@ const props = defineProps<{
     hasActiveWindow?: boolean
     hasTeam?: boolean
     hasSubmittedAll?: boolean
+    hasEligibleAll?: boolean
+    selectedPeriodId?: number
+    resultSubmissionId?: number
 }>()
 
 const page = usePage()
 const academicAccess = computed(() => (page.props.auth as any)?.academic_access ?? null)
 const isAcademicallyRestricted = computed(() => Boolean(academicAccess.value?.is_restricted))
 const restrictionEvaluation = computed(() => academicAccess.value?.evaluation ?? null)
+
+const isSubmissionModalOpen = ref(false)
+const activePeriodId = ref<number | null>(null)
+const notes = ref('')
+const file = ref<File | null>(null)
+const previewUrl = ref('')
+const submitError = ref('')
+const isSubmitting = ref(false)
+const uploadProgress = ref(0)
+const isScanning = ref(false)
+const toast = ref<{ tone: ToastTone; message: string } | null>(null)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 function parseTime(value: string | null | undefined) {
     if (!value) return 0
@@ -94,24 +112,163 @@ const sortedSubmissions = computed(() =>
 
 const latestSubmission = computed(() => sortedSubmissions.value[0] || null)
 const latestEvaluated = computed(() => sortedSubmissions.value.find((row) => row.evaluation) || null)
-const completedSubmissions = computed(() => sortedSubmissions.value.filter((row) => row.evaluation))
 const displayedSubmissions = computed(() => sortedSubmissions.value)
-function statusPill(row: Submission) {
-    if (!row.evaluation) {
-        return { label: 'Pending review', class: 'bg-amber-50 text-amber-700 border border-amber-200' }
+const selectedPeriod = computed(() => props.openPeriods.find((period) => period.id === activePeriodId.value) ?? null)
+const resultSubmission = computed(() =>
+    props.resultSubmissionId ? sortedSubmissions.value.find((row) => row.id === props.resultSubmissionId) ?? null : null
+)
+
+function showToast(message: string, tone: ToastTone) {
+    toast.value = { message, tone }
+
+    if (toastTimer) {
+        clearTimeout(toastTimer)
     }
-    const raw = row.evaluation.status || 'Reviewed'
-    const normalized = raw.toLowerCase()
-    if (normalized.includes('approved') || normalized.includes('cleared') || normalized.includes('passed')) {
-        return { label: raw, class: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
+
+    toastTimer = setTimeout(() => {
+        toast.value = null
+        toastTimer = null
+    }, 3200)
+}
+
+watch(
+    () => (page.props.flash as any)?.success,
+    (value) => {
+        if (value) {
+            showToast(String(value), 'success')
+        }
+    },
+    { immediate: true }
+)
+
+watch(
+    () => (page.props.flash as any)?.error,
+    (value) => {
+        if (value) {
+            showToast(String(value), 'error')
+        }
+    },
+    { immediate: true }
+)
+
+watch(
+    () => file.value,
+    (next, prev) => {
+        if (previewUrl.value) {
+            URL.revokeObjectURL(previewUrl.value)
+            previewUrl.value = ''
+        }
+
+        if (prev && prev !== next && previewUrl.value) {
+            URL.revokeObjectURL(previewUrl.value)
+        }
+
+        if (next && next.type.startsWith('image/')) {
+            previewUrl.value = URL.createObjectURL(next)
+        }
     }
-    if (normalized.includes('rejected') || normalized.includes('failed')) {
-        return { label: raw, class: 'bg-rose-50 text-rose-700 border border-rose-200' }
+)
+
+watch(
+    () => props.selectedPeriodId,
+    (periodId) => {
+        if (!periodId || props.resultSubmissionId) return
+        openSubmissionModal(periodId)
+    },
+    { immediate: true }
+)
+
+onBeforeUnmount(() => {
+    if (previewUrl.value) {
+        URL.revokeObjectURL(previewUrl.value)
     }
-    if (normalized.includes('incomplete') || normalized.includes('needs')) {
-        return { label: raw, class: 'bg-amber-50 text-amber-700 border border-amber-200' }
+
+    if (toastTimer) {
+        clearTimeout(toastTimer)
     }
-    return { label: raw, class: 'bg-[#034485]/5 text-[#1f2937] border border-[#034485]/20' }
+})
+
+function openSubmissionModal(periodId: number) {
+    const period = props.openPeriods.find((item) => item.id === periodId)
+    if (!period || period.can_submit === false || period.is_eligible) return
+
+    activePeriodId.value = periodId
+    submitError.value = ''
+    isSubmissionModalOpen.value = true
+}
+
+function closeSubmissionModal() {
+    if (isSubmitting.value) return
+
+    isSubmissionModalOpen.value = false
+    activePeriodId.value = null
+    notes.value = ''
+    file.value = null
+    submitError.value = ''
+    uploadProgress.value = 0
+    isScanning.value = false
+}
+
+function handleFileChange(event: Event) {
+    file.value = (event.target as HTMLInputElement).files?.[0] ?? null
+}
+
+function removeFile() {
+    file.value = null
+}
+
+function submit() {
+    if (isSubmitting.value) return
+
+    submitError.value = ''
+
+    if (!selectedPeriod.value) {
+        submitError.value = 'Please choose an active academic period.'
+        return
+    }
+
+    if (selectedPeriod.value.can_submit === false || selectedPeriod.value.is_eligible) {
+        submitError.value = 'You are already eligible for this period. Further submissions are locked.'
+        return
+    }
+
+    if (!file.value) {
+        submitError.value = 'Please attach your academic document before submitting.'
+        return
+    }
+
+    const fd = new FormData()
+    fd.append('academic_period_id', String(selectedPeriod.value.id))
+    fd.append('document_type', 'grade_report')
+    fd.append('notes', notes.value)
+    fd.append('document_file', file.value)
+
+    router.post('/AcademicSubmissions', fd, {
+        forceFormData: true,
+        preserveScroll: true,
+        onStart: () => {
+            isSubmitting.value = true
+            isScanning.value = true
+            uploadProgress.value = 0
+        },
+        onProgress: (event) => {
+            uploadProgress.value = Math.round(event?.percentage ?? 0)
+        },
+        onSuccess: () => {
+            closeSubmissionModal()
+        },
+        onError: (errors) => {
+            const firstError = Object.values(errors || {})[0]
+            submitError.value = Array.isArray(firstError)
+                ? String(firstError[0])
+                : String(firstError || 'Unable to submit your academic document.')
+        },
+        onFinish: () => {
+            isSubmitting.value = false
+            isScanning.value = false
+            uploadProgress.value = 0
+        },
+    })
 }
 
 function docLabel(type: string) {
@@ -121,52 +278,75 @@ function docLabel(type: string) {
 
 function evaluationPill(status: string | null | undefined) {
     const value = String(status ?? '').toLowerCase()
-    if (!value) return 'bg-[#034485]/5 text-slate-600 border border-[#034485]/20'
-    if (value.includes('eligible') || value.includes('approved') || value.includes('passed')) {
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    }
-    if (value.includes('ineligible') || value.includes('rejected') || value.includes('failed')) {
-        return 'bg-rose-50 text-rose-700 border border-rose-200'
-    }
-    if (value.includes('pending_review') || value.includes('incomplete') || value.includes('needs')) {
-        return 'bg-amber-50 text-amber-700 border border-amber-200'
-    }
+    if (!value) return 'bg-slate-100 text-slate-600 border border-slate-200'
+    if (value.includes('eligible')) return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    if (value.includes('ineligible')) return 'bg-rose-50 text-rose-700 border border-rose-200'
+    if (value.includes('pending_review') || value.includes('pending')) return 'bg-amber-50 text-amber-700 border border-amber-200'
     return 'bg-[#034485]/5 text-slate-600 border border-[#034485]/20'
 }
 
-function termLabel(termCode: string) {
-    if (termCode === '1st_sem') return '1st Sem'
-    if (termCode === '2nd_sem') return '2nd Sem'
-    if (termCode === 'summer') return 'Summer'
-    return termCode
+function statusPill(row: Submission) {
+    const status = row.evaluation?.status ?? row.ocr?.interpretation?.status ?? 'pending_review'
+    const normalized = String(status).toLowerCase()
+
+    if (normalized.includes('eligible')) {
+        return { label: 'Eligible', class: evaluationPill(status) }
+    }
+
+    if (normalized.includes('ineligible')) {
+        return { label: 'Ineligible', class: evaluationPill(status) }
+    }
+
+    return { label: 'Pending Review', class: evaluationPill(status) }
 }
 
 function validationPill(status: string | null | undefined) {
     const value = String(status ?? '').toLowerCase()
     if (value === 'valid') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     if (value === 'manual_review') return 'bg-amber-50 text-amber-700 border border-amber-200'
+    if (value === 'pending') return 'bg-sky-50 text-sky-700 border border-sky-200'
     return 'bg-slate-100 text-slate-600 border border-slate-200'
 }
 
 function validationLabel(status: string | null | undefined) {
     const value = String(status ?? '').toLowerCase()
-    if (value === 'valid') return 'GPA extracted'
-    if (value === 'manual_review') return 'Needs GPA review'
-    if (value === 'pending') return 'Scanning GPA'
+    if (value === 'valid') return 'Processed'
+    if (value === 'manual_review') return 'Needs review'
+    if (value === 'pending') return 'Scanning'
     return status || 'Not yet processed'
 }
 
-function scaleLabel(scale: string | null | undefined) {
-    if (scale === 'basic_education') return 'Basic Education'
-    if (scale === 'higher_education') return 'Higher Education'
-    return 'Unknown scale'
+function termLabel(termCode: string) {
+    if (termCode === '1st_sem') return '1st Semester'
+    if (termCode === '2nd_sem') return '2nd Semester'
+    if (termCode === 'summer') return 'Summer'
+    return termCode
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined, options?: Intl.DateTimeFormatOptions) {
     if (!value) return '-'
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) return value
-    return parsed.toLocaleDateString()
+    return parsed.toLocaleDateString(undefined, options)
+}
+
+function formatDateTime(value: string | null | undefined) {
+    if (!value) return '-'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return value
+    return parsed.toLocaleString()
+}
+
+function selectedResultValue(row: Submission | null) {
+    if (!row) return '-'
+    return row.evaluation?.gpa ?? row.ocr?.parsed_summary?.gwa ?? '-'
+}
+
+function selectedResultLabel(row: Submission | null) {
+    if (!row) return 'Pending Review'
+    return row.evaluation?.status
+        ? row.evaluation.status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        : row.ocr?.interpretation?.label || 'Pending Review'
 }
 
 function printAcademicSummary() {
@@ -178,24 +358,37 @@ function printAcademicSummary() {
     <Head title="Academic Submissions" />
 
     <div class="space-y-5">
+        <transition name="toast-fade">
+            <div
+                v-if="toast"
+                class="fixed right-4 top-4 z-[70] w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur"
+                :class="toast.tone === 'success'
+                    ? 'border-emerald-200 bg-emerald-50/95 text-emerald-800'
+                    : 'border-rose-200 bg-rose-50/95 text-rose-800'"
+            >
+                <p class="text-sm font-semibold">{{ toast.message }}</p>
+            </div>
+        </transition>
+
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Academic Submissions</h1>
                 <p class="text-sm text-slate-500">
-                    {{ isAcademicallyRestricted ? 'Review your academic standing and submit the required records to work toward restored varsity access.' : 'Submit your semester grade proof directly to admin.' }}
+                    {{ isAcademicallyRestricted
+                        ? 'Review your current academic standing, upload your latest grade report, and wait for the official eligibility result.'
+                        : 'Submit your latest grade report through the guided scan flow.' }}
                 </p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <button
-                    @click="printAcademicSummary"
-                    class="rounded-lg border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                    Print
-                </button>
-            </div>
+            <button
+                type="button"
+                @click="printAcademicSummary"
+                class="rounded-lg border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+                Print
+            </button>
         </div>
 
-        <div v-if="!student" class="bg-white border border-[#034485]/35 rounded-lg p-4 text-slate-600">
+        <div v-if="!student" class="rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600">
             Student profile not found.
         </div>
 
@@ -220,11 +413,9 @@ function printAcademicSummary() {
                                     Academic restriction
                                 </span>
                             </div>
-                            <p class="max-w-3xl text-sm leading-6 text-slate-600">
-                                {{ academicAccess?.message }}
-                            </p>
+                            <p class="max-w-3xl text-sm leading-6 text-slate-600">{{ academicAccess?.message }}</p>
                             <p class="text-sm text-slate-600">
-                                You can still use this module to review your evaluation, submit the required documents, and check what needs attention for the current academic period.
+                                Upload your current academic document here. Access to teams, schedules, and wellness returns only after the active period is submitted and marked eligible.
                             </p>
                         </div>
                     </div>
@@ -248,7 +439,7 @@ function printAcademicSummary() {
                             </div>
                             <div class="flex items-start justify-between gap-3">
                                 <span>Remarks</span>
-                                <span class="max-w-[14rem] text-right text-slate-700">{{ restrictionEvaluation?.remarks ?? latestEvaluated?.evaluation?.remarks ?? 'Check the evaluated record below for details.' }}</span>
+                                <span class="max-w-[14rem] text-right text-slate-700">{{ restrictionEvaluation?.remarks ?? latestEvaluated?.evaluation?.remarks ?? 'Check the latest scanned result below for more detail.' }}</span>
                             </div>
                         </div>
                     </div>
@@ -269,157 +460,199 @@ function printAcademicSummary() {
                 <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
                     <p class="text-xs text-slate-500">Latest Evaluation</p>
                     <div class="mt-2 flex items-baseline gap-2">
-                        <p class="text-2xl font-semibold text-[#1f2937]">{{ latestEvaluated?.evaluation?.gpa ?? '-' }}</p>
-                        <span class="text-xs text-slate-500">GPA</span>
+                        <p class="text-2xl font-semibold text-[#1f2937]">{{ latestEvaluated?.evaluation?.gpa ?? latestSubmission?.ocr?.parsed_summary?.gwa ?? '-' }}</p>
+                        <span class="text-xs text-slate-500">GPA / Average</span>
                     </div>
-                    <div class="mt-2 text-xs text-slate-500 flex items-center gap-2">
+                    <div class="mt-2 flex items-center gap-2 text-xs text-slate-500">
                         <span>Status:</span>
-                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="evaluationPill(latestEvaluated?.evaluation?.status)">
-                            {{ latestEvaluated?.evaluation?.status ?? 'Not yet evaluated' }}
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="evaluationPill(latestEvaluated?.evaluation?.status ?? latestSubmission?.ocr?.interpretation?.status)">
+                            {{ selectedResultLabel(latestEvaluated ?? latestSubmission) }}
                         </span>
                     </div>
-                    <div class="text-xs text-slate-500">Evaluated: {{ formatDate(latestEvaluated?.evaluation?.evaluated_at) }}</div>
-                    <div class="text-xs text-slate-500">Period: {{ latestEvaluated?.period_label || '-' }}</div>
+                    <div class="text-xs text-slate-500">Evaluated: {{ formatDateTime(latestEvaluated?.evaluation?.evaluated_at || latestSubmission?.ocr?.processed_at) }}</div>
+                    <div class="text-xs text-slate-500">Period: {{ latestEvaluated?.period_label || latestSubmission?.period_label || '-' }}</div>
                 </div>
 
                 <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                    <p class="text-xs text-slate-500">Latest Submission</p>
-                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ latestSubmission?.period_label || 'No submissions on record' }}</div>
-                    <div class="text-xs text-slate-500">{{ latestSubmission?.uploaded_at || '-' }}</div>
-                    <div class="mt-2 text-xs text-slate-600">
-                        {{ latestSubmission ? docLabel(latestSubmission.document_type) : '—' }}
+                    <p class="text-xs text-slate-500">Submission State</p>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                        {{ hasActiveWindow ? 'Current active period' : 'No active submission window' }}
                     </div>
-                    <div v-if="latestSubmission?.ocr" class="mt-2 space-y-1 text-xs text-slate-500">
+                    <div class="mt-2 space-y-2 text-xs text-slate-500">
                         <div>
-                            Extracted {{ latestSubmission.ocr.interpretation?.value_label || 'GPA/GWA' }}:
-                            <span class="font-semibold text-slate-800">{{ latestSubmission.ocr.parsed_summary?.gwa ?? '-' }}</span>
+                            <span class="font-semibold text-slate-700">Access status:</span>
+                            {{ hasEligibleAll ? 'Restored' : (submissionHoldStatus || 'Limited') }}
                         </div>
-                        <div>
-                            System interpretation:
-                            <span class="font-semibold text-slate-800">{{ latestSubmission.ocr.interpretation?.label || '-' }}</span>
-                            <span class="text-slate-400"> · {{ scaleLabel(latestSubmission.ocr.interpretation?.scale) }}</span>
+                        <div v-if="hasActiveWindow && !hasSubmittedAll">
+                            Upload is still required before your record can move to eligibility review.
                         </div>
-                        <div>
-                            Scan status:
-                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr.validation?.status)">
-                                {{ validationLabel(latestSubmission.ocr.validation?.status) }}
+                        <div v-else-if="hasActiveWindow && !hasEligibleAll">
+                            Your submission is on record. Teams, schedules, and wellness remain locked until the period is marked eligible.
+                        </div>
+                        <div v-else-if="hasActiveWindow">
+                            Your current academic period has been cleared as eligible.
+                        </div>
+                        <div v-else>
+                            Wait for the next administrator announcement to submit a new period record.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                v-if="resultSubmission"
+                class="rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+            >
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="rounded-full bg-[#034485] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                                Latest Scan Result
+                            </span>
+                            <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="statusPill(resultSubmission).class">
+                                {{ statusPill(resultSubmission).label }}
                             </span>
                         </div>
+                        <h2 class="text-lg font-semibold text-slate-900">{{ resultSubmission.period_label || 'Submitted period' }}</h2>
+                        <p class="text-sm text-slate-600">
+                            {{ resultSubmission.ocr?.validation?.summary || resultSubmission.evaluation?.remarks || 'Your uploaded document has been scanned and saved to your academic record.' }}
+                        </p>
                     </div>
-                    <div v-if="latestSubmission?.file_url" class="mt-2">
-                        <a :href="latestSubmission.file_url" target="_blank" class="text-xs font-semibold text-[#1f2937] hover:underline">
+                    <a
+                        v-if="resultSubmission.file_url"
+                        :href="resultSubmission.file_url"
+                        target="_blank"
+                        class="inline-flex items-center rounded-full border border-[#034485]/30 bg-white px-4 py-2 text-xs font-semibold text-[#034485] hover:bg-[#034485]/5"
+                    >
+                        View submitted file
+                    </a>
+                </div>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
+                        <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(resultSubmission) }}</p>
+                    </div>
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
+                        <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(resultSubmission) }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ resultSubmission.ocr?.interpretation?.value_label || 'Grade value' }}</p>
+                    </div>
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
+                        <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(resultSubmission.ocr?.validation?.status)">
+                            {{ validationLabel(resultSubmission.ocr?.validation?.status) }}
+                        </span>
+                        <p class="mt-2 text-xs text-slate-500">Processed: {{ formatDateTime(resultSubmission.ocr?.processed_at || resultSubmission.uploaded_at) }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-[28px] border border-[#034485]/25 bg-white p-5 shadow-sm">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-800">Submission Window</h2>
+                        <p class="text-xs text-slate-500">Choose an active period to start the guided academic upload flow.</p>
+                    </div>
+                    <span class="text-xs text-slate-500">{{ openPeriods.length }} open</span>
+                </div>
+
+                <div v-if="openPeriods.length === 0" class="mt-4 text-sm text-slate-500">
+                    No active submission period is available at this time. Please wait for an administrator announcement.
+                </div>
+
+                <div v-else class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <button
+                        v-for="period in openPeriods"
+                        :key="period.id"
+                        type="button"
+                        :disabled="period.can_submit === false || Boolean(period.is_eligible)"
+                        @click="openSubmissionModal(period.id)"
+                        class="group rounded-[24px] border p-4 text-left transition"
+                        :class="period.can_submit === false || period.is_eligible
+                            ? 'cursor-not-allowed border-emerald-200 bg-emerald-50/80 opacity-85'
+                            : 'border-[#034485]/20 bg-[linear-gradient(135deg,#034485,#0b5cab)] text-white hover:-translate-y-0.5 hover:shadow-lg'"
+                    >
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-900' : 'text-white'">
+                                    {{ period.school_year }} - {{ termLabel(period.term) }}
+                                </p>
+                                <p class="mt-1 text-xs" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-700' : 'text-white/80'">
+                                    Window: {{ formatDate(period.starts_on, { month: 'short', day: 'numeric' }) }} - {{ formatDate(period.ends_on, { month: 'short', day: 'numeric' }) }}
+                                </p>
+                            </div>
+                            <span
+                                class="rounded-full px-2.5 py-1 text-[10px] font-semibold"
+                                :class="period.can_submit === false || period.is_eligible
+                                    ? 'bg-white text-emerald-700'
+                                    : 'bg-white/15 text-white'"
+                            >
+                                {{ period.is_eligible ? 'Eligible' : 'Open' }}
+                            </span>
+                        </div>
+                        <p v-if="period.announcement" class="mt-3 text-xs" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-700' : 'text-white/80'">
+                            {{ period.announcement }}
+                        </p>
+                        <p class="mt-4 text-xs font-semibold" :class="period.can_submit === false || period.is_eligible ? 'text-emerald-800' : 'text-white'">
+                            {{ period.can_submit === false || period.is_eligible ? 'Eligibility already confirmed for this period' : 'Click to upload and scan your grade report' }}
+                        </p>
+                    </button>
+                </div>
+
+                <div
+                    v-if="hasActiveWindow"
+                    class="mt-4 rounded-2xl border border-[#034485]/15 bg-[#034485]/5 px-4 py-3 text-xs text-slate-600"
+                >
+                    <span class="font-semibold text-slate-700">Current status:</span>
+                    <span class="ml-2 rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">
+                        {{ hasEligibleAll ? 'Eligible' : (submissionHoldStatus || 'Limited') }}
+                    </span>
+                    <span class="ml-2">
+                        {{
+                            hasEligibleAll
+                                ? 'Access to varsity modules is currently restored.'
+                                : hasSubmittedAll
+                                    ? 'Your file is already on record. Varsity access stays paused until the active period is marked eligible.'
+                                    : 'Teams, schedules, and wellness stay paused until you submit and receive an eligible result.'
+                        }}
+                    </span>
+                </div>
+            </section>
+
+            <section v-if="displayedSubmissions.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
+                <div v-for="row in displayedSubmissions" :key="row.id" class="rounded-2xl border border-[#034485]/20 bg-white p-4 shadow-sm">
+                    <div class="flex items-center justify-between gap-2">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-900">{{ row.period_label || 'Unknown period' }}</p>
+                            <p class="text-xs text-slate-500">{{ formatDateTime(row.uploaded_at) }}</p>
+                        </div>
+                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusPill(row).class">
+                            {{ statusPill(row).label }}
+                        </span>
+                    </div>
+                    <div class="mt-3 space-y-1 text-xs text-slate-500">
+                        <div>Document: <span class="font-semibold text-slate-700">{{ docLabel(row.document_type) }}</span></div>
+                        <div>Extracted GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
+                        <div>System interpretation: <span class="font-semibold text-slate-700">{{ selectedResultLabel(row) }}</span></div>
+                        <div>
+                            <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
+                                {{ validationLabel(row.ocr?.validation?.status) }}
+                            </span>
+                        </div>
+                        <div>{{ row.ocr?.validation?.summary || row.evaluation?.remarks || row.notes || 'No notes.' }}</div>
+                        <a v-if="row.file_url" :href="row.file_url" target="_blank" class="inline-flex pt-1 font-semibold text-[#034485] hover:underline">
                             View submitted file
                         </a>
                     </div>
                 </div>
             </section>
 
-            <section class="bg-white border border-[#034485]/35 rounded-xl p-4 space-y-3">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                        <h2 class="text-sm font-semibold text-slate-800">Submission Window</h2>
-                        <p class="text-xs text-slate-500">Active academic submission period.</p>
-                    </div>
-                    <span class="text-xs text-slate-500">{{ openPeriods.length }} open</span>
-                </div>
-                <div v-if="openPeriods.length === 0" class="text-sm text-slate-500">
-                    No active submission period is available at this time. Please wait for an administrator's announcement.
-                </div>
-                <div v-else class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <Link
-                        v-for="p in openPeriods"
-                        :key="p.id"
-                        :href="`/AcademicSubmissions/new?period_id=${p.id}`"
-                        class="border border-[#034485]/40 rounded-lg bg-[#034485] p-3 text-sm text-white transition hover:border-[#033a70] hover:bg-[#033a70]"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="font-medium">{{ p.school_year }} - {{ termLabel(p.term) }}</div>
-                            <span
-                                class="text-[10px] rounded-full border px-2 py-0.5"
-                                :class="p.is_eligible ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-[#034485]/20 bg-[#034485]/5 text-[#1f2937]'"
-                            >
-                                {{ p.is_eligible ? 'Eligible' : 'Open' }}
-                            </span>
-                        </div>
-                        <div class="text-xs text-white/70 mt-1">Window: {{ p.starts_on }} to {{ p.ends_on }}</div>
-                        <div v-if="p.announcement" class="text-xs text-amber-200 mt-1">{{ p.announcement }}</div>
-                        <div class="mt-2 text-[11px] font-semibold text-white">Click to submit</div>
-                    </Link>
-                </div>
-                <div
-                    v-if="hasActiveWindow"
-                    class="rounded-lg border border-[#034485]/25 bg-[#034485]/5 px-3 py-2 text-xs text-slate-600"
-                >
-                    <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-semibold text-slate-700">Current status:</span>
-                        <Link
-                            v-if="submissionHoldStatus"
-                            href="/AcademicSubmissions/new"
-                            class="rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#033a70]"
-                        >
-                            {{ submissionHoldStatus }}
-                        </Link>
-                        <span
-                            v-else
-                            class="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white"
-                        >
-                            Submitted
-                        </span>
-                        <span class="text-slate-500">
-                            {{
-                                submissionHoldStatus
-                                    ? (hasTeam ? 'Team access is paused until submissions are completed.' : 'Access resumes after you submit.')
-                                    : 'Your submission has been received. Schedule and wellness access remains available.'
-                            }}
-                        </span>
-                    </div>
-                </div>
-            </section>
-
-
-            <section v-if="displayedSubmissions.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
-                <div v-for="row in displayedSubmissions" :key="row.id" class="rounded-xl border border-[#034485]/35 bg-white p-4">
-                    <div class="flex items-center justify-between gap-2">
-                        <div>
-                            <p class="text-sm font-semibold text-slate-900">{{ row.period_label || 'Unknown period' }}</p>
-                            <p class="text-xs text-slate-500">{{ row.uploaded_at || '-' }}</p>
-                        </div>
-                        <span class="text-[10px] rounded-full px-2 py-0.5" :class="statusPill(row).class">
-                            {{ statusPill(row).label }}
-                        </span>
-                    </div>
-                    <div class="mt-2 text-xs text-slate-600">
-                        {{ docLabel(row.document_type) }}
-                        <span v-if="row.file_url" class="ml-2 text-[#1f2937]">• <a :href="row.file_url" target="_blank" class="hover:underline">View file</a></span>
-                    </div>
-                    <div class="mt-2 text-xs text-slate-500">
-                        Notes: {{ row.notes || '—' }}
-                    </div>
-                    <div v-if="row.ocr" class="mt-2 text-xs text-slate-500">
-                        Extracted {{ row.ocr.interpretation?.value_label || 'GPA/GWA' }}: {{ row.ocr.parsed_summary?.gwa ?? '-' }}
-                    </div>
-                    <div v-if="row.ocr" class="mt-1 text-xs text-slate-500">
-                        Interpretation: {{ row.ocr.interpretation?.label || '-' }} · {{ scaleLabel(row.ocr.interpretation?.scale) }}
-                    </div>
-                    <div v-if="row.ocr" class="mt-1 text-xs text-slate-500">
-                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr.validation?.status)">
-                            {{ validationLabel(row.ocr.validation?.status) }}
-                        </span>
-                    </div>
-                    <div v-if="row.ocr?.validation?.summary" class="mt-2 text-xs text-slate-500">
-                        {{ row.ocr.validation.summary }}
-                    </div>
-                    <div v-if="row.evaluation" class="mt-2 text-xs text-slate-500">
-                        GPA: {{ row.evaluation.gpa ?? '-' }} • {{ row.evaluation.remarks || 'No remarks' }}
-                    </div>
-                </div>
-            </section>
-
-            <div v-else-if="displayedSubmissions.length === 0" class="bg-white border border-[#034485]/35 rounded-xl p-6 text-slate-500 text-center">
+            <div v-else class="rounded-xl border border-[#034485]/35 bg-white p-6 text-center text-slate-500">
                 No submissions are available at this time.
             </div>
 
-            <section class="bg-white border border-[#034485]/35 rounded-xl overflow-x-auto">
+            <section class="overflow-x-auto rounded-[28px] border border-[#034485]/20 bg-white shadow-sm">
                 <div class="flex items-center justify-between px-4 pt-4">
                     <h2 class="text-sm font-semibold text-[#034485]">Submission History</h2>
                     <span class="text-xs text-slate-500">{{ displayedSubmissions.length }} total</span>
@@ -430,48 +663,207 @@ function printAcademicSummary() {
                             <th class="px-3 py-2 text-left">Period</th>
                             <th class="px-3 py-2 text-left">Uploaded</th>
                             <th class="px-3 py-2 text-left">Document</th>
-                            <th class="px-3 py-2 text-left">Scan</th>
-                            <th class="px-3 py-2 text-left">Evaluation</th>
+                            <th class="px-3 py-2 text-left">Scan Result</th>
+                            <th class="px-3 py-2 text-left">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in displayedSubmissions" :key="row.id" class="border-t border-[#034485]/20 text-slate-700">
-                            <td class="px-3 py-2">{{ row.period_label || '-' }}</td>
-                            <td class="px-3 py-2">
-                                <div>{{ row.uploaded_at || '-' }}</div>
+                        <tr v-for="row in displayedSubmissions" :key="row.id" class="border-t border-[#034485]/10 text-slate-700">
+                            <td class="px-3 py-3">{{ row.period_label || '-' }}</td>
+                            <td class="px-3 py-3">
+                                <div>{{ formatDateTime(row.uploaded_at) }}</div>
                                 <div class="text-xs text-slate-500">{{ row.notes || '-' }}</div>
                             </td>
-                            <td class="px-3 py-2">
-                                <div class="uppercase text-xs">{{ docLabel(row.document_type) }}</div>
-                                <a v-if="row.file_url" :href="row.file_url" target="_blank" class="text-[#1f2937] hover:underline">View</a>
+                            <td class="px-3 py-3">
+                                <div class="text-xs font-semibold uppercase text-slate-700">{{ docLabel(row.document_type) }}</div>
+                                <a v-if="row.file_url" :href="row.file_url" target="_blank" class="text-xs font-semibold text-[#034485] hover:underline">View file</a>
                             </td>
-                            <td class="px-3 py-2">
-                                <div v-if="row.ocr" class="space-y-1 text-xs text-slate-500">
-                                    <div>Extracted {{ row.ocr.interpretation?.value_label || 'GPA/GWA' }}: {{ row.ocr.parsed_summary?.gwa ?? '-' }}</div>
-                                    <div>Interpretation: {{ row.ocr.interpretation?.label || '-' }} · {{ scaleLabel(row.ocr.interpretation?.scale) }}</div>
+                            <td class="px-3 py-3">
+                                <div class="space-y-1 text-xs text-slate-500">
+                                    <div>Extracted GPA / Average: <span class="font-semibold text-slate-700">{{ selectedResultValue(row) }}</span></div>
+                                    <div>Interpretation: <span class="font-semibold text-slate-700">{{ selectedResultLabel(row) }}</span></div>
                                     <div>
-                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr.validation?.status)">
-                                            {{ validationLabel(row.ocr.validation?.status) }}
+                                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="validationPill(row.ocr?.validation?.status)">
+                                            {{ validationLabel(row.ocr?.validation?.status) }}
                                         </span>
                                     </div>
-                                    <div v-if="row.ocr.validation?.summary">{{ row.ocr.validation.summary }}</div>
+                                    <div>{{ row.ocr?.validation?.summary || row.evaluation?.remarks || '-' }}</div>
                                 </div>
-                                <div v-else class="text-xs text-slate-400">Not yet processed</div>
                             </td>
-                            <td class="px-3 py-2">
-                                <span class="text-[11px] rounded-full px-2 py-0.5" :class="statusPill(row).class">
+                            <td class="px-3 py-3">
+                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="statusPill(row).class">
                                     {{ statusPill(row).label }}
                                 </span>
-                                <div v-if="row.evaluation" class="text-xs text-slate-500 mt-1">GPA: {{ row.evaluation.gpa ?? '-' }}</div>
-                                <div v-if="row.evaluation" class="text-xs text-slate-500">{{ row.evaluation.remarks || '-' }}</div>
                             </td>
-                        </tr>
-                        <tr v-if="displayedSubmissions.length === 0">
-                            <td colspan="5" class="px-3 py-8 text-center text-slate-500">No submissions are on record at this time.</td>
                         </tr>
                     </tbody>
                 </table>
             </section>
         </template>
+
+        <transition name="modal-fade">
+            <div
+                v-if="isSubmissionModalOpen"
+                class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 py-6 backdrop-blur-sm"
+            >
+                <div class="relative w-full max-w-3xl overflow-hidden rounded-[32px] bg-white shadow-2xl">
+                    <div class="border-b border-slate-200 px-5 py-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#034485]">Selected Period</p>
+                                <h2 class="mt-1 text-xl font-semibold text-slate-900">
+                                    {{ selectedPeriod ? `${selectedPeriod.school_year} - ${termLabel(selectedPeriod.term)}` : 'Academic Submission' }}
+                                </h2>
+                                <p class="mt-2 text-sm text-slate-500">
+                                    Window: {{ selectedPeriod ? `${formatDate(selectedPeriod.starts_on, { month: 'short', day: 'numeric' })} - ${formatDate(selectedPeriod.ends_on, { month: 'short', day: 'numeric' })}` : '-' }}
+                                </p>
+                                <p class="text-sm text-slate-500">Accepted Formats: PDF, PNG, JPG</p>
+                            </div>
+                            <button
+                                type="button"
+                                @click="closeSubmissionModal"
+                                class="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="submit" class="space-y-5 px-5 py-5">
+                        <div class="rounded-3xl border border-[#034485]/15 bg-[#034485]/5 p-4 text-sm text-slate-600">
+                            <p class="font-semibold text-slate-800">Instructions</p>
+                            <p class="mt-1">
+                                Upload your latest grade report for this active academic period. The system will scan the document automatically and return the extracted GPA or general average after processing.
+                            </p>
+                        </div>
+
+                        <div v-if="submitError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                            {{ submitError }}
+                        </div>
+
+                        <div class="space-y-3">
+                            <div>
+                                <p class="text-sm font-semibold text-slate-900">Upload Document</p>
+                                <p class="text-xs text-slate-500">Choose one PDF or image file to scan.</p>
+                            </div>
+                            <label
+                                class="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed border-[#034485]/25 bg-[linear-gradient(135deg,rgba(3,68,133,0.03),rgba(3,68,133,0.08))] px-6 py-8 text-center transition hover:border-[#034485]/45 hover:bg-[linear-gradient(135deg,rgba(3,68,133,0.05),rgba(3,68,133,0.1))]"
+                            >
+                                <input type="file" accept=".pdf,image/png,image/jpeg,image/jpg" class="hidden" @change="handleFileChange" />
+                                <div class="space-y-2">
+                                    <div class="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#034485] text-white">
+                                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M12 16V4" />
+                                            <path d="m7 9 5-5 5 5" />
+                                            <path d="M20 16.5a3.5 3.5 0 0 1-3.5 3.5h-9A3.5 3.5 0 0 1 4 16.5" />
+                                        </svg>
+                                    </div>
+                                    <p class="text-sm font-semibold text-slate-900">{{ file ? 'Replace selected document' : 'Click to upload a PDF, PNG, or JPG' }}</p>
+                                    <p class="text-xs text-slate-500">Clear image scans work best for automatic GPA extraction.</p>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div v-if="file" class="rounded-[28px] border border-slate-200 bg-slate-50/80 p-4">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-900">Selected File Preview</p>
+                                    <p class="text-xs text-slate-500">{{ file.name }}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    @click="removeFile"
+                                    class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+
+                            <div class="mt-4">
+                                <div v-if="previewUrl" class="overflow-hidden rounded-2xl border border-slate-200 bg-white p-2">
+                                    <img :src="previewUrl" alt="Document preview" class="max-h-72 w-full rounded-xl object-contain" />
+                                </div>
+                                <div v-else class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                                    <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-700">
+                                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <path d="M14 2v6h6" />
+                                        </svg>
+                                    </span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">{{ file.name }}</p>
+                                        <p class="text-xs text-slate-500">PDF document ready for scanning</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label for="academic-notes" class="text-sm font-semibold text-slate-900">Notes</label>
+                            <textarea
+                                id="academic-notes"
+                                v-model="notes"
+                                rows="3"
+                                placeholder="Add optional context for the administrator."
+                                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-[#034485]/40 focus:ring-2 focus:ring-[#034485]/10"
+                            />
+                        </div>
+
+                        <div v-if="isScanning" class="rounded-[28px] border border-sky-200 bg-sky-50/90 p-4">
+                            <div class="flex items-center gap-3">
+                                <Spinner class="h-5 w-5 text-sky-700" />
+                                <div>
+                                    <p class="text-sm font-semibold text-sky-900">Scanning document...</p>
+                                    <p class="text-xs text-sky-700">
+                                        {{ uploadProgress > 0 && uploadProgress < 100
+                                            ? `Uploading file: ${uploadProgress}%`
+                                            : 'OCR and eligibility interpretation are running. Please wait.' }}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="{ width: `${uploadProgress > 0 ? uploadProgress : 100}%` }" />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-end">
+                            <button
+                                type="button"
+                                @click="closeSubmissionModal"
+                                :disabled="isSubmitting"
+                                class="rounded-full border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="isSubmitting || !file"
+                                class="inline-flex items-center justify-center gap-2 rounded-full bg-[#034485] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#033a70] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <Spinner v-if="isSubmitting" class="h-4 w-4 text-white" />
+                                {{ isSubmitting ? 'Scanning document...' : 'Submit for Scan' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </transition>
     </div>
 </template>
+
+<style scoped>
+.toast-fade-enter-active,
+.toast-fade-leave-active,
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to,
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+    opacity: 0;
+    transform: translateY(-8px);
+}
+</style>
