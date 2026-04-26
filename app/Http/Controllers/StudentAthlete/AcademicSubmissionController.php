@@ -66,20 +66,31 @@ class AcademicSubmissionController extends Controller
             ->orderByDesc('starts_on');
 
         $openPeriodsQuery->open();
+        if ($this->academicPeriodMessagesReady()) {
+            $openPeriodsQuery->with('latestMessage');
+        }
 
         $openPeriods = $openPeriodsQuery->get();
         $holdState = $this->holdService->syncStudentStatus($student);
         $submissionHoldStatus = $holdState['status'];
 
-        $submissions = AcademicDocument::query()
+        $submissionQuery = AcademicDocument::query()
             ->periodSubmission()
-            ->with([
-                'academicPeriod',
-                'latestOcrRun.parsedSummary',
-            ])
             ->where('student_id', $student->id)
             ->latest('uploaded_at')
-            ->get();
+            ->with('academicPeriod');
+
+        if ($this->academicOcrTablesReady()) {
+            $submissionQuery->with([
+                'latestOcrRun' => function ($query) {
+                    if ($this->academicParsedSummariesReady()) {
+                        $query->with('parsedSummary');
+                    }
+                },
+            ]);
+        }
+
+        $submissions = $submissionQuery->get();
 
         $evalByPeriod = AcademicEligibilityEvaluation::query()
             ->where('student_id', $student->id)
@@ -114,7 +125,7 @@ class AcademicSubmissionController extends Controller
                     'term' => $p->term,
                     'starts_on' => optional($p->starts_on)->toDateString(),
                     'ends_on' => optional($p->ends_on)->toDateString(),
-                    'announcement' => $p->announcement,
+                    'announcement' => $this->periodAnnouncement($p),
                     'eligibility_status' => $status,
                     'is_eligible' => $isEligible,
                     'can_submit' => !$isEligible,
@@ -347,11 +358,11 @@ class AcademicSubmissionController extends Controller
 
     private function ocrPayload($ocrRun): ?array
     {
-        if (!$ocrRun) {
+        if (!$ocrRun || !$this->academicOcrTablesReady()) {
             return null;
         }
 
-        $summary = $ocrRun->parsedSummary;
+        $summary = $this->academicParsedSummariesReady() ? $ocrRun->parsedSummary : null;
         $interpretation = AcademicEligibilityEvaluation::interpretGrade(
             $summary && $summary->gwa !== null ? (float) $summary->gwa : null
         );
@@ -374,10 +385,14 @@ class AcademicSubmissionController extends Controller
                 'label' => $interpretation['interpretation_label'],
             ],
             'validation' => [
-                'status' => $ocrRun->validation_status,
-                'summary' => $ocrRun->validation_summary,
-                'flags' => collect($ocrRun->validation_flags)->values()->all(),
-                'checked_at' => optional($ocrRun->validation_checked_at)->toDateTimeString(),
+                'status' => $this->ocrValidationColumnsReady() ? $ocrRun->validation_status : null,
+                'summary' => $this->ocrValidationColumnsReady() ? $ocrRun->validation_summary : null,
+                'flags' => $this->ocrValidationColumnsReady()
+                    ? collect($ocrRun->validation_flags)->values()->all()
+                    : [],
+                'checked_at' => $this->ocrValidationColumnsReady()
+                    ? optional($ocrRun->validation_checked_at)->toDateTimeString()
+                    : null,
             ],
         ];
     }
@@ -390,5 +405,29 @@ class AcademicSubmissionController extends Controller
             'validation_flags',
             'validation_checked_at',
         ]);
+    }
+
+    private function academicOcrTablesReady(): bool
+    {
+        return Schema::hasTable('academic_document_ocr_runs');
+    }
+
+    private function academicParsedSummariesReady(): bool
+    {
+        return Schema::hasTable('academic_document_parsed_summaries');
+    }
+
+    private function academicPeriodMessagesReady(): bool
+    {
+        return Schema::hasTable('academic_period_messages');
+    }
+
+    private function periodAnnouncement(AcademicPeriod $period): ?string
+    {
+        if (!$this->academicPeriodMessagesReady()) {
+            return null;
+        }
+
+        return $period->announcement;
     }
 }

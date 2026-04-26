@@ -44,9 +44,7 @@ class AcademicHoldService
         $sourcePeriodId = $hasActiveWindow ? (int) ($openPeriodIds->sortDesc()->first() ?? 0) : null;
         if ($hasActiveWindow && !$hasEligibleAll) {
             $status = $hasTeam ? 'Suspended' : 'Unenrolled';
-            $reason = $hasSubmittedAll
-                ? AcademicHold::REASON_PENDING_ELIGIBILITY
-                : AcademicHold::REASON_MISSING_SUBMISSIONS;
+            $reason = AcademicHold::REASON_MISSING_SUBMISSIONS;
         }
 
         return [
