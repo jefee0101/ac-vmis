@@ -261,7 +261,10 @@ class AcademicSubmissionController extends Controller
 
         $coachUserIds = Team::query()
             ->whereHas('players', fn ($q) => $q->where('student_id', $student->id))
-            ->with(['coach:id,user_id', 'assistantCoach:id,user_id'])
+            ->with([
+                'coach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),
+                'assistantCoach' => fn ($query) => $query->select('coaches.id', 'coaches.user_id'),
+            ])
             ->get()
             ->flatMap(function ($team) {
                 return [
