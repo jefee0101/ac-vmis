@@ -90,12 +90,14 @@ class ProcessAcademicDocumentOcr implements ShouldQueue
                 ]);
             }
         } catch (Throwable $e) {
+            $failure = $this->failurePayload($e);
+
             $ocrRun->update([
                 'run_status' => 'failed',
                 'validation_status' => 'manual_review',
-                'validation_summary' => 'Document requires manual review because OCR processing failed.',
+                'validation_summary' => $failure['summary'],
                 'validation_flags' => [[
-                    'code' => 'ocr_failed',
+                    'code' => $failure['code'],
                     'message' => mb_substr($e->getMessage(), 0, 255),
                 ]],
                 'validation_checked_at' => now(),
@@ -109,5 +111,41 @@ class ProcessAcademicDocumentOcr implements ShouldQueue
                 'reviewed_at' => null,
             ]);
         }
+    }
+
+    /**
+     * @return array{code:string,summary:string}
+     */
+    private function failurePayload(Throwable $e): array
+    {
+        $message = mb_strtolower(trim($e->getMessage()));
+
+        if (
+            str_contains($message, 'ocr binary') ||
+            str_contains($message, 'not available on this server') ||
+            str_contains($message, 'command not found')
+        ) {
+            return [
+                'code' => 'ocr_service_unavailable',
+                'summary' => 'Automatic scan is currently unavailable on the server. Please try again later or contact an administrator.',
+            ];
+        }
+
+        if (
+            str_contains($message, 'no ocr text was extracted') ||
+            str_contains($message, 'could not read any text') ||
+            str_contains($message, 'empty page') ||
+            str_contains($message, 'image too small')
+        ) {
+            return [
+                'code' => 'ocr_unreadable_document',
+                'summary' => 'The uploaded image could not be read clearly. Please upload a sharper photo or a clearer scanned copy.',
+            ];
+        }
+
+        return [
+            'code' => 'ocr_failed',
+            'summary' => 'Automatic scan could not complete for this document. Please review the file and try another upload if needed.',
+        ];
     }
 }
