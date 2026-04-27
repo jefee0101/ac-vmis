@@ -2,6 +2,7 @@
 import { Head, router, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+import { showAppToast } from '@/composables/useAppToast'
 import Spinner from '@/components/ui/spinner/Spinner.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 
@@ -61,8 +62,6 @@ type Submission = {
     } | null
 }
 
-type ToastTone = 'success' | 'error'
-
 const props = defineProps<{
     student: {
         id: number
@@ -102,8 +101,6 @@ const processingSubmission = ref<{
     fileName: string
     startedAt: string
 } | null>(null)
-const toast = ref<{ tone: ToastTone; message: string } | null>(null)
-let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 function parseTime(value: string | null | undefined) {
     if (!value) return 0
@@ -121,39 +118,6 @@ const displayedSubmissions = computed(() => sortedSubmissions.value)
 const selectedPeriod = computed(() => props.openPeriods.find((period) => period.id === activePeriodId.value) ?? null)
 const resultSubmission = computed(() =>
     props.resultSubmissionId ? sortedSubmissions.value.find((row) => row.id === props.resultSubmissionId) ?? null : null
-)
-
-function showToast(message: string, tone: ToastTone) {
-    toast.value = { message, tone }
-
-    if (toastTimer) {
-        clearTimeout(toastTimer)
-    }
-
-    toastTimer = setTimeout(() => {
-        toast.value = null
-        toastTimer = null
-    }, 3200)
-}
-
-watch(
-    () => (page.props.flash as any)?.success,
-    (value) => {
-        if (value) {
-            showToast(String(value), 'success')
-        }
-    },
-    { immediate: true }
-)
-
-watch(
-    () => (page.props.flash as any)?.error,
-    (value) => {
-        if (value) {
-            showToast(String(value), 'error')
-        }
-    },
-    { immediate: true }
 )
 
 watch(
@@ -192,7 +156,7 @@ watch(
         if (!row) return
 
         const isProcessed = row.ocr?.validation?.status === 'valid'
-        showToast(
+        showAppToast(
             isProcessed
                 ? 'Academic submission processed successfully.'
                 : 'Unable to fully process document. Please review or resubmit.',
@@ -204,10 +168,6 @@ watch(
 onBeforeUnmount(() => {
     if (previewUrl.value) {
         URL.revokeObjectURL(previewUrl.value)
-    }
-
-    if (toastTimer) {
-        clearTimeout(toastTimer)
     }
 })
 
@@ -242,7 +202,7 @@ function handleFileChange(event: Event) {
 
 function removeFile() {
     file.value = null
-    showToast('Selected file removed.', 'success')
+    showAppToast('Selected file removed.', 'success')
 }
 
 function submit() {
@@ -288,7 +248,9 @@ function submit() {
             isSubmitting.value = true
             isScanning.value = true
             uploadProgress.value = 0
-            showToast('Uploading academic document...', 'success')
+            showAppToast('Uploading academic document...', 'success', {
+                summary: 'Upload Started',
+            })
         },
         onProgress: (event) => {
             uploadProgress.value = Math.round(event?.percentage ?? 0)
@@ -301,7 +263,7 @@ function submit() {
                 : String(firstError || 'Unable to submit your academic document.')
             activePeriodId.value = submissionPeriodId
             isSubmissionModalOpen.value = true
-            showToast('Unable to submit your document.', 'error')
+            showAppToast('Unable to submit your document.', 'error')
         },
         onFinish: () => {
             isSubmitting.value = false
@@ -399,18 +361,6 @@ function cardMotion(order: number) {
     <Head title="Academic Submissions" />
 
     <div class="academics-page-view space-y-5">
-        <transition name="toast-fade">
-            <div
-                v-if="toast"
-                class="fixed right-4 top-4 z-[70] w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur"
-                :class="toast.tone === 'success'
-                    ? 'border-emerald-200 bg-emerald-50/95 text-emerald-800'
-                    : 'border-rose-200 bg-rose-50/95 text-rose-800'"
-            >
-                <p class="text-sm font-semibold">{{ toast.message }}</p>
-            </div>
-        </transition>
-
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Academic Submissions</h1>
@@ -954,15 +904,11 @@ function cardMotion(order: number) {
 </template>
 
 <style scoped>
-.toast-fade-enter-active,
-.toast-fade-leave-active,
 .modal-fade-enter-active,
 .modal-fade-leave-active {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-.toast-fade-enter-from,
-.toast-fade-leave-to,
 .modal-fade-enter-from,
 .modal-fade-leave-to {
     opacity: 0;

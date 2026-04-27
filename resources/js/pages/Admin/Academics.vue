@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3'
 import { computed, reactive, ref, watch } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
 defineOptions({
@@ -61,12 +62,6 @@ const auditDialogOpen = ref(false)
 const auditNote = ref('')
 const pendingEvaluation = ref<EvaluationsRow | null>(null)
 const periodErrors = ref<Record<string, string>>({})
-const toast = ref<{ open: boolean; tone: 'success' | 'error'; title: string; description: string }>({
-    open: false,
-    tone: 'success',
-    title: '',
-    description: '',
-})
 const noticeDialog = ref<{ open: boolean; title: string; description: string }>({
     open: false,
     title: '',
@@ -107,26 +102,6 @@ const activeFilterCount = computed(() => {
 const tabIndex = computed(() => {
     return activeTab.value === 'periods' ? 0 : 1
 })
-
-let toastTimer: number | null = null
-
-function showToast(tone: 'success' | 'error', title: string, description: string) {
-    toast.value = {
-        open: true,
-        tone,
-        title,
-        description,
-    }
-
-    if (toastTimer) {
-        window.clearTimeout(toastTimer)
-    }
-
-    toastTimer = window.setTimeout(() => {
-        toast.value.open = false
-        toastTimer = null
-    }, 3200)
-}
 
 watch(
     () => props.selectedPeriodId,
@@ -272,7 +247,9 @@ function createPeriod() {
             announcement.value = ''
             periodErrors.value = {}
             selectedPeriodId.value = props.periods?.[0]?.id ?? selectedPeriodId.value
-            showToast('success', 'Academic period created', 'The new period is now available in the active period panel.')
+            showAppToast('The new period is now available in the active period panel.', 'success', {
+                summary: 'Academic Period Created',
+            })
         },
         onError: (errors) => {
             periodErrors.value = Object.fromEntries(
@@ -280,7 +257,9 @@ function createPeriod() {
             )
 
             const firstError = Object.values(periodErrors.value).find((value) => value.trim() !== '')
-            showToast('error', 'Unable to create period', firstError || 'Please review the academic period details and try again.')
+            showAppToast(firstError || 'Please review the academic period details and try again.', 'error', {
+                summary: 'Unable to Create Period',
+            })
         },
         onFinish: () => {
             periodSaving.value = false
@@ -445,19 +424,6 @@ function changePeriod() {
     <Head title="Academics Workspace" />
 
     <div class="space-y-5">
-        <transition name="toast-fade">
-            <div
-                v-if="toast.open"
-                class="fixed right-4 top-4 z-50 w-full max-w-sm rounded-2xl border px-4 py-3 shadow-lg"
-                :class="toast.tone === 'error'
-                    ? 'border-rose-200 bg-rose-50 text-rose-800'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
-            >
-                <p class="text-sm font-semibold">{{ toast.title }}</p>
-                <p class="mt-1 text-sm">{{ toast.description }}</p>
-            </div>
-        </transition>
-
         <section class="rounded-xl border border-[#034485]/45 bg-white p-5">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -783,14 +749,4 @@ function changePeriod() {
     transition: transform 0.2s ease;
 }
 
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-    transition: opacity 0.22s ease, transform 0.22s ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-    opacity: 0;
-    transform: translateY(-10px);
-}
 </style>

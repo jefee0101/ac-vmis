@@ -6,12 +6,12 @@ import Aura from '@primeuix/themes/aura';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import PrimeVue from 'primevue/config';
 import Toast from 'primevue/toast';
-import ToastEventBus from 'primevue/toasteventbus';
 import ToastService from 'primevue/toastservice';
 import type { DefineComponent } from 'vue';
 import { Transition, createApp, h } from 'vue';
 
 import SessionExpiredToast from '@/components/ui/SessionExpiredToast.vue';
+import { showAppToast } from '@/composables/useAppToast';
 import { useSessionExpired } from '@/composables/useSessionExpired';
 import { initTheme, setStoredTheme } from '@/composables/useTheme';
 
@@ -49,15 +49,10 @@ createInertiaApp({
         router.on('success', (event) => {
             applyThemeFromProps(event.detail.page.props);
 
-            const message = String((event.detail.page.props as any)?.flash?.login_success ?? '').trim();
-            if (message) {
-                ToastEventBus.emit('add', {
-                    severity: 'success',
-                    summary: 'Success',
-                    detail: message,
-                    life: 2200,
-                });
-            }
+            const flash = (event.detail.page.props as any)?.flash ?? {};
+            showAppToast(String(flash.login_success ?? ''), 'success');
+            showAppToast(String(flash.success ?? ''), 'success');
+            showAppToast(String(flash.error ?? ''), 'error');
         });
         const { showSessionExpired } = useSessionExpired();
 

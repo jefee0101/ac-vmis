@@ -3,6 +3,7 @@ import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
@@ -73,7 +74,6 @@ const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandpar
 const saved = ref(false)
 const avatarPreview = ref<string | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
-const toast = ref<{ tone: 'success' | 'error'; message: string } | null>(null)
 
 const cropModalOpen = ref(false)
 const cropSourceUrl = ref<string | null>(null)
@@ -91,7 +91,6 @@ let dragStartY = 0
 let dragOriginX = 0
 let dragOriginY = 0
 let savedTimer: ReturnType<typeof setTimeout> | null = null
-let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 const maxCropScale = computed(() => Math.max(cropMinScale.value * 4, cropMinScale.value + 1))
 
@@ -143,21 +142,6 @@ function clearSavedTimer() {
   if (!savedTimer) return
   clearTimeout(savedTimer)
   savedTimer = null
-}
-
-function clearToastTimer() {
-  if (!toastTimer) return
-  clearTimeout(toastTimer)
-  toastTimer = null
-}
-
-function showToast(message: string, tone: 'success' | 'error') {
-  clearToastTimer()
-  toast.value = { message, tone }
-  toastTimer = setTimeout(() => {
-    toast.value = null
-    toastTimer = null
-  }, 2800)
 }
 
 function firstErrorMessage() {
@@ -322,6 +306,7 @@ async function applyCroppedAvatar() {
   form.clearErrors('avatar')
 
   closeCropModal()
+  submit()
 }
 
 function submit() {
@@ -332,14 +317,14 @@ function submit() {
     preserveScroll: true,
     onSuccess: () => {
       saved.value = true
-      showToast('Profile updated successfully.', 'success')
+      showAppToast('Profile updated successfully.', 'success')
       savedTimer = setTimeout(() => {
         saved.value = false
         savedTimer = null
       }, 2200)
     },
     onError: () => {
-      showToast(firstErrorMessage(), 'error')
+      showAppToast(firstErrorMessage(), 'error')
     },
   })
 }
@@ -349,7 +334,6 @@ onBeforeUnmount(() => {
   revokeUrl(cropSourceUrl.value)
   removeDragListeners()
   clearSavedTimer()
-  clearToastTimer()
 })
 </script>
 
@@ -357,20 +341,6 @@ onBeforeUnmount(() => {
   <Head title="My Profile" />
 
   <AccountShell active="profile">
-    <transition name="toast-fade">
-      <div
-        v-if="toast"
-        class="fixed right-4 top-4 z-[70] w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur"
-        :class="
-          toast.tone === 'success'
-            ? 'border-emerald-200 bg-emerald-50/95 text-emerald-800 shadow-slate-900/15'
-            : 'border-rose-200 bg-rose-50/95 text-rose-800 shadow-slate-900/15'
-        "
-      >
-        <p class="text-sm font-semibold">{{ toast.message }}</p>
-      </div>
-    </transition>
-
     <form @submit.prevent="submit" class="space-y-5">
       <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(1)">
         <div class="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_260px] lg:items-center">
@@ -469,9 +439,15 @@ onBeforeUnmount(() => {
               </template>
             </div>
           </section>
+
+          <div class="flex flex-wrap items-center gap-3" :style="cardMotion(3)">
+            <button type="submit" class="rounded-full bg-[#1f2937] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#334155]" :disabled="form.processing">
+              {{ form.processing ? 'Saving...' : 'Save Profile' }}
+            </button>
+          </div>
       </div>
 
-      <section v-if="(role === 'student' || role === 'student-athlete') && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(3)">
+      <section v-if="(role === 'student' || role === 'student-athlete') && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(4)">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Read-Only Student Record</p>
@@ -487,12 +463,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </section>
-
-      <div class="flex flex-wrap items-center gap-3">
-        <button type="submit" class="rounded-full bg-[#1f2937] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#334155]" :disabled="form.processing">
-          {{ form.processing ? 'Saving...' : 'Save Profile' }}
-        </button>
-      </div>
     </form>
 
     <div v-if="cropModalOpen" class="crop-overlay">
@@ -620,17 +590,6 @@ onBeforeUnmount(() => {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
 }
 
 @media (prefers-reduced-motion: reduce) {

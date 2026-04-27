@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { router } from '@inertiajs/vue3';
-import ToastEventBus from 'primevue/toasteventbus';
 import { computed, ref, watch } from 'vue';
 
+import { showAppToast } from '@/composables/useAppToast';
 import { useSportColors } from '@/composables/useSportColors';
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue';
 
@@ -104,11 +104,8 @@ function saveDesiredJersey() {
                         ? `Your jersey request for #${nextJersey} has been submitted.`
                         : `Your jersey request has been updated to #${nextJersey}.`
 
-                ToastEventBus.emit('add', {
-                    severity: 'success',
+                showAppToast(detail, 'success', {
                     summary: 'Jersey Request Updated',
-                    detail,
-                    life: 2600,
                 })
 
                 setTimeout(() => {
@@ -124,11 +121,8 @@ function saveDesiredJersey() {
                     ? String(jerseyError[0] ?? 'We could not update your jersey request. Please try again.')
                     : String(jerseyError ?? 'We could not update your jersey request. Please try again.')
 
-                ToastEventBus.emit('add', {
-                    severity: 'error',
+                showAppToast(detail, 'error', {
                     summary: 'Jersey Request Failed',
-                    detail,
-                    life: 3200,
                 })
             },
         },
