@@ -191,6 +191,8 @@ class WellnessMonitoringController extends Controller
                 'injury_notes' => (bool) $validated['injury_observed']
                     ? ($validated['injury_notes'] ?? null)
                     : null,
+                'injury_resolved_at' => null,
+                'injury_resolved_by' => null,
                 'fatigue_level' => (int) $validated['fatigue_level'],
                 'performance_condition' => $validated['performance_condition'],
                 'remarks' => $validated['remarks'] ?? null,

@@ -50,6 +50,7 @@ const props = defineProps<{
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
 const savingKey = ref<string | null>(null)
+const selectedAthleteId = ref<number | null>(null)
 
 function buildRowForms(rows: AthleteRow[]) {
     return Object.fromEntries(
@@ -72,9 +73,14 @@ watch(
     () => props.athletes,
     (rows) => {
         rowForms.value = buildRowForms(rows || [])
+        selectedAthleteId.value = null
     },
     { immediate: true },
 )
+
+const selectedAthlete = computed(() => (
+    props.athletes.find((row) => row.student_id === selectedAthleteId.value) ?? null
+))
 
 const summary = computed(() => {
     const forms = props.athletes.map((row) => rowForms.value[row.student_id]).filter(Boolean)
@@ -178,6 +184,10 @@ function athleteInitials(name: string) {
         .map((part) => part.charAt(0).toUpperCase())
         .join('')
 }
+
+function openAthleteReview(studentId: number) {
+    selectedAthleteId.value = studentId
+}
 </script>
 
 <template>
@@ -243,9 +253,9 @@ function athleteInitials(name: string) {
         </section>
 
         <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)]">
-            <p class="text-sm font-semibold text-slate-900">Player Evaluations</p>
+            <p class="text-sm font-semibold text-slate-900">Players</p>
             <p class="mt-1 text-sm text-slate-500">
-                Review each present or late athlete for this session, then save the wellness entry after checking the athlete’s condition.
+                Select a player card to open that athlete’s wellness evaluation form.
             </p>
         </section>
 
@@ -253,40 +263,87 @@ function athleteInitials(name: string) {
             No present or late athletes are available for this session.
         </div>
 
-        <div v-else class="grid gap-4 xl:grid-cols-2">
+        <div v-else class="space-y-4">
+            <div class="grid gap-4 xl:grid-cols-2">
+                <button
+                    v-for="row in props.athletes"
+                    :key="row.student_id"
+                    type="button"
+                    class="rounded-xl border bg-white p-5 text-left shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
+                    :class="selectedAthleteId === row.student_id
+                        ? 'border-[#034485] shadow-[0_24px_60px_-42px_rgba(3,68,133,0.35)]'
+                        : athleteNeedsAttention(row.student_id)
+                            ? 'border-amber-200 shadow-[0_24px_60px_-42px_rgba(245,158,11,0.35)]'
+                            : 'border-slate-200'"
+                    @click="openAthleteReview(row.student_id)"
+                >
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-700">
+                                {{ athleteInitials(row.name) }}
+                            </div>
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                                        :class="statusTone(row.attendance_status)"
+                                    >
+                                        {{ statusLabel(row.attendance_status) }}
+                                    </span>
+                                    <span
+                                        v-if="row.wellness?.log_id"
+                                        class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
+                                    >
+                                        Saved
+                                    </span>
+                                </div>
+                                <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ row.name }}</h3>
+                                <p class="mt-1 text-xs text-slate-500">{{ row.student_id_number || '-' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-2">
+                            <div v-if="athleteNeedsAttention(row.student_id)" class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
+                                Needs follow-up
+                            </div>
+                            <span
+                                class="text-xs font-semibold"
+                                :class="selectedAthleteId === row.student_id ? 'text-[#034485]' : 'text-slate-400'"
+                            >
+                                {{ selectedAthleteId === row.student_id ? 'Opened' : 'Open Review' }}
+                            </span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
             <article
-                v-for="row in props.athletes"
-                :key="row.student_id"
-                class="rounded-xl border bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
-                :class="athleteNeedsAttention(row.student_id) ? 'border-amber-200 shadow-[0_24px_60px_-42px_rgba(245,158,11,0.35)]' : 'border-slate-200'"
+                v-if="selectedAthlete"
+                class="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)]"
             >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="flex items-start gap-3">
                         <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-700">
-                            {{ athleteInitials(row.name) }}
+                            {{ athleteInitials(selectedAthlete.name) }}
                         </div>
                         <div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <span
                                     class="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                                    :class="statusTone(row.attendance_status)"
+                                    :class="statusTone(selectedAthlete.attendance_status)"
                                 >
-                                    {{ statusLabel(row.attendance_status) }}
+                                    {{ statusLabel(selectedAthlete.attendance_status) }}
                                 </span>
                                 <span
-                                    v-if="row.wellness?.log_id"
+                                    v-if="selectedAthlete.wellness?.log_id"
                                     class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
                                 >
                                     Saved
                                 </span>
                             </div>
-                            <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ row.name }}</h3>
-                            <p class="mt-1 text-xs text-slate-500">{{ row.student_id_number || '-' }}</p>
+                            <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ selectedAthlete.name }}</h3>
+                            <p class="mt-1 text-xs text-slate-500">{{ selectedAthlete.student_id_number || '-' }}</p>
                         </div>
-                    </div>
-
-                    <div v-if="athleteNeedsAttention(row.student_id)" class="rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
-                        Needs follow-up
                     </div>
                 </div>
 
@@ -300,20 +357,20 @@ function athleteInitials(name: string) {
                             <button
                                 type="button"
                                 class="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                                :class="rowForms[row.student_id].injury_observed
+                                :class="rowForms[selectedAthlete.student_id].injury_observed
                                     ? 'border-rose-600 bg-rose-600 text-white'
                                     : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'"
-                                @click="rowForms[row.student_id].injury_observed = !rowForms[row.student_id].injury_observed"
+                                @click="rowForms[selectedAthlete.student_id].injury_observed = !rowForms[selectedAthlete.student_id].injury_observed"
                             >
-                                {{ rowForms[row.student_id].injury_observed ? 'Injury Observed' : 'No Injury Observed' }}
+                                {{ rowForms[selectedAthlete.student_id].injury_observed ? 'Injury Observed' : 'No Injury Observed' }}
                             </button>
                         </div>
 
                         <textarea
-                            v-model="rowForms[row.student_id].injury_notes"
+                            v-model="rowForms[selectedAthlete.student_id].injury_notes"
                             rows="2"
                             class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            :disabled="!rowForms[row.student_id].injury_observed"
+                            :disabled="!rowForms[selectedAthlete.student_id].injury_observed"
                             placeholder="Add injury notes if observed"
                         />
                     </div>
@@ -323,7 +380,7 @@ function athleteInitials(name: string) {
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fatigue Level</p>
                             <p class="mt-1 text-sm text-slate-600">Select the athlete’s post-session fatigue from 1 to 5.</p>
                             <select
-                                v-model="rowForms[row.student_id].fatigue_level"
+                                v-model="rowForms[selectedAthlete.student_id].fatigue_level"
                                 class="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
                             >
                                 <option value="1">1 - Very Low</option>
@@ -338,7 +395,7 @@ function athleteInitials(name: string) {
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Performance Condition</p>
                             <p class="mt-1 text-sm text-slate-600">Capture the athlete’s overall condition during or after the session.</p>
                             <select
-                                v-model="rowForms[row.student_id].performance_condition"
+                                v-model="rowForms[selectedAthlete.student_id].performance_condition"
                                 class="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
                             >
                                 <option value="excellent">Excellent</option>
@@ -352,7 +409,7 @@ function athleteInitials(name: string) {
                     <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Coach Remarks</label>
                         <textarea
-                            v-model="rowForms[row.student_id].remarks"
+                            v-model="rowForms[selectedAthlete.student_id].remarks"
                             rows="3"
                             class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
                             placeholder="Add coaching notes, recovery reminders, or readiness comments"
@@ -367,10 +424,10 @@ function athleteInitials(name: string) {
                     <button
                         type="button"
                         class="rounded-lg bg-[#034485] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#033a70] disabled:cursor-not-allowed disabled:bg-slate-300"
-                        :disabled="savingKey === `${schedule.id}:${row.student_id}`"
-                        @click="saveRow(row.student_id)"
+                        :disabled="savingKey === `${schedule.id}:${selectedAthlete.student_id}`"
+                        @click="saveRow(selectedAthlete.student_id)"
                     >
-                        {{ savingKey === `${schedule.id}:${row.student_id}` ? 'Saving...' : 'Save Evaluation' }}
+                        {{ savingKey === `${schedule.id}:${selectedAthlete.student_id}` ? 'Saving...' : 'Save Evaluation' }}
                     </button>
                 </div>
             </article>

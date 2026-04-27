@@ -16,6 +16,8 @@ class WellnessLog extends Model
         'log_date',
         'injury_observed',
         'injury_notes',
+        'injury_resolved_at',
+        'injury_resolved_by',
         'fatigue_level',
         'performance_condition',
         'remarks',
@@ -24,6 +26,7 @@ class WellnessLog extends Model
     protected $casts = [
         'log_date' => 'date',
         'injury_observed' => 'boolean',
+        'injury_resolved_at' => 'datetime',
     ];
 
     public function student()
@@ -39,5 +42,10 @@ class WellnessLog extends Model
     public function logger()
     {
         return $this->belongsTo(User::class, 'logged_by');
+    }
+
+    public function resolver()
+    {
+        return $this->belongsTo(User::class, 'injury_resolved_by');
     }
 }

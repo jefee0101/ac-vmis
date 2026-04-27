@@ -342,6 +342,8 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
         ->name('coach.team_players.position');
     Route::put('/coach/team-players/{teamPlayer}/status', [CoachTeamController::class, 'updatePlayerStatus'])
         ->name('coach.team_players.status');
+    Route::post('/coach/team-players/{teamPlayer}/clear-injury', [CoachTeamController::class, 'clearInjury'])
+        ->name('coach.team_players.clear_injury');
     Route::post('/coach/team/requests', [CoachTeamController::class, 'requestChange'])
         ->middleware('throttle:coach-requests')
         ->name('coach.team.request');

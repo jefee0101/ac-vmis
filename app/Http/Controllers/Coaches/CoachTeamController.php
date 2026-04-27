@@ -7,8 +7,10 @@ use App\Models\AccountActionLog;
 use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\User;
+use App\Models\WellnessLog;
 use App\Services\SystemNotificationService;
 use App\Services\TeamPlayerStatusService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -70,6 +72,18 @@ class CoachTeamController extends Controller
         }
 
         if ($team) {
+            $studentIds = $team->players->pluck('student_id')->filter()->map(fn ($id) => (int) $id)->all();
+            $latestInjuryByStudent = WellnessLog::query()
+                ->whereIn('student_id', $studentIds)
+                ->where('injury_observed', true)
+                ->whereNull('injury_resolved_at')
+                ->whereHas('schedule', fn ($query) => $query->where('team_id', $team->id))
+                ->orderByDesc('log_date')
+                ->orderByDesc('id')
+                ->get()
+                ->unique('student_id')
+                ->keyBy('student_id');
+
             $team = [
                 'id' => $team->id,
                 'team_name' => $team->team_name,
@@ -78,7 +92,15 @@ class CoachTeamController extends Controller
                 'year' => $team->year,
                 'coach' => $team->coach, // will have first_name, last_name, etc.
                 'assistantCoach' => $team->assistantCoach,
-                'players' => $team->players,
+                'players' => $team->players->map(function (TeamPlayer $player) use ($latestInjuryByStudent) {
+                    $injuryLog = $latestInjuryByStudent->get((int) $player->student_id);
+
+                    return [
+                        ...$player->toArray(),
+                        'latest_injury_notes' => $injuryLog?->injury_notes,
+                        'has_unresolved_injury' => $injuryLog !== null,
+                    ];
+                })->values(),
             ];
         }
 
@@ -207,6 +229,52 @@ class CoachTeamController extends Controller
         throw ValidationException::withMessages([
             'player_status' => 'Player status is managed automatically by wellness, academic eligibility, and admin deactivation.',
         ]);
+    }
+
+    public function clearInjury(Request $request, TeamPlayer $teamPlayer)
+    {
+        $coach = $request->user()?->coach;
+        abort_unless($coach, 403);
+
+        $teamPlayer->load(['team', 'student']);
+        $team = $teamPlayer->team;
+        abort_unless($team && in_array($coach->id, $team->activeCoachIds(), true), 403);
+
+        $injuryLog = WellnessLog::query()
+            ->where('student_id', (int) $teamPlayer->student_id)
+            ->where('injury_observed', true)
+            ->whereNull('injury_resolved_at')
+            ->whereHas('schedule', fn ($query) => $query->where('team_id', $team->id))
+            ->orderByDesc('log_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$injuryLog) {
+            return back()->withErrors([
+                'injury' => 'No unresolved injury record was found for this athlete.',
+            ]);
+        }
+
+        $injuryLog->forceFill([
+            'injury_resolved_at' => now(),
+            'injury_resolved_by' => Auth::id(),
+        ])->save();
+
+        $status = $this->teamPlayerStatuses->sync($teamPlayer->fresh(['team']));
+
+        $studentUserId = $teamPlayer->student?->user_id;
+        if ($studentUserId) {
+            $this->notifications->announce(
+                (int) $studentUserId,
+                'Injury Status Cleared',
+                "Your injury status for {$team->team_name} was cleared and your roster status is now {$status}.",
+                'wellness',
+                Auth::id(),
+                'notify_wellness_alerts'
+            );
+        }
+
+        return back()->with('success', 'Injury cleared successfully.');
     }
 
     public function requestChange(Request $request)

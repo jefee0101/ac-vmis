@@ -78,6 +78,7 @@ class TeamPlayerStatusService
         return WellnessLog::query()
             ->where('student_id', $studentId)
             ->where('injury_observed', true)
+            ->whereNull('injury_resolved_at')
             ->whereHas('schedule', fn ($query) => $query->where('team_id', $teamId))
             ->exists();
     }
