@@ -42,16 +42,6 @@ type FormState = {
     remarks: string
 }
 
-type FilterKey = 'all' | 'needs_review' | 'saved'
-
-type BulkFormState = {
-    injury_observed: '' | 'yes' | 'no'
-    injury_notes: string
-    fatigue_level: '' | '1' | '2' | '3' | '4' | '5'
-    performance_condition: '' | 'excellent' | 'good' | 'fair' | 'poor'
-    remarks: string
-}
-
 const props = defineProps<{
     team: { id: number; team_name: string; sport: string } | null
     schedule: ScheduleRow
@@ -60,22 +50,6 @@ const props = defineProps<{
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
 const savingKey = ref<string | null>(null)
-const search = ref('')
-const filter = ref<FilterKey>('all')
-const selectedAthleteIds = ref<number[]>([])
-const bulkForm = ref<BulkFormState>({
-    injury_observed: '',
-    injury_notes: '',
-    fatigue_level: '',
-    performance_condition: '',
-    remarks: '',
-})
-
-const filterOptions: Array<{ key: FilterKey; label: string }> = [
-    { key: 'all', label: 'All Athletes' },
-    { key: 'needs_review', label: 'Needs Review' },
-    { key: 'saved', label: 'Already Logged' },
-]
 
 function buildRowForms(rows: AthleteRow[]) {
     return Object.fromEntries(
@@ -98,36 +72,9 @@ watch(
     () => props.athletes,
     (rows) => {
         rowForms.value = buildRowForms(rows || [])
-        selectedAthleteIds.value = []
     },
     { immediate: true },
 )
-
-const filteredAthletes = computed(() => {
-    const query = search.value.trim().toLowerCase()
-
-    return props.athletes.filter((row) => {
-        const form = rowForms.value[row.student_id]
-        const matchesQuery = query === ''
-            || row.name.toLowerCase().includes(query)
-            || String(row.student_id_number ?? '').toLowerCase().includes(query)
-
-        if (!matchesQuery || !form) return matchesQuery
-
-        if (filter.value === 'saved') return Boolean(row.wellness?.log_id)
-        if (filter.value === 'needs_review') {
-            return form.injury_observed
-                || Number(form.fatigue_level) >= 4
-                || ['fair', 'poor'].includes(form.performance_condition)
-        }
-
-        return true
-    })
-})
-
-const selectedVisibleCount = computed(() => (
-    filteredAthletes.value.filter((row) => selectedAthleteIds.value.includes(row.student_id)).length
-))
 
 const summary = computed(() => {
     const forms = props.athletes.map((row) => rowForms.value[row.student_id]).filter(Boolean)
@@ -179,78 +126,6 @@ function saveRow(studentId: number) {
         onFinish: () => {
             savingKey.value = null
         },
-    })
-}
-
-function toggleAthleteSelection(studentId: number) {
-    if (selectedAthleteIds.value.includes(studentId)) {
-        selectedAthleteIds.value = selectedAthleteIds.value.filter((id) => id !== studentId)
-        return
-    }
-
-    selectedAthleteIds.value = [...selectedAthleteIds.value, studentId]
-}
-
-function toggleSelectVisible() {
-    const visibleIds = filteredAthletes.value.map((row) => row.student_id)
-    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedAthleteIds.value.includes(id))
-
-    if (allVisibleSelected) {
-        selectedAthleteIds.value = selectedAthleteIds.value.filter((id) => !visibleIds.includes(id))
-        return
-    }
-
-    selectedAthleteIds.value = Array.from(new Set([...selectedAthleteIds.value, ...visibleIds]))
-}
-
-function clearBulkForm() {
-    bulkForm.value = {
-        injury_observed: '',
-        injury_notes: '',
-        fatigue_level: '',
-        performance_condition: '',
-        remarks: '',
-    }
-}
-
-function applyBulkEvaluation() {
-    if (selectedAthleteIds.value.length === 0) {
-        showAppToast('Select at least one athlete before applying a bulk wellness update.', 'warn', {
-            summary: 'Wellness Monitoring',
-        })
-        return
-    }
-
-    selectedAthleteIds.value.forEach((studentId) => {
-        const form = rowForms.value[studentId]
-        if (!form) return
-
-        if (bulkForm.value.injury_observed === 'yes') {
-            form.injury_observed = true
-        } else if (bulkForm.value.injury_observed === 'no') {
-            form.injury_observed = false
-            form.injury_notes = ''
-        }
-
-        if (bulkForm.value.fatigue_level) {
-            form.fatigue_level = bulkForm.value.fatigue_level
-        }
-
-        if (bulkForm.value.performance_condition) {
-            form.performance_condition = bulkForm.value.performance_condition
-        }
-
-        if (bulkForm.value.remarks.trim()) {
-            form.remarks = bulkForm.value.remarks.trim()
-        }
-
-        if (bulkForm.value.injury_notes.trim() && form.injury_observed) {
-            form.injury_notes = bulkForm.value.injury_notes.trim()
-        }
-    })
-
-    showAppToast(`Applied the selected wellness values to ${selectedAthleteIds.value.length} athlete${selectedAthleteIds.value.length > 1 ? 's' : ''}.`, 'success', {
-        summary: 'Wellness Monitoring',
     })
 }
 
@@ -322,12 +197,6 @@ function athleteInitials(name: string) {
         .map((part) => part.charAt(0).toUpperCase())
         .join('')
 }
-
-function filterButtonClass(option: FilterKey) {
-    return filter.value === option
-        ? 'border-[#034485] bg-[#034485] text-white shadow-sm'
-        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900'
-}
 </script>
 
 <template>
@@ -393,156 +262,25 @@ function filterButtonClass(option: FilterKey) {
         </section>
 
         <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)]">
-            <div class="flex flex-col gap-4">
-                <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <div>
-                        <p class="text-sm font-semibold text-slate-900">Athlete Wellness Queue</p>
-                        <p class="mt-1 text-sm text-slate-500">
-                            Review only present or late athletes for this session, then save each evaluation after checking the athlete’s condition.
-                        </p>
-                    </div>
-
-                    <div class="flex flex-col gap-3 sm:flex-row">
-                        <input
-                            v-model="search"
-                            type="text"
-                            class="w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-sm text-slate-900 sm:w-72"
-                            placeholder="Search athlete or student ID"
-                        />
-                        <div class="flex flex-wrap gap-2">
-                            <button
-                                v-for="option in filterOptions"
-                                :key="option.key"
-                                type="button"
-                                class="rounded-full border px-4 py-2 text-xs font-semibold transition"
-                                :class="filterButtonClass(option.key)"
-                                @click="filter = option.key"
-                            >
-                                {{ option.label }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-                    <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                        <div class="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Bulk Selection</p>
-                                <p class="mt-1 text-sm text-slate-600">
-                                    Select multiple athletes, then apply the same fatigue level, no-injury flag, condition, or remarks before saving individual evaluations.
-                                </p>
-                            </div>
-                            <button
-                                type="button"
-                                class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-slate-400"
-                                @click="toggleSelectVisible"
-                            >
-                                {{ selectedVisibleCount === filteredAthletes.length && filteredAthletes.length > 0 ? 'Clear Visible Selection' : 'Select Visible Athletes' }}
-                            </button>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap items-center gap-2">
-                            <span class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
-                                {{ selectedAthleteIds.length }} selected
-                            </span>
-                            <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                                {{ summary.needsReview }} need closer review
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="rounded-3xl border border-slate-200 bg-white p-4">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Bulk Evaluation</p>
-                        <div class="mt-4 grid gap-3">
-                            <select
-                                v-model="bulkForm.injury_observed"
-                                class="rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            >
-                                <option value="">Injury observed: leave unchanged</option>
-                                <option value="yes">Set injury observed</option>
-                                <option value="no">Set no injury observed</option>
-                            </select>
-
-                            <input
-                                v-model="bulkForm.injury_notes"
-                                type="text"
-                                class="rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                                placeholder="Bulk injury notes"
-                            />
-
-                            <select
-                                v-model="bulkForm.fatigue_level"
-                                class="rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            >
-                                <option value="">Fatigue level: leave unchanged</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                            </select>
-
-                            <select
-                                v-model="bulkForm.performance_condition"
-                                class="rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            >
-                                <option value="">Performance condition: leave unchanged</option>
-                                <option value="excellent">Excellent</option>
-                                <option value="good">Good</option>
-                                <option value="fair">Fair</option>
-                                <option value="poor">Poor</option>
-                            </select>
-
-                            <textarea
-                                v-model="bulkForm.remarks"
-                                rows="2"
-                                class="rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                                placeholder="Bulk coach remarks"
-                            />
-
-                            <div class="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    class="rounded-md bg-[#1f2937] px-3 py-2 text-xs font-semibold text-white hover:bg-[#111827]"
-                                    @click="applyBulkEvaluation"
-                                >
-                                    Apply to Selected
-                                </button>
-                                <button
-                                    type="button"
-                                    class="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-slate-400"
-                                    @click="clearBulkForm"
-                                >
-                                    Clear Bulk Values
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <p class="text-sm font-semibold text-slate-900">Player Evaluations</p>
+            <p class="mt-1 text-sm text-slate-500">
+                Review each present or late athlete for this session, then save the wellness entry after checking the athlete’s condition.
+            </p>
         </section>
 
-        <div v-if="filteredAthletes.length === 0" class="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
-            No athletes match this session or the current filter.
+        <div v-if="props.athletes.length === 0" class="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
+            No present or late athletes are available for this session.
         </div>
 
         <div v-else class="grid gap-4 xl:grid-cols-2">
             <article
-                v-for="row in filteredAthletes"
+                v-for="row in props.athletes"
                 :key="row.student_id"
                 class="rounded-3xl border bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
                 :class="athleteNeedsAttention(row.student_id) ? 'border-amber-200 shadow-[0_24px_60px_-42px_rgba(245,158,11,0.35)]' : 'border-slate-200'"
             >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="flex items-start gap-3">
-                        <button
-                            type="button"
-                            class="mt-1 h-5 w-5 rounded border border-slate-300 bg-white text-[11px] font-bold leading-none text-[#034485]"
-                            @click="toggleAthleteSelection(row.student_id)"
-                        >
-                            {{ selectedAthleteIds.includes(row.student_id) ? '✓' : '' }}
-                        </button>
                         <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-sm font-bold text-slate-700">
                             {{ athleteInitials(row.name) }}
                         </div>
