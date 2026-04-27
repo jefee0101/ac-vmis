@@ -4,16 +4,10 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
 import { showAppToast } from '@/composables/useAppToast'
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
+import { normalizeWorkspaceRole, resolveAccountLayout } from '@/pages/Account/accountRole'
 
 defineOptions({
-  layout: (h: any, page: any) => {
-    const role = String(page?.props?.auth?.user?.role ?? '')
-    const layout = role === 'admin' ? AdminDashboard : role === 'coach' ? CoachDashboard : StudentAthleteDashboard
-    return h(layout, [page])
-  },
+  layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 })
 
 const DEFAULT_AVATAR_URL = '/images/default-avatar.svg'
@@ -55,7 +49,7 @@ const props = defineProps<{
 
 const page = usePage()
 const user = computed(() => page.props.auth?.user ?? null)
-const role = computed(() => String(user.value?.role ?? ''))
+const role = computed(() => normalizeWorkspaceRole(user.value?.role))
 
 const form = useForm({
   name: String(user.value?.name ?? ''),
@@ -108,7 +102,7 @@ const avatarUrl = computed(() => {
 })
 
 const roleLabel = computed(() => {
-  if (role.value === 'student-athlete' || role.value === 'student') return 'Student-Athlete'
+  if (role.value === 'student') return 'Student-Athlete'
   if (role.value === 'coach') return 'Coach'
   if (role.value === 'admin') return 'Administrator'
   return role.value || 'User'
@@ -404,7 +398,7 @@ onBeforeUnmount(() => {
                 </div>
               </template>
 
-              <template v-if="role === 'student' || role === 'student-athlete'">
+              <template v-if="role === 'student'">
                 <div>
                   <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Name</label>
                   <input v-model="form.emergency_contact_name" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
@@ -447,7 +441,7 @@ onBeforeUnmount(() => {
           </div>
       </div>
 
-      <section v-if="(role === 'student' || role === 'student-athlete') && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(4)">
+      <section v-if="role === 'student' && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(4)">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Read-Only Student Record</p>

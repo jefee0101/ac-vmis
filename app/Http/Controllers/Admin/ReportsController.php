@@ -447,6 +447,7 @@ class ReportsController extends Controller
             ->selectRaw("SUM(CASE WHEN COALESCE(tp.player_status, 'active') = 'active' THEN 1 ELSE 0 END) as active_count")
             ->selectRaw("SUM(CASE WHEN tp.player_status = 'injured' THEN 1 ELSE 0 END) as injured_count")
             ->selectRaw("SUM(CASE WHEN tp.player_status = 'suspended' THEN 1 ELSE 0 END) as suspended_count")
+            ->selectRaw("SUM(CASE WHEN tp.player_status = 'inactive' THEN 1 ELSE 0 END) as inactive_count")
             ->selectRaw("SUM(CASE WHEN tp.jersey_number IS NULL OR tp.jersey_number = '' THEN 1 ELSE 0 END) as jersey_pending_count")
             ->selectRaw("SUM(CASE WHEN tp.athlete_position IS NULL OR tp.athlete_position = '' THEN 1 ELSE 0 END) as position_pending_count")
             ->first();
@@ -456,6 +457,7 @@ class ReportsController extends Controller
             'active' => (int) ($row->active_count ?? 0),
             'injured' => (int) ($row->injured_count ?? 0),
             'suspended' => (int) ($row->suspended_count ?? 0),
+            'inactive' => (int) ($row->inactive_count ?? 0),
             'jersey_pending' => (int) ($row->jersey_pending_count ?? 0),
             'position_pending' => (int) ($row->position_pending_count ?? 0),
         ];
@@ -733,7 +735,7 @@ class ReportsController extends Controller
             'status' => 'nullable|in:present,absent,late,excused,no_response',
             'academic_status' => 'nullable|in:eligible,pending_review,ineligible,pending',
             'clearance_status' => 'nullable|in:fit,fit_with_restrictions,not_fit,expired',
-            'player_status' => 'nullable|in:active,injured,suspended',
+            'player_status' => 'nullable|in:active,injured,suspended,inactive',
             'review_state' => 'nullable|in:reviewed,unreviewed',
             'year' => 'nullable|digits:4',
             'start_date' => 'nullable|date',
@@ -876,6 +878,7 @@ class ReportsController extends Controller
             ['value' => 'active', 'label' => 'Active'],
             ['value' => 'injured', 'label' => 'Injured'],
             ['value' => 'suspended', 'label' => 'Suspended'],
+            ['value' => 'inactive', 'label' => 'Inactive'],
         ];
     }
 

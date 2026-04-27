@@ -13,6 +13,7 @@ use App\Models\TeamPlayer;
 use App\Models\TeamSchedule;
 use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
+use App\Services\TeamPlayerStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -27,6 +28,7 @@ class CreateTeamController extends Controller
     public function __construct(
         private SecureUploadService $secureUpload,
         private SystemNotificationService $notifications,
+        private TeamPlayerStatusService $teamPlayerStatuses,
     ) {
     }
 
@@ -109,6 +111,7 @@ class CreateTeamController extends Controller
         $this->notifyTeamAssignmentAdded($team, (int) $validated['coach_id'], 'head coach');
         $this->notifyTeamAssignmentAdded($team, $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null, 'assistant coach');
         $this->notifyPlayersAdded($team, $playerIds->all());
+        $playerIds->each(fn ($studentId) => $this->teamPlayerStatuses->syncStudent((int) $studentId));
         return redirect('/teams')->with('success', 'The team has been created successfully.');
     }
 
@@ -224,12 +227,15 @@ class CreateTeamController extends Controller
         $this->logRosterMembershipChanges($team, $removedPlayerIds, 'roster_removed_from_team');
         $this->notifyPlayersAdded($team, $addedPlayerIds);
         $this->notifyPlayersRemoved($team, $removedPlayerIds);
+        collect($addedPlayerIds)->each(fn ($studentId) => $this->teamPlayerStatuses->syncStudent((int) $studentId));
 
         return redirect('/teams')->with('success', 'The team has been updated successfully.');
     }
 
     public function teamSetup(Request $request)
     {
+        $this->teamPlayerStatuses->syncAll();
+
         $sportMaxMap = Sport::query()
             ->get(['id', 'name'])
             ->mapWithKeys(fn ($sport) => [$sport->id => $this->maxPlayersForSport((int) $sport->id)]);
@@ -339,6 +345,7 @@ class CreateTeamController extends Controller
             ->with('event.creator:id,first_name,middle_name,last_name')
             ->where('user_id', auth()->id())
             ->whereIn('ae.title', $requestTitles)
+            ->whereNull('read_at')
             ->orderByDesc('ae.published_at')
             ->limit(12)
             ->get()
@@ -494,6 +501,8 @@ class CreateTeamController extends Controller
                     'weight' => $player->student->weight ?? null,
                     'jersey_number' => $player->jersey_number,
                     'athlete_position' => $player->athlete_position,
+                    'player_status' => $player->player_status ?? TeamPlayer::STATUS_ACTIVE,
+                    'manual_inactive' => (bool) $player->manual_inactive,
                 ])
                 ->values(),
         ]);
@@ -566,6 +575,74 @@ class CreateTeamController extends Controller
         ]);
 
         return back()->with('success', 'Team reactivated.');
+    }
+
+    public function deactivatePlayer(TeamPlayer $teamPlayer)
+    {
+        $this->authorizeMutation();
+
+        $teamPlayer->loadMissing(['team', 'student.user']);
+        $status = $this->teamPlayerStatuses->setInactiveOverride($teamPlayer, true);
+
+        $studentUserId = (int) ($teamPlayer->student?->user_id ?? 0);
+        if ($studentUserId > 0) {
+            AccountActionLog::create([
+                'user_id' => $studentUserId,
+                'admin_id' => auth()->id(),
+                'action' => 'roster_status_updated',
+                'remarks' => "Roster status set to {$status} for {$teamPlayer->student?->full_name} in {$teamPlayer->team?->team_name}.",
+            ]);
+
+            $this->notifications->announce(
+                $studentUserId,
+                'Roster Status Updated',
+                "Your roster status in {$teamPlayer->team?->team_name} is now INACTIVE.",
+                'system',
+                auth()->id(),
+                'notify_attendance_exceptions'
+            );
+        }
+
+        return back()->with('success', 'Player marked inactive.');
+    }
+
+    public function reactivatePlayer(TeamPlayer $teamPlayer)
+    {
+        $this->authorizeMutation();
+
+        $teamPlayer->loadMissing(['team', 'student.user']);
+        $status = $this->teamPlayerStatuses->setInactiveOverride($teamPlayer, false);
+
+        $studentUserId = (int) ($teamPlayer->student?->user_id ?? 0);
+        if ($studentUserId > 0) {
+            AccountActionLog::create([
+                'user_id' => $studentUserId,
+                'admin_id' => auth()->id(),
+                'action' => 'roster_status_updated',
+                'remarks' => "Roster status recalculated as {$status} for {$teamPlayer->student?->full_name} in {$teamPlayer->team?->team_name}.",
+            ]);
+
+            $this->notifications->announce(
+                $studentUserId,
+                'Roster Status Updated',
+                "Your roster status in {$teamPlayer->team?->team_name} was reactivated and is now " . strtoupper($status) . '.',
+                'system',
+                auth()->id(),
+                'notify_attendance_exceptions'
+            );
+        }
+
+        return back()->with('success', 'Player reactivated.');
+    }
+
+    public function approveRequest(Announcement $announcement)
+    {
+        return $this->resolveRequest($announcement, 'approved');
+    }
+
+    public function rejectRequest(Announcement $announcement)
+    {
+        return $this->resolveRequest($announcement, 'rejected');
     }
 
     private function buildFormPayload(?Team $team = null): array
@@ -783,6 +860,80 @@ class CreateTeamController extends Controller
             'selectedTeam' => $selectedTeam,
             'coachWorkloads' => $coachWorkloads,
         ];
+    }
+
+    private function resolveRequest(Announcement $announcement, string $decision)
+    {
+        $this->authorizeMutation();
+
+        abort_unless((int) $announcement->user_id === (int) auth()->id(), 403);
+
+        $announcement->loadMissing('event.creator');
+
+        if (empty($announcement->read_at)) {
+            $announcement->forceFill([
+                'read_at' => now(),
+            ])->save();
+        }
+
+        $requesterId = (int) ($announcement->created_by ?? 0);
+        if ($requesterId <= 0) {
+            return back()->with('error', 'Unable to resolve the request because the requesting coach account is unavailable.');
+        }
+
+        $parsed = $this->parseRequestMessage((string) $announcement->message);
+        $decisionLabel = $decision === 'approved' ? 'approved' : 'rejected';
+        $title = sprintf('%s %s', (string) $announcement->title, $decision === 'approved' ? 'Approved' : 'Rejected');
+        $teamLabel = $parsed['team'] !== '' ? $parsed['team'] : 'your team';
+        $message = "Your {$announcement->title} for {$teamLabel} was {$decisionLabel}.";
+
+        if ($parsed['notes'] !== '') {
+            $message .= " Original note: {$parsed['notes']}.";
+        }
+
+        $this->notifications->announce(
+            $requesterId,
+            $title,
+            $message,
+            'approval',
+            auth()->id(),
+            'notify_attendance_exceptions'
+        );
+
+        return back()->with('success', "Team change request {$decisionLabel}.");
+    }
+
+    /**
+     * @return array{team:string,requestedBy:string,target:string,notes:string}
+     */
+    private function parseRequestMessage(string $message): array
+    {
+        $data = [
+            'team' => '',
+            'requestedBy' => '',
+            'target' => '',
+            'notes' => '',
+        ];
+
+        $lines = collect(explode("\n", $message))
+            ->map(fn ($line) => trim((string) $line))
+            ->filter()
+            ->values();
+
+        foreach ($lines as $line) {
+            $lower = mb_strtolower($line);
+            if (str_starts_with($lower, 'team:')) {
+                $data['team'] = trim(substr($line, 5));
+            } elseif (str_starts_with($lower, 'requested by:')) {
+                $data['requestedBy'] = trim(substr($line, 13));
+            } elseif (str_starts_with($lower, 'target:')) {
+                $data['target'] = trim(substr($line, 7));
+            } elseif (str_starts_with($lower, 'notes:')) {
+                $data['notes'] = trim(substr($line, 6));
+            }
+        }
+
+        return $data;
     }
 
     private function resolveCoachDisplayName(Coach $coach): string

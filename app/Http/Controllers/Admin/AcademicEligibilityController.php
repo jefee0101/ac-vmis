@@ -9,6 +9,7 @@ use App\Models\AcademicPeriod;
 use App\Models\Student;
 use App\Models\Team;
 use App\Services\SystemNotificationService;
+use App\Services\TeamPlayerStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,10 @@ use Inertia\Inertia;
 
 class AcademicEligibilityController extends Controller
 {
-    public function __construct(private SystemNotificationService $notifications)
+    public function __construct(
+        private SystemNotificationService $notifications,
+        private TeamPlayerStatusService $teamPlayerStatuses,
+    )
     {
     }
 
@@ -167,6 +171,7 @@ class AcademicEligibilityController extends Controller
             'ends_on' => $validated['ends_on'],
         ]);
         $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
+        $this->teamPlayerStatuses->syncAll();
 
         return back()->with('success', 'Academic period created.');
     }
@@ -178,6 +183,7 @@ class AcademicEligibilityController extends Controller
         ]);
 
         $period->syncAnnouncement($validated['announcement'] ?? null, auth()->id());
+        $this->teamPlayerStatuses->syncAll();
 
         return back()->with('success', 'Academic period updated.');
     }
@@ -203,6 +209,7 @@ class AcademicEligibilityController extends Controller
         }
 
         $period->delete();
+        $this->teamPlayerStatuses->syncAll();
 
         return back()->with('success', 'Academic period deleted.');
     }
@@ -308,6 +315,8 @@ class AcademicEligibilityController extends Controller
                 'notify_academic_alerts'
             );
         }
+
+        $this->teamPlayerStatuses->syncStudent((int) $validated['student_id']);
 
         return back()->with('success', 'Academic evaluation saved.');
     }
@@ -669,6 +678,8 @@ class AcademicEligibilityController extends Controller
             'reviewed_at' => now(),
         ]);
 
+        $this->teamPlayerStatuses->syncStudent($studentId);
+
         return response()->json([
             'message' => 'Evaluation updated.',
             'evaluation_id' => $evaluation->id,
@@ -695,6 +706,8 @@ class AcademicEligibilityController extends Controller
                     ->delete();
             }
         }
+
+        $this->teamPlayerStatuses->syncStudent($studentId);
 
         return back()->with('success', 'Academic submission deleted.');
     }

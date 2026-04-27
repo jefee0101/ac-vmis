@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3'
 import { computed, useSlots } from 'vue'
 
 import CoachMobileShell from '@/components/coach/CoachMobileShell.vue'
+import { useSportColors } from '@/composables/useSportColors'
 
 type TeamInfo = {
   id: number
@@ -47,6 +48,7 @@ const props = defineProps<{
   metrics?: Partial<Metrics>
   attendanceSnapshot?: Partial<AttendanceSnapshot>
 }>()
+const { sportColor, sportTextColor, sportLabel } = useSportColors()
 
 function goTo(route: string) {
   router.get(route)
@@ -117,8 +119,17 @@ const nextCountdown = computed(() => {
             <h1 class="mt-2 text-2xl font-bold text-slate-900">
               {{ props.team?.team_name ? `${props.team.team_name} Workspace` : 'Coach Workspace' }}
             </h1>
-            <p class="text-sm text-slate-600">
-              {{ props.team?.sport ? `Sport: ${props.team.sport}` : 'Use this page to manage attendance, post-training condition records, and team schedules.' }}
+            <div v-if="props.team?.sport" class="mt-3 flex flex-wrap items-center gap-2">
+              <span class="text-sm text-slate-600">Sport:</span>
+              <span
+                class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
+                :style="{ backgroundColor: sportColor(props.team.sport), color: sportTextColor(props.team.sport) }"
+              >
+                {{ sportLabel(props.team.sport) }}
+              </span>
+            </div>
+            <p v-else class="text-sm text-slate-600">
+              Use this page to manage attendance, post-training condition records, and team schedules.
             </p>
           </div>
           <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

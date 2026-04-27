@@ -13,12 +13,22 @@ class TeamPlayer extends Model
 
     protected $table = 'team_players';
 
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_INJURED = 'injured';
+    public const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_INACTIVE = 'inactive';
+
     protected $fillable = [
         'team_id',
         'student_id',
         'jersey_number',
         'athlete_position',
         'player_status',
+        'manual_inactive',
+    ];
+
+    protected $casts = [
+        'manual_inactive' => 'boolean',
     ];
 
     // Relations

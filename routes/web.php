@@ -203,6 +203,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.archive');
     Route::post('/teams/{team}/reactivate', [CreateTeamController::class, 'reactivate'])
         ->name('admin.teams.reactivate');
+    Route::post('/teams/team-players/{teamPlayer}/deactivate', [CreateTeamController::class, 'deactivatePlayer'])
+        ->name('admin.teams.players.deactivate');
+    Route::post('/teams/team-players/{teamPlayer}/reactivate', [CreateTeamController::class, 'reactivatePlayer'])
+        ->name('admin.teams.players.reactivate');
+    Route::post('/teams/requests/{announcement}/approve', [CreateTeamController::class, 'approveRequest'])
+        ->name('admin.teams.requests.approve');
+    Route::post('/teams/requests/{announcement}/reject', [CreateTeamController::class, 'rejectRequest'])
+        ->name('admin.teams.requests.reject');
 
     Route::get('/operations', [OperationsWorkspaceController::class, 'index'])
         ->name('admin.operations.index');

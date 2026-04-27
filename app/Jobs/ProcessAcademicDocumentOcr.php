@@ -9,6 +9,7 @@ use App\Services\AcademicDocumentValidationService;
 use App\Services\AcademicEligibilityRuleEngine;
 use App\Services\GradeParsingService;
 use App\Services\OcrService;
+use App\Services\TeamPlayerStatusService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,9 +33,12 @@ class ProcessAcademicDocumentOcr implements ShouldQueue
         OcrService $ocrService,
         GradeParsingService $gradeParsingService,
         AcademicDocumentValidationService $validationService,
-        AcademicEligibilityRuleEngine $ruleEngine
+        AcademicEligibilityRuleEngine $ruleEngine,
+        ?TeamPlayerStatusService $teamPlayerStatuses = null,
     ): void
     {
+        $teamPlayerStatuses ??= app(TeamPlayerStatusService::class);
+
         $document = AcademicDocument::query()
             ->with('documentTypeDefinition')
             ->find($this->academicDocumentId);
@@ -89,6 +93,8 @@ class ProcessAcademicDocumentOcr implements ShouldQueue
                     'run_status' => 'needs_review',
                 ]);
             }
+
+            $teamPlayerStatuses->syncStudent((int) $document->student_id);
         } catch (Throwable $e) {
             $failure = $this->failurePayload($e);
 

@@ -3,16 +3,10 @@ import { Head, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
+import { normalizeWorkspaceRole, resolveAccountLayout } from '@/pages/Account/accountRole'
 
 defineOptions({
-  layout: (h: any, page: any) => {
-    const role = String(page?.props?.auth?.user?.role ?? '')
-    const layout = role === 'admin' ? AdminDashboard : role === 'coach' ? CoachDashboard : StudentAthleteDashboard
-    return h(layout, [page])
-  },
+  layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 })
 
 type HelpTask = {
@@ -39,7 +33,7 @@ type HelpContent = {
 }
 
 const page = usePage()
-const role = computed(() => String((page.props as any)?.auth?.user?.role ?? 'student-athlete'))
+const role = computed(() => normalizeWorkspaceRole((page.props as any)?.auth?.user?.role))
 const activeFaq = ref<number | null>(0)
 
 const helpContent = computed<HelpContent>(() => {

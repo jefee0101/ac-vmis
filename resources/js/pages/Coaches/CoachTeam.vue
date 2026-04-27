@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import { computed, ref, watch } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 
@@ -10,7 +11,7 @@ defineOptions({
     layout: CoachDashboard,
 })
 
-type PlayerStatus = 'active' | 'injured' | 'suspended'
+type PlayerStatus = 'active' | 'injured' | 'suspended' | 'inactive'
 
 type PlayerRow = {
     id: number
@@ -45,14 +46,11 @@ const props = defineProps<{
 }>()
 
 const positionDrafts = ref<Record<number, string>>({})
-const statusDrafts = ref<Record<number, PlayerStatus>>({})
 const positionSaveState = ref<Record<number, 'idle' | 'saving' | 'saved' | 'error'>>({})
-const statusSaveState = ref<Record<number, 'idle' | 'saving' | 'saved' | 'error'>>({})
 
 const requestDialogOpen = ref(false)
 const requestNotes = ref('')
 const requestSubmitting = ref(false)
-const requestMessage = ref<string | null>(null)
 const detailsOpen = ref(false)
 const selectedPlayer = ref<PlayerRow | null>(null)
 const copiedField = ref<string | null>(null)
@@ -68,13 +66,10 @@ watch(
     (list: PlayerRow[] | undefined) => {
         if (!list?.length) return
         const nextPositions: Record<number, string> = {}
-        const nextStatuses: Record<number, PlayerStatus> = {}
         for (const player of list) {
             nextPositions[player.id] = player.athlete_position ?? ''
-            nextStatuses[player.id] = (player.player_status ?? 'active') as PlayerStatus
         }
         positionDrafts.value = nextPositions
-        statusDrafts.value = nextStatuses
     },
     { immediate: true }
 )
@@ -132,6 +127,7 @@ function userAvatarUrl(path?: string | null) {
 }
 
 function statusTone(status: PlayerStatus) {
+    if (status === 'inactive') return 'bg-slate-200 text-slate-700'
     if (status === 'injured') return 'bg-amber-100 text-amber-700'
     if (status === 'suspended') return 'bg-red-100 text-red-700'
     return 'bg-emerald-100 text-emerald-700'
@@ -164,23 +160,8 @@ function savePosition(teamPlayerId: number) {
     )
 }
 
-function saveStatus(teamPlayerId: number) {
-    setSaveState(statusSaveState, teamPlayerId, 'saving')
-    router.put(
-        `/coach/team-players/${teamPlayerId}/status`,
-        { player_status: statusDrafts.value[teamPlayerId] },
-        {
-            preserveScroll: true,
-            preserveState: true,
-            onSuccess: () => setSaveState(statusSaveState, teamPlayerId, 'saved'),
-            onError: () => setSaveState(statusSaveState, teamPlayerId, 'error'),
-        },
-    )
-}
-
 function openRequest() {
     requestNotes.value = ''
-    requestMessage.value = null
     requestDialogOpen.value = true
 }
 
@@ -222,9 +203,6 @@ async function copyToClipboard(value?: string | number | null, label?: string) {
 }
 
 function submitRequest() {
-    requestSubmitting.value = true
-    requestMessage.value = null
-
     router.post(
         '/coach/team/requests',
         {
@@ -234,13 +212,24 @@ function submitRequest() {
         },
         {
             preserveScroll: true,
-            onSuccess: () => {
-                requestMessage.value = 'Request sent to admin.'
+            onStart: () => {
+                requestSubmitting.value = true
+            },
+            onFinish: () => {
                 requestSubmitting.value = false
             },
-            onError: () => {
-                requestMessage.value = 'Unable to send request.'
-                requestSubmitting.value = false
+            onSuccess: () => {
+                requestDialogOpen.value = false
+                requestNotes.value = ''
+            },
+            onError: (errors) => {
+                const detail = Array.isArray(errors?.team_id)
+                    ? errors.team_id[0]
+                    : errors?.team_id || errors?.type || 'Unable to send request.'
+
+                showAppToast(String(detail), 'error', {
+                    summary: 'Team Change Request',
+                })
             },
         },
     )
@@ -380,9 +369,19 @@ function printTeamRoster() {
                     <div class="mt-3 grid gap-3">
                         <div>
                             <label class="text-xs text-slate-500">Update Position</label>
-                            <input
+                            <select
+                                v-if="positionsForSport().length > 0"
                                 v-model="positionDrafts[player.id]"
-                                :list="`sport-position-options-${props.team.id}`"
+                                class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                            >
+                                <option value="">Select position</option>
+                                <option v-for="position in positionsForSport()" :key="position" :value="position">
+                                    {{ position }}
+                                </option>
+                            </select>
+                            <input
+                                v-else
+                                v-model="positionDrafts[player.id]"
                                 type="text"
                                 class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
                                 placeholder="Assign position"
@@ -396,18 +395,9 @@ function printTeamRoster() {
                         </div>
                         <div>
                             <label class="text-xs text-slate-500">Status</label>
-                            <select
-                                v-model="statusDrafts[player.id]"
-                                class="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-                                @change="saveStatus(player.id)"
-                            >
-                                <option value="active">Active</option>
-                                <option value="injured">Injured</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                            <span v-if="statusSaveState[player.id] && statusSaveState[player.id] !== 'idle'" class="mt-1 block text-[11px] text-slate-500">
-                                {{ statusSaveState[player.id] === 'saving' ? 'Saving...' : statusSaveState[player.id] === 'saved' ? 'Saved' : 'Error' }}
-                            </span>
+                            <div class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                This roster status updates automatically from wellness, academic eligibility, or admin deactivation.
+                            </div>
                         </div>
                     </div>
                 </article>
@@ -571,14 +561,9 @@ function printTeamRoster() {
                     placeholder="Provide context (names, schedule, reason)"
                 />
 
-                <p v-if="requestMessage" class="text-xs text-emerald-600">{{ requestMessage }}</p>
                 <p v-if="requestSubmitting" class="text-xs text-slate-500">Sending request...</p>
             </div>
         </ConfirmDialog>
-
-        <datalist :id="`sport-position-options-${props.team?.id}`">
-            <option v-for="position in positionsForSport()" :key="position" :value="position" />
-        </datalist>
     </div>
 </template>
 

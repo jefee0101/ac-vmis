@@ -4,16 +4,10 @@ import { computed, ref } from 'vue';
 
 import AccountShell from '@/components/Account/AccountShell.vue';
 import { showAppToast } from '@/composables/useAppToast';
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue';
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue';
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue';
+import { resolveAccountLayout } from '@/pages/Account/accountRole';
 
 defineOptions({
-    layout: (h: any, page: any) => {
-        const role = String(page?.props?.auth?.user?.role ?? '');
-        const layout = role === 'admin' ? AdminDashboard : role === 'coach' ? CoachDashboard : StudentAthleteDashboard;
-        return h(layout, [page]);
-    },
+    layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 });
 
 const passwordForm = useForm({
@@ -225,7 +219,7 @@ function confirmDelete() {
             v-if="!mustChangePassword"
             id="settings-email"
             @submit.prevent="submitEmail"
-            class="account-card space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5"
+            class="account-card mt-4 space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5"
             :style="cardMotion(2)"
         >
             <h2 class="section-title">Account Email</h2>
@@ -246,7 +240,7 @@ function confirmDelete() {
             </div>
         </form>
 
-        <section v-if="!mustChangePassword" class="account-card space-y-3 rounded-2xl border border-red-200 bg-red-50 p-5" :style="cardMotion(3)">
+        <section v-if="!mustChangePassword" class="account-card mt-4 space-y-3 rounded-2xl border border-red-200 bg-red-50 p-5" :style="cardMotion(3)">
             <h2 class="section-title text-red-700">Delete Account</h2>
             <p class="text-xs text-red-700">This action will deactivate your access immediately.</p>
             <button

@@ -8,12 +8,17 @@ use App\Models\Team;
 use App\Models\TeamPlayer;
 use App\Models\User;
 use App\Services\SystemNotificationService;
+use App\Services\TeamPlayerStatusService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CoachTeamController extends Controller
 {
-    public function __construct(private SystemNotificationService $notifications)
+    public function __construct(
+        private SystemNotificationService $notifications,
+        private TeamPlayerStatusService $teamPlayerStatuses,
+    )
     {
     }
 
@@ -54,6 +59,16 @@ class CoachTeamController extends Controller
         }
 
         $team = $teams->firstWhere('id', $selectedTeamId);
+        if ($team) {
+            $team->players->each(fn (TeamPlayer $player) => $this->teamPlayerStatuses->sync($player));
+            $team->load([
+                'sport',
+                'coach',
+                'assistantCoach',
+                'players.student.user',
+            ]);
+        }
+
         if ($team) {
             $team = [
                 'id' => $team->id,
@@ -189,37 +204,9 @@ class CoachTeamController extends Controller
 
     public function updatePlayerStatus(Request $request, TeamPlayer $teamPlayer)
     {
-        $coach = $request->user()?->coach;
-        if (!$coach) {
-            abort(403);
-        }
-
-        $teamPlayer->load(['team', 'student']);
-        $team = $teamPlayer->team;
-        if (!$team || !in_array($coach->id, $team->activeCoachIds(), true)) {
-            abort(403);
-        }
-
-        $validated = $request->validate([
-            'player_status' => 'required|in:active,injured,suspended',
+        throw ValidationException::withMessages([
+            'player_status' => 'Player status is managed automatically by wellness, academic eligibility, and admin deactivation.',
         ]);
-
-        $previousStatus = (string) ($teamPlayer->player_status ?? 'active');
-        $teamPlayer->update([
-            'player_status' => $validated['player_status'],
-        ]);
-
-        $studentUserId = $teamPlayer->student?->user_id;
-        if ($studentUserId) {
-            AccountActionLog::create([
-                'user_id' => (int) $studentUserId,
-                'admin_id' => $request->user()?->id,
-                'action' => 'roster_status_updated',
-                'remarks' => "Roster status updated for {$teamPlayer->student?->full_name} in {$team->team_name}: {$previousStatus} -> {$validated['player_status']}.",
-            ]);
-        }
-
-        return back()->with('success', 'Player status updated.');
     }
 
     public function requestChange(Request $request)

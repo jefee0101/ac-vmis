@@ -3,16 +3,10 @@ import { Head, useForm, usePage } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
+import { normalizeWorkspaceRole, resolveAccountLayout } from '@/pages/Account/accountRole'
 
 defineOptions({
-  layout: (h: any, page: any) => {
-    const role = String(page?.props?.auth?.user?.role ?? '')
-    const layout = role === 'admin' ? AdminDashboard : role === 'coach' ? CoachDashboard : StudentAthleteDashboard
-    return h(layout, [page])
-  },
+  layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 })
 
 const props = defineProps<{
@@ -38,7 +32,7 @@ const props = defineProps<{
 const hasNotificationField = (field: string) => props.scope.notifications.includes(field)
 const saved = ref(false)
 const page = usePage()
-const role = computed(() => String((page.props as any)?.auth?.user?.role ?? ''))
+const role = computed(() => normalizeWorkspaceRole((page.props as any)?.auth?.user?.role))
 
 const labelMap = computed(() => {
   if (role.value === 'coach') {
@@ -53,7 +47,7 @@ const labelMap = computed(() => {
     }
   }
 
-  if (role.value === 'student' || role.value === 'student-athlete') {
+  if (role.value === 'student') {
     return {
       notify_academic_alerts: 'Academic Period Openings',
       notify_attendance_changes: 'Submission Status Updates',
@@ -129,7 +123,7 @@ function cardMotion(order: number) {
                   {{
                     role === 'coach'
                       ? 'Send coach alerts to your email.'
-                      : role === 'student' || role === 'student-athlete'
+                      : role === 'student'
                         ? 'Send student alerts to your email.'
                         : 'Send admin alerts to your email.'
                   }}

@@ -3,6 +3,7 @@ import { router } from '@inertiajs/vue3'
 import { computed, reactive, ref } from 'vue'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { useSportColors } from '@/composables/useSportColors'
 import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
 
@@ -169,6 +170,14 @@ function issueToneClass(count: number) {
     return 'bg-emerald-100 text-emerald-700'
 }
 
+function playerStatusTone(status: string | null | undefined) {
+    const value = String(status ?? 'active').toLowerCase()
+    if (value === 'inactive') return 'bg-slate-200 text-slate-700'
+    if (value === 'injured') return 'bg-amber-100 text-amber-700'
+    if (value === 'suspended') return 'bg-red-100 text-red-700'
+    return 'bg-emerald-100 text-emerald-700'
+}
+
 function formatMeasure(value: string | number | null | undefined, unit: string) {
     if (value === null || value === undefined) return '-'
     const text = String(value).trim()
@@ -290,6 +299,28 @@ function markRequestRead(id: number) {
     router.put(`/announcements/${id}/read`, {}, { preserveScroll: true })
 }
 
+function approveRequest(id: number) {
+    router.post(`/teams/requests/${id}/approve`, {}, {
+        preserveScroll: true,
+        onError: () => {
+            showAppToast('Unable to approve the team change request.', 'error', {
+                summary: 'Team Change Request',
+            })
+        },
+    })
+}
+
+function rejectRequest(id: number) {
+    router.post(`/teams/requests/${id}/reject`, {}, {
+        preserveScroll: true,
+        onError: () => {
+            showAppToast('Unable to reject the team change request.', 'error', {
+                summary: 'Team Change Request',
+            })
+        },
+    })
+}
+
 function parseRequestMessage(message: string) {
     const lines = String(message ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
     const data = {
@@ -317,6 +348,28 @@ function searchTeamFromRequest(teamName: string) {
     filters.search = teamName
     showFilters.value = false
     reload()
+}
+
+function deactivatePlayer(teamPlayerId: number) {
+    router.post(`/teams/team-players/${teamPlayerId}/deactivate`, {}, {
+        preserveScroll: true,
+        onError: () => {
+            showAppToast('Unable to mark the player inactive.', 'error', {
+                summary: 'Roster Status',
+            })
+        },
+    })
+}
+
+function reactivatePlayer(teamPlayerId: number) {
+    router.post(`/teams/team-players/${teamPlayerId}/reactivate`, {}, {
+        preserveScroll: true,
+        onError: () => {
+            showAppToast('Unable to reactivate the player.', 'error', {
+                summary: 'Roster Status',
+            })
+        },
+    })
 }
 
 function formatTimestamp(value: string | null) {
@@ -465,6 +518,20 @@ function formatTimestamp(value: string | null) {
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button
                                 type="button"
+                                class="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs text-emerald-700"
+                                @click="approveRequest(req.id)"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-md border border-rose-200 bg-rose-50 px-3 py-1 text-xs text-rose-700"
+                                @click="rejectRequest(req.id)"
+                            >
+                                Reject
+                            </button>
+                            <button
+                                type="button"
                                 class="rounded-md border border-slate-300 px-3 py-1 text-xs text-slate-700"
                                 @click="searchTeamFromRequest(parseRequestMessage(req.message).team)"
                             >
@@ -588,14 +655,44 @@ function formatTimestamp(value: string | null) {
                                 <p v-if="rosterLoading[team.id]" class="text-xs text-slate-500">Loading roster...</p>
                                 <ul v-else-if="(rosterCache[team.id] || []).length" class="space-y-2 text-xs text-slate-700">
                                     <li v-for="player in rosterCache[team.id]" :key="player.id">
-                                        <p class="font-medium text-slate-800">
-                                            {{ player.name }} <span class="font-normal text-slate-500">({{ player.student_id_number || 'No ID' }})</span>
-                                        </p>
-                                        <p class="mt-0.5 text-[11px] text-slate-500">
-                                            Height: <span class="font-medium text-slate-700">{{ formatMeasure(player.height, 'cm') }}</span>
-                                            <span class="mx-1.5 text-slate-300">|</span>
-                                            Weight: <span class="font-medium text-slate-700">{{ formatMeasure(player.weight, 'kg') }}</span>
-                                        </p>
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <p class="font-medium text-slate-800">
+                                                    {{ player.name }} <span class="font-normal text-slate-500">({{ player.student_id_number || 'No ID' }})</span>
+                                                </p>
+                                                <p class="mt-0.5 text-[11px] text-slate-500">
+                                                    Height: <span class="font-medium text-slate-700">{{ formatMeasure(player.height, 'cm') }}</span>
+                                                    <span class="mx-1.5 text-slate-300">|</span>
+                                                    Weight: <span class="font-medium text-slate-700">{{ formatMeasure(player.weight, 'kg') }}</span>
+                                                </p>
+                                                <p class="mt-0.5 text-[11px] text-slate-500">
+                                                    Position: <span class="font-medium text-slate-700">{{ player.athlete_position || 'Unassigned' }}</span>
+                                                    <span class="mx-1.5 text-slate-300">|</span>
+                                                    Jersey: <span class="font-medium text-slate-700">{{ player.jersey_number || 'Pending' }}</span>
+                                                </p>
+                                            </div>
+                                            <div class="flex shrink-0 flex-col items-end gap-2">
+                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="playerStatusTone(player.player_status)">
+                                                    {{ String(player.player_status || 'active').toUpperCase() }}
+                                                </span>
+                                                <button
+                                                    v-if="!readOnly && player.player_status !== 'inactive'"
+                                                    type="button"
+                                                    class="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-700"
+                                                    @click="deactivatePlayer(player.id)"
+                                                >
+                                                    Mark Inactive
+                                                </button>
+                                                <button
+                                                    v-else-if="!readOnly"
+                                                    type="button"
+                                                    class="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700"
+                                                    @click="reactivatePlayer(player.id)"
+                                                >
+                                                    Reactivate
+                                                </button>
+                                            </div>
+                                        </div>
                                     </li>
                                 </ul>
                                 <p v-else class="text-xs text-slate-500">No players assigned.</p>

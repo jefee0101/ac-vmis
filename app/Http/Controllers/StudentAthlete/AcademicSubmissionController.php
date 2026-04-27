@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\AcademicHoldService;
 use App\Services\SystemNotificationService;
 use App\Services\SecureUploadService;
+use App\Services\TeamPlayerStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,7 @@ class AcademicSubmissionController extends Controller
         private SystemNotificationService $notifications,
         private SecureUploadService $secureUpload,
         private AcademicHoldService $holdService,
+        private TeamPlayerStatusService $teamPlayerStatuses,
     )
     {
     }
@@ -285,6 +287,8 @@ class AcademicSubmissionController extends Controller
             Auth::id(),
             'notify_academic_alerts'
         );
+
+        $this->teamPlayerStatuses->syncStudent($student->id);
 
         return redirect()->route('AcademicSubmissions', [
             'period_id' => (int) $period->id,

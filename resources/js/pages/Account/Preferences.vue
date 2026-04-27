@@ -4,16 +4,10 @@ import { computed, ref, watch } from 'vue'
 
 import AccountShell from '@/components/Account/AccountShell.vue'
 import { type ThemeMode, useTheme } from '@/composables/useTheme'
-import AdminDashboard from '@/pages/Admin/AdminDashboard.vue'
-import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
-import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
+import { normalizeWorkspaceRole, resolveAccountLayout, workspaceNavigationPreview } from '@/pages/Account/accountRole'
 
 defineOptions({
-  layout: (h: any, page: any) => {
-    const role = String(page?.props?.auth?.user?.role ?? '')
-    const layout = role === 'admin' ? AdminDashboard : role === 'coach' ? CoachDashboard : StudentAthleteDashboard
-    return h(layout, [page])
-  },
+  layout: (h: any, page: any) => h(resolveAccountLayout(page), [page]),
 })
 
 const props = defineProps<{
@@ -39,18 +33,14 @@ const props = defineProps<{
 const { setTheme, getTheme } = useTheme()
 const saved = ref(false)
 const page = usePage()
-const role = computed(() => String((page.props as any)?.auth?.user?.role ?? ''))
+const role = computed(() => normalizeWorkspaceRole((page.props as any)?.auth?.user?.role))
 
 const themeCards: Array<{ value: 'light' | 'dark'; label: string; description: string; icon: string }> = [
   { value: 'light', label: 'Light', description: 'Clean and bright workspace.', icon: 'sun' },
   { value: 'dark', label: 'Dark', description: 'Blue-tinted dark interface.', icon: 'moon' },
 ]
 
-const navOrder = ref(
-  role.value === 'coach'
-    ? ['Dashboard', 'My Team', 'Schedule', 'Attendance', 'Academics']
-    : ['People', 'Teams', 'Operations', 'Health & Clearance', 'Academics'],
-)
+const navOrder = ref(workspaceNavigationPreview(role.value))
 
 function moveNavItem(index: number, direction: 'up' | 'down') {
   const target = direction === 'up' ? index - 1 : index + 1

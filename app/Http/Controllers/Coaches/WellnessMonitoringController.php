@@ -10,6 +10,7 @@ use App\Models\Student;
 use App\Models\User;
 use App\Models\WellnessLog;
 use App\Services\SystemNotificationService;
+use App\Services\TeamPlayerStatusService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,10 @@ use Inertia\Inertia;
 
 class WellnessMonitoringController extends Controller
 {
-    public function __construct(private SystemNotificationService $notifications)
+    public function __construct(
+        private SystemNotificationService $notifications,
+        private TeamPlayerStatusService $teamPlayerStatuses,
+    )
     {
     }
 
@@ -207,6 +211,8 @@ class WellnessMonitoringController extends Controller
                 'notify_wellness_alerts'
             );
         }
+
+        $this->teamPlayerStatuses->syncStudent((int) $validated['student_id']);
 
         return back()->with('success', 'Wellness log saved.');
     }

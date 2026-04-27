@@ -165,6 +165,7 @@ function copyToClipboard(value: string | null | undefined, key: string) {
 }
 
 function statusTone(status?: string | null) {
+    if (status === 'inactive') return 'bg-slate-200 text-slate-700'
     if (status === 'injured') return 'bg-amber-100 text-amber-700'
     if (status === 'suspended') return 'bg-red-100 text-red-700'
     return 'bg-emerald-100 text-emerald-700'
