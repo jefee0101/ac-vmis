@@ -25,34 +25,23 @@ class WellnessMonitoringController extends Controller
     {
     }
 
-    public function index(Request $request)
+    private function ownerTeamForCoach(Request $request): ?Team
     {
         $coach = $request->user()?->coach;
 
         if (!$coach) {
-            return Inertia::render('Coaches/WellnessMonitoring', [
-                'team' => null,
-                'schedules' => [],
-                'selectedScheduleId' => null,
-                'athletes' => [],
-            ]);
+            return null;
         }
 
-        $ownerTeam = Team::with(['sport'])
+        return Team::with(['sport'])
             ->forCoach($coach->id)
             ->first();
+    }
 
-        if (!$ownerTeam) {
-            return Inertia::render('Coaches/WellnessMonitoring', [
-                'team' => null,
-                'schedules' => [],
-                'selectedScheduleId' => null,
-                'athletes' => [],
-            ]);
-        }
-
-        $schedules = TeamSchedule::query()
-            ->where('team_id', $ownerTeam->id)
+    private function schedulePayloads(Team $team)
+    {
+        return TeamSchedule::query()
+            ->where('team_id', $team->id)
             ->whereIn('type', ['practice', 'game'])
             ->where('end_time', '<=', now())
             ->orderByDesc('start_time')
@@ -67,49 +56,55 @@ class WellnessMonitoringController extends Controller
                     'end' => Carbon::parse($schedule->end_time)->toIso8601String(),
                 ];
             })->values();
+    }
 
-        $selectedScheduleId = (int) $request->query('schedule_id', 0);
-        $allowedIds = $schedules->pluck('id')->all();
-        if (!$selectedScheduleId || !in_array($selectedScheduleId, $allowedIds, true)) {
-            $selectedScheduleId = $schedules->first()['id'] ?? null;
-        }
+    private function athletePayloadsForSchedule(int $scheduleId)
+    {
+        $attendanceRows = ScheduleAttendance::query()
+            ->with('student')
+            ->where('schedule_id', $scheduleId)
+            ->whereIn('status', ['present', 'late'])
+            ->get();
 
-        $athletes = collect();
-        if ($selectedScheduleId) {
-            $attendanceRows = ScheduleAttendance::query()
-                ->with('student')
-                ->where('schedule_id', $selectedScheduleId)
-                ->whereIn('status', ['present', 'late'])
-                ->get();
+        $wellnessByStudent = WellnessLog::query()
+            ->where('schedule_id', $scheduleId)
+            ->get()
+            ->keyBy('student_id');
 
-            $wellnessByStudent = WellnessLog::query()
-                ->where('schedule_id', $selectedScheduleId)
-                ->get()
-                ->keyBy('student_id');
+        return $attendanceRows
+            ->filter(fn ($row) => $row->student !== null)
+            ->map(function ($row) use ($wellnessByStudent) {
+                $student = $row->student;
+                $log = $wellnessByStudent->get($student->id);
 
-            $athletes = $attendanceRows
-                ->filter(fn ($row) => $row->student !== null)
-                ->map(function ($row) use ($wellnessByStudent) {
-                    $student = $row->student;
-                    $log = $wellnessByStudent->get($student->id);
+                return [
+                    'student_id' => $student->id,
+                    'student_id_number' => $student->student_id_number,
+                    'name' => trim(($student->last_name ?? '') . ', ' . ($student->first_name ?? '')),
+                    'attendance_status' => $row->status,
+                    'wellness' => [
+                        'injury_observed' => (bool) ($log->injury_observed ?? false),
+                        'injury_notes' => $log?->injury_notes,
+                        'fatigue_level' => $log?->fatigue_level,
+                        'performance_condition' => $log?->performance_condition,
+                        'remarks' => $log?->remarks,
+                        'log_id' => $log->id ?? null,
+                    ],
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+    }
 
-                    return [
-                        'student_id' => $student->id,
-                        'student_id_number' => $student->student_id_number,
-                        'name' => trim(($student->last_name ?? '') . ', ' . ($student->first_name ?? '')),
-                        'attendance_status' => $row->status,
-                        'wellness' => [
-                            'injury_observed' => (bool) ($log->injury_observed ?? false),
-                            'injury_notes' => $log?->injury_notes,
-                            'fatigue_level' => $log?->fatigue_level,
-                            'performance_condition' => $log?->performance_condition,
-                            'remarks' => $log?->remarks,
-                            'log_id' => $log->id ?? null,
-                        ],
-                    ];
-                })
-                ->sortBy('name')
-                ->values();
+    public function index(Request $request)
+    {
+        $ownerTeam = $this->ownerTeamForCoach($request);
+
+        if (!$ownerTeam) {
+            return Inertia::render('Coaches/WellnessMonitoring', [
+                'team' => null,
+                'schedules' => [],
+            ]);
         }
 
         return Inertia::render('Coaches/WellnessMonitoring', [
@@ -118,9 +113,33 @@ class WellnessMonitoringController extends Controller
                 'team_name' => $ownerTeam->team_name,
                 'sport' => $ownerTeam->sport?->name ?? $ownerTeam->sport_id ?? 'unknown',
             ],
-            'schedules' => $schedules,
-            'selectedScheduleId' => $selectedScheduleId,
-            'athletes' => $athletes,
+            'schedules' => $this->schedulePayloads($ownerTeam),
+        ]);
+    }
+
+    public function review(Request $request, TeamSchedule $schedule)
+    {
+        $ownerTeam = $this->ownerTeamForCoach($request);
+        abort_unless($ownerTeam, 403);
+        abort_unless($schedule->team_id === $ownerTeam->id, 403, 'Unauthorized schedule.');
+        abort_unless(in_array($schedule->type, ['practice', 'game'], true), 422, 'Wellness monitoring is only for practice/game schedules.');
+        abort_unless(Carbon::parse($schedule->end_time)->lte(now()), 422, 'Only completed sessions can be reviewed for wellness.');
+
+        return Inertia::render('Coaches/WellnessReview', [
+            'team' => [
+                'id' => $ownerTeam->id,
+                'team_name' => $ownerTeam->team_name,
+                'sport' => $ownerTeam->sport?->name ?? $ownerTeam->sport_id ?? 'unknown',
+            ],
+            'schedule' => [
+                'id' => $schedule->id,
+                'title' => $schedule->title,
+                'type' => $schedule->type,
+                'venue' => $schedule->venue,
+                'start' => Carbon::parse($schedule->start_time)->toIso8601String(),
+                'end' => Carbon::parse($schedule->end_time)->toIso8601String(),
+            ],
+            'athletes' => $this->athletePayloadsForSchedule($schedule->id),
         ]);
     }
 

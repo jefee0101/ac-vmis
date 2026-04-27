@@ -359,6 +359,8 @@ Route::middleware(['auth', 'role:coach'])->group(function () {
         ->name('coach.attendance.bulk');
     Route::get('/coach/wellness', [WellnessMonitoringController::class, 'index'])
         ->name('coach.wellness.index');
+    Route::get('/coach/wellness/{schedule}/review', [WellnessMonitoringController::class, 'review'])
+        ->name('coach.wellness.review');
     Route::post('/coach/wellness', [WellnessMonitoringController::class, 'store'])
         ->name('coach.wellness.store');
     Route::get('/coach/academics', [AcademicVisibilityController::class, 'index'])
