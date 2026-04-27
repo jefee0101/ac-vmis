@@ -252,13 +252,6 @@ function openAthleteReview(studentId: number) {
             </div>
         </section>
 
-        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.45)]">
-            <p class="text-sm font-semibold text-slate-900">Players</p>
-            <p class="mt-1 text-sm text-slate-500">
-                Select a player card to open that athlete’s wellness evaluation form.
-            </p>
-        </section>
-
         <div v-if="props.athletes.length === 0" class="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
             No present or late athletes are available for this session.
         </div>
