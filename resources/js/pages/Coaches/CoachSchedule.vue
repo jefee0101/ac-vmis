@@ -42,8 +42,6 @@ watch(
     }
 )
 
-const selectedTeam = computed(() => props.teams.find(team => team.id === selectedTeamId.value) ?? null)
-
 // Modal state
 const showModal = ref(false)
 const editingId = ref<number | null>(null)
@@ -527,6 +525,10 @@ function csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? ''
 }
 
+function attendanceModalWidthClass() {
+    return modalMode.value === 'attendance' ? 'max-w-6xl' : 'max-w-2xl'
+}
+
 async function loadAttendanceRoster(scheduleId: number) {
     attendanceLoading.value = true
     attendanceError.value = null
@@ -620,6 +622,7 @@ async function saveAttendanceSheet() {
                 Accept: 'application/json',
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
             },
             credentials: 'same-origin',
             body: JSON.stringify({
@@ -947,7 +950,10 @@ onBeforeUnmount(() => {
         <div v-if="showModal" @click.self="closeModal"
             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 py-6">
 
-            <div class="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div
+                class="flex max-h-[calc(100vh-3rem)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                :class="attendanceModalWidthClass()"
+            >
 
                 <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
                     <div>
@@ -976,7 +982,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-if="modalMode === 'view'" class="space-y-4 p-6 text-sm">
+                <div v-if="modalMode === 'view'" class="space-y-4 overflow-y-auto p-6 text-sm">
                     <div class="flex flex-wrap items-center gap-2">
                         <span
                             v-if="selectedSchedule"
@@ -1024,7 +1030,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-else-if="modalMode === 'attendance'" class="space-y-5 p-6">
+                <div v-else-if="modalMode === 'attendance'" class="space-y-5 overflow-y-auto p-6">
                     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule</p>
@@ -1105,7 +1111,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div v-else class="overflow-hidden rounded-2xl border border-slate-200">
-                        <div class="max-h-[26rem] overflow-y-auto">
+                        <div class="max-h-[50vh] overflow-auto">
                             <table class="w-full min-w-[760px] bg-white text-left text-sm">
                                 <thead class="bg-[#034485] text-white">
                                     <tr>
@@ -1191,7 +1197,7 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-else class="space-y-5 p-6">
+                <div v-else class="space-y-5 overflow-y-auto p-6">
                     <div>
                         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Title</label>
                         <input

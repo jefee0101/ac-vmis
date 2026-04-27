@@ -112,10 +112,6 @@ watch(
     { immediate: true },
 )
 
-const selectedScheduleDetails = computed(() => (
-    props.schedules.find((item) => item.id === selectedSchedule.value) ?? null
-))
-
 const teamTone = computed(() => {
     const base = sportColor(props.team?.sport ?? '')
 
@@ -387,75 +383,48 @@ function sessionActionLabel(scheduleId: number) {
 
         <div v-else class="space-y-6">
             <section
-                class="rounded-[2rem] border bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-5 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]"
+                class="rounded-[2rem] border bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]"
                 :style="{ borderColor: teamTone.borderColor }"
             >
-                <div class="grid gap-5 lg:grid-cols-[1.2fr_0.9fr]">
-                    <div class="space-y-4">
-                        <div class="flex flex-wrap items-center gap-3">
-                            <span
-                                class="inline-flex rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
-                                :style="{ backgroundColor: sportColor(team.sport), color: sportTextColor(team.sport) }"
-                            >
-                                {{ sportLabel(team.sport) }}
-                            </span>
-                            <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
-                                {{ team.team_name }}
-                            </span>
-                        </div>
-
-                        <div>
-                            <h2 class="text-2xl font-bold text-slate-900">Completed Sessions</h2>
-                            <p class="mt-2 text-sm text-slate-500">
-                                Choose the finished practice or game you want to review, then move into athlete wellness evaluation for that session.
-                            </p>
-                        </div>
-
-                        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Visible Athletes</p>
-                                <p class="mt-2 text-2xl font-bold text-slate-900">{{ summary.total }}</p>
-                            </div>
-                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Saved</p>
-                                <p class="mt-2 text-2xl font-bold text-emerald-700">{{ summary.logged }}</p>
-                            </div>
-                            <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-rose-700">Injury Flags</p>
-                                <p class="mt-2 text-2xl font-bold text-rose-700">{{ summary.injury }}</p>
-                            </div>
-                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">Avg Fatigue</p>
-                                <p class="mt-2 text-2xl font-bold text-amber-800">{{ summary.averageFatigue }}</p>
-                            </div>
-                        </div>
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span
+                            class="inline-flex rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
+                            :style="{ backgroundColor: sportColor(team.sport), color: sportTextColor(team.sport) }"
+                        >
+                            {{ sportLabel(team.sport) }}
+                        </span>
+                        <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                            {{ team.team_name }}
+                        </span>
                     </div>
 
-                    <div class="rounded-3xl border border-slate-200 bg-white/85 p-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Selected Session</p>
-                        <div v-if="selectedScheduleDetails" class="mt-4 space-y-3">
-                            <div>
-                                <p class="text-lg font-semibold text-slate-900">{{ selectedScheduleDetails.title }}</p>
-                                <p class="mt-1 text-sm text-slate-500">
-                                    {{ scheduleTypeLabel(selectedScheduleDetails.type) }} • {{ selectedScheduleDetails.venue || '-' }}
-                                </p>
-                            </div>
-                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Schedule Window</p>
-                                <p class="mt-2 text-sm font-semibold text-slate-900">
-                                    {{ formatScheduleDate(selectedScheduleDetails.start) }}
-                                </p>
-                                <p class="mt-1 text-sm text-slate-500">
-                                    to {{ formatScheduleDate(selectedScheduleDetails.end) }}
-                                </p>
-                            </div>
-                            <p class="text-sm leading-6 text-slate-500">
-                                Only <span class="font-semibold text-slate-700">Present</span> and <span class="font-semibold text-slate-700">Late</span> athletes are loaded for wellness review in this session.
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-900">Completed Sessions</h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                Choose the finished practice or game you want to review.
                             </p>
                         </div>
-                        <p v-else class="mt-4 text-sm text-slate-500">
-                            Select a completed session below to start evaluating athletes.
-                        </p>
+
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Athletes</p>
+                                <p class="mt-1 text-lg font-bold text-slate-900">{{ summary.total }}</p>
+                            </div>
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Saved</p>
+                                <p class="mt-1 text-lg font-bold text-emerald-700">{{ summary.logged }}</p>
+                            </div>
+                            <div class="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2.5">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-700">Injuries</p>
+                                <p class="mt-1 text-lg font-bold text-rose-700">{{ summary.injury }}</p>
+                            </div>
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Fatigue</p>
+                                <p class="mt-1 text-lg font-bold text-amber-800">{{ summary.averageFatigue }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
