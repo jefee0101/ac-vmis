@@ -140,10 +140,6 @@ function statusTone(status: string) {
     return 'bg-emerald-100 text-emerald-700 border-emerald-200'
 }
 
-function conditionLabel(condition: string) {
-    return condition.charAt(0).toUpperCase() + condition.slice(1)
-}
-
 function scheduleTypeLabel(type: string) {
     if (type === 'practice') return 'Practice'
     if (type === 'game') return 'Game'
@@ -162,21 +158,6 @@ function formatScheduleDate(value?: string | null) {
         minute: '2-digit',
         hour12: true,
     })
-}
-
-function fatigueTone(level: string | number) {
-    const normalized = Number(level)
-    if (normalized >= 5) return 'bg-rose-600 text-white border-rose-600'
-    if (normalized >= 4) return 'bg-amber-500 text-slate-950 border-amber-500'
-    if (normalized >= 3) return 'bg-slate-900 text-white border-slate-900'
-    return 'bg-white text-slate-600 border-slate-200'
-}
-
-function conditionTone(condition: string) {
-    if (condition === 'excellent') return 'bg-emerald-600 text-white border-emerald-600'
-    if (condition === 'good') return 'bg-sky-600 text-white border-sky-600'
-    if (condition === 'fair') return 'bg-amber-500 text-slate-950 border-amber-500'
-    return 'bg-rose-600 text-white border-rose-600'
 }
 
 function athleteNeedsAttention(studentId: number) {
@@ -276,7 +257,7 @@ function athleteInitials(name: string) {
             <article
                 v-for="row in props.athletes"
                 :key="row.student_id"
-                class="rounded-3xl border bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
+                class="rounded-xl border bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
                 :class="athleteNeedsAttention(row.student_id) ? 'border-amber-200 shadow-[0_24px_60px_-42px_rgba(245,158,11,0.35)]' : 'border-slate-200'"
             >
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -310,7 +291,7 @@ function athleteInitials(name: string) {
                 </div>
 
                 <div class="mt-5 grid gap-4">
-                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Injury Observed</p>
@@ -318,7 +299,7 @@ function athleteInitials(name: string) {
                             </div>
                             <button
                                 type="button"
-                                class="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+                                class="inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition"
                                 :class="rowForms[row.student_id].injury_observed
                                     ? 'border-rose-600 bg-rose-600 text-white'
                                     : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'"
@@ -331,56 +312,49 @@ function athleteInitials(name: string) {
                         <textarea
                             v-model="rowForms[row.student_id].injury_notes"
                             rows="2"
-                            class="mt-3 w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                            class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
                             :disabled="!rowForms[row.student_id].injury_observed"
                             placeholder="Add injury notes if observed"
                         />
                     </div>
 
                     <div class="grid gap-4 lg:grid-cols-2">
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div class="rounded-xl border border-slate-200 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fatigue Level</p>
                             <p class="mt-1 text-sm text-slate-600">Select the athlete’s post-session fatigue from 1 to 5.</p>
-                            <div class="mt-3 grid grid-cols-5 gap-2">
-                                <button
-                                    v-for="level in [1, 2, 3, 4, 5]"
-                                    :key="level"
-                                    type="button"
-                                    class="rounded-2xl border px-0 py-3 text-sm font-bold transition"
-                                    :class="fatigueTone(rowForms[row.student_id].fatigue_level === String(level) ? level : 0)"
-                                    @click="rowForms[row.student_id].fatigue_level = String(level)"
-                                >
-                                    {{ level }}
-                                </button>
-                            </div>
+                            <select
+                                v-model="rowForms[row.student_id].fatigue_level"
+                                class="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
+                            >
+                                <option value="1">1 - Very Low</option>
+                                <option value="2">2 - Low</option>
+                                <option value="3">3 - Moderate</option>
+                                <option value="4">4 - High</option>
+                                <option value="5">5 - Very High</option>
+                            </select>
                         </div>
 
-                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                        <div class="rounded-xl border border-slate-200 bg-white p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Performance Condition</p>
                             <p class="mt-1 text-sm text-slate-600">Capture the athlete’s overall condition during or after the session.</p>
-                            <div class="mt-3 grid grid-cols-2 gap-2">
-                                <button
-                                    v-for="condition in ['excellent', 'good', 'fair', 'poor']"
-                                    :key="condition"
-                                    type="button"
-                                    class="rounded-2xl border px-3 py-2 text-xs font-semibold transition"
-                                    :class="rowForms[row.student_id].performance_condition === condition
-                                        ? conditionTone(condition)
-                                        : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'"
-                                    @click="rowForms[row.student_id].performance_condition = condition as FormState['performance_condition']"
-                                >
-                                    {{ conditionLabel(condition) }}
-                                </button>
-                            </div>
+                            <select
+                                v-model="rowForms[row.student_id].performance_condition"
+                                class="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900"
+                            >
+                                <option value="excellent">Excellent</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="poor">Poor</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <div class="rounded-xl border border-slate-200 bg-white p-4">
                         <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Coach Remarks</label>
                         <textarea
                             v-model="rowForms[row.student_id].remarks"
                             rows="3"
-                            class="mt-3 w-full rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                            class="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
                             placeholder="Add coaching notes, recovery reminders, or readiness comments"
                         />
                     </div>
@@ -392,7 +366,7 @@ function athleteInitials(name: string) {
                     </p>
                     <button
                         type="button"
-                        class="rounded-2xl bg-[#034485] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#033a70] disabled:cursor-not-allowed disabled:bg-slate-300"
+                        class="rounded-lg bg-[#034485] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#033a70] disabled:cursor-not-allowed disabled:bg-slate-300"
                         :disabled="savingKey === `${schedule.id}:${row.student_id}`"
                         @click="saveRow(row.student_id)"
                     >
