@@ -4,6 +4,7 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
+import { showAppToast } from '@/composables/useAppToast'
 import { supportedSports, useSportColors } from '@/composables/useSportColors'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import 'vue-cal/style'
@@ -366,6 +367,12 @@ const groupedSchedules = computed(() => {
     return groups
 })
 
+const groupedScheduleSections = computed(() => [
+    { key: 'in_progress', items: groupedSchedules.value.in_progress },
+    { key: 'upcoming', items: groupedSchedules.value.upcoming },
+    { key: 'completed', items: groupedSchedules.value.completed },
+])
+
 
 /**
  * Drag move
@@ -379,6 +386,8 @@ function onEventDrag(event: any) {
         start_time: toMySQLLocal(event.start),
         end_time: toMySQLLocal(event.end),
         team_id: selectedTeamId.value ?? undefined,
+    }, {
+        preserveScroll: true,
     })
 }
 
@@ -395,6 +404,8 @@ function onEventResize(event: any) {
         start_time: toMySQLLocal(event.start),
         end_time: toMySQLLocal(event.end),
         team_id: selectedTeamId.value ?? undefined,
+    }, {
+        preserveScroll: true,
     })
 }
 
@@ -623,10 +634,16 @@ async function saveAttendanceSheet() {
         const data = await response.json()
         if (!response.ok) {
             attendanceError.value = data?.message ?? 'Unable to save attendance sheet.'
+            showAppToast(attendanceError.value, 'error', {
+                summary: 'Attendance',
+            })
             return
         }
 
         attendanceMessage.value = data?.message ?? 'Attendance saved successfully.'
+        showAppToast(attendanceMessage.value, 'success', {
+            summary: 'Attendance',
+        })
         await loadAttendanceRoster(selectedSchedule.value.id)
         router.reload({
             only: ['schedules'],
@@ -635,6 +652,9 @@ async function saveAttendanceSheet() {
         })
     } catch {
         attendanceError.value = 'Unable to save attendance right now.'
+        showAppToast(attendanceError.value, 'error', {
+            summary: 'Attendance',
+        })
     } finally {
         attendanceSaving.value = false
     }
@@ -648,23 +668,6 @@ function openAttendance(item: any) {
     attendanceMessage.value = null
     showModal.value = true
     void loadAttendanceRoster(item.id)
-}
-
-function duplicateSchedule(item: any) {
-    if (!canManage.value) return
-
-    editingId.value = null
-    selectedSchedule.value = item
-    modalMode.value = 'form'
-    form.value = {
-        title: item.title ?? '',
-        type: String(item.type ?? 'practice').toLowerCase(),
-        venue: item.venue ?? '',
-        start_time: toLocalInput(toMySQLLocal(new Date(item.start))),
-        end_time: toLocalInput(toMySQLLocal(new Date(item.end))),
-        notes: item.notes ?? '',
-    }
-    showModal.value = true
 }
 
 function changeTeam() {
@@ -811,32 +814,32 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div v-else class="space-y-6">
-                    <div v-for="(items, key) in groupedSchedules" :key="key" class="space-y-3">
+                    <div v-for="section in groupedScheduleSections" :key="section.key" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <h3 class="text-sm font-semibold text-slate-900">{{ statusLabel(key) }}</h3>
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ items.length }}</span>
+                                <h3 class="text-sm font-semibold text-slate-900">{{ statusLabel(section.key) }}</h3>
+                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ section.items.length }}</span>
                             </div>
-                            <span v-if="key === 'completed'" class="text-xs text-slate-500">Past schedules</span>
+                            <span v-if="section.key === 'completed'" class="text-xs text-slate-500">Past schedules</span>
                         </div>
 
                         <div
-                            v-if="items.length === 0"
+                            v-if="section.items.length === 0"
                             class="rounded-xl border border-dashed px-4 py-6 text-sm"
-                            :class="(key === 'upcoming' || key === 'in_progress')
+                            :class="(section.key === 'upcoming' || section.key === 'in_progress')
                                 ? 'border-[#034485]/40 text-[#034485]'
                                 : 'border-slate-200 bg-white text-slate-500'"
-                            :style="(key === 'upcoming' || key === 'in_progress')
+                            :style="(section.key === 'upcoming' || section.key === 'in_progress')
                                 ? {
                                     backgroundColor: '#f6f9ff',
                                     backgroundImage: 'repeating-linear-gradient(135deg, rgba(3, 68, 133, 0.12) 0 10px, rgba(255, 255, 255, 0) 10px 20px)',
                                   }
                                 : {}"
                         >
-                            No {{ statusLabel(key).toLowerCase() }} schedules.
+                            No {{ statusLabel(section.key).toLowerCase() }} schedules.
                         </div>
 
-                        <article v-for="item in items" :key="item.id" class="relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4">
+                        <article v-for="item in section.items" :key="item.id" class="relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4">
                             <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
@@ -883,13 +886,6 @@ onBeforeUnmount(() => {
                                     class="rounded-md border border-[#034485]/25 px-3 py-1.5 text-xs font-semibold text-[#034485] hover:border-[#034485]/45 hover:bg-[#034485]/5"
                                 >
                                     Open Wellness
-                                </button>
-                                <button
-                                    v-if="scheduleStatus(item) === 'completed'"
-                                    @click="duplicateSchedule(item)"
-                                    class="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:border-emerald-300"
-                                >
-                                    Duplicate
                                 </button>
                                 <button
                                     v-if="item.is_owner && !isLocked(item)"

@@ -273,7 +273,7 @@ function changePeriod() {
 
 <style scoped>
 .stats-pill {
-  border-radius: 999px;
+  border-radius: 0.85rem;
   border: 1px solid rgba(3, 68, 133, 0.35);
   background: #ffffff;
   padding: 0.65rem 1.1rem;

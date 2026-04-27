@@ -83,6 +83,7 @@ const mobileMenuOpen = ref(false)
 const sidebarCollapsed = ref(false)
 const primaryItems = studentPrimaryNav
 const secondaryItems = studentSecondaryNav
+const hasSecondaryItems = secondaryItems.length > 0
 const notificationsOpen = ref(false)
 const notificationsCloseTimer = ref<number | null>(null)
 const bellProcessingIds = ref<number[]>([])
@@ -301,39 +302,78 @@ watch(mobileMenuOpen, (open) => {
                 </nav>
 
                 <div class="border-t border-[#d6e4f4] px-3 py-3">
-                    <button
-                        v-for="item in secondaryItems"
-                        :key="item.key"
-                        type="button"
-                        class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
-                        :class="[
-                            isActive(item.route)
-                                ? 'border-[#1f2937] bg-[#1f2937] text-white'
-                                : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
-                            sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : '',
-                        ]"
-                        @click="go(item.route)"
-                        :title="sidebarCollapsed ? item.label : ''"
-                    >
-                        <svg
-                            class="h-4.5 w-4.5 shrink-0"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1.8"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
+                    <div v-if="hasSecondaryItems">
+                        <p
+                            v-if="!sidebarCollapsed || mobileMenuOpen"
+                            class="mb-2 px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400"
                         >
-                            <path :d="iconPath(item.icon)" />
-                        </svg>
-                        <span
-                            class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
-                            :class="sidebarCollapsed ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0' : 'ml-2 max-w-45 scale-100 opacity-100'"
+                            More
+                        </p>
+
+                        <button
+                            type="button"
+                            class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
+                            :class="[
+                                isActive('/account/settings')
+                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                    : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : '',
+                            ]"
+                            @click="go('/account/settings')"
+                            :title="sidebarCollapsed ? 'Settings' : ''"
                         >
-                            {{ item.label }}
-                        </span>
-                    </button>
+                            <svg
+                                class="h-4.5 w-4.5 shrink-0"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path :d="iconPath('settings')" />
+                            </svg>
+                            <span
+                                class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
+                                :class="sidebarCollapsed ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0' : 'ml-2 max-w-45 scale-100 opacity-100'"
+                            >
+                                Settings
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="group mb-2 flex w-full items-center rounded-lg border px-3 py-2 text-left text-sm font-medium transition-all duration-200"
+                            :class="[
+                                isActive('/account/help')
+                                    ? 'border-[#1f2937] bg-[#1f2937] text-white'
+                                    : 'border-transparent text-slate-700 hover:border-[#bfd4eb] hover:bg-white/75',
+                                sidebarCollapsed && !mobileMenuOpen ? 'justify-center' : '',
+                            ]"
+                            @click="go('/account/help')"
+                            :title="sidebarCollapsed ? 'Help & Support' : ''"
+                        >
+                            <svg
+                                class="h-4.5 w-4.5 shrink-0"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.8"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path :d="iconPath('help')" />
+                            </svg>
+                            <span
+                                class="origin-left whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
+                                :class="sidebarCollapsed ? 'ml-0 max-w-45 scale-100 opacity-100 lg:max-w-0 lg:scale-95 lg:overflow-hidden lg:opacity-0' : 'ml-2 max-w-45 scale-100 opacity-100'"
+                            >
+                                Help &amp; Support
+                            </span>
+                        </button>
+                    </div>
 
                     <button
                         type="button"

@@ -259,7 +259,7 @@ class CoachScheduleController extends Controller
 
         return redirect()->route('coach.schedule.index', [
             'team_id' => $ownerTeam->id,
-        ]);
+        ])->with('success', 'Schedule created successfully.');
     }
     public function update(Request $request, $id)
     {
@@ -324,7 +324,7 @@ class CoachScheduleController extends Controller
 
         return redirect()->route('coach.schedule.index', [
             'team_id' => $ownerTeam->id,
-        ]);
+        ])->with('success', 'Schedule updated successfully.');
     }
 
 
@@ -365,7 +365,7 @@ class CoachScheduleController extends Controller
 
         return redirect()->route('coach.schedule.index', [
             'team_id' => $ownerTeam->id,
-        ]);
+        ])->with('success', 'Schedule deleted successfully.');
     }
 
     public function print(Request $request)

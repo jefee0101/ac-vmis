@@ -395,8 +395,10 @@ function printTeamRoster() {
                         </div>
                         <div>
                             <label class="text-xs text-slate-500">Status</label>
-                            <div class="mt-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                                This roster status updates automatically from wellness, academic eligibility, or admin deactivation.
+                            <div class="mt-1">
+                                <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="statusTone((player.player_status ?? 'active') as PlayerStatus)">
+                                    {{ (player.player_status ?? 'active').toString().toUpperCase() }}
+                                </span>
                             </div>
                         </div>
                     </div>
