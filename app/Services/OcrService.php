@@ -25,7 +25,10 @@ class OcrService
 
     private function extractFromImage(string $absolutePath): array
     {
-        $binary = (string) config('ocr.tesseract.binary', 'tesseract');
+        $binary = $this->resolveBinary(
+            (string) config('ocr.tesseract.binary', 'tesseract'),
+            'tesseract'
+        );
         $language = (string) config('ocr.tesseract.language', 'eng');
         $timeout = (int) config('ocr.tesseract.timeout_seconds', 30);
 
@@ -42,11 +45,17 @@ class OcrService
 
     private function extractFromPdf(string $absolutePath): array
     {
-        $rendererBinary = (string) config('ocr.pdf.renderer_binary', 'pdftoppm');
+        $rendererBinary = $this->resolveBinary(
+            (string) config('ocr.pdf.renderer_binary', 'pdftoppm'),
+            'pdftoppm'
+        );
         $pdfTimeout = (int) config('ocr.pdf.timeout_seconds', 60);
         $density = max(72, (int) config('ocr.pdf.density', 200));
         $maxPages = max(1, (int) config('ocr.pdf.max_pages', 5));
-        $binary = (string) config('ocr.tesseract.binary', 'tesseract');
+        $binary = $this->resolveBinary(
+            (string) config('ocr.tesseract.binary', 'tesseract'),
+            'tesseract'
+        );
         $language = (string) config('ocr.tesseract.language', 'eng');
         $timeout = (int) config('ocr.tesseract.timeout_seconds', 30);
 
@@ -198,5 +207,40 @@ class OcrService
         }
 
         @rmdir($directory);
+    }
+
+    private function resolveBinary(string $configuredBinary, string $fallbackBinary): string
+    {
+        $configuredBinary = trim($configuredBinary);
+        $fallbackBinary = trim($fallbackBinary);
+
+        if ($configuredBinary !== '' && $this->binaryAvailable($configuredBinary)) {
+            return $configuredBinary;
+        }
+
+        if ($fallbackBinary !== '' && $fallbackBinary !== $configuredBinary && $this->binaryAvailable($fallbackBinary)) {
+            return $fallbackBinary;
+        }
+
+        $preferred = $configuredBinary !== '' ? $configuredBinary : $fallbackBinary;
+
+        throw new RuntimeException("OCR binary [{$preferred}] is not available on this server.");
+    }
+
+    private function binaryAvailable(string $binary): bool
+    {
+        if ($binary === '') {
+            return false;
+        }
+
+        if (str_contains($binary, DIRECTORY_SEPARATOR)) {
+            return is_file($binary) && is_executable($binary);
+        }
+
+        $process = new Process(['sh', '-lc', 'command -v ' . escapeshellarg($binary)]);
+        $process->setTimeout(5);
+        $process->run();
+
+        return $process->isSuccessful() && trim($process->getOutput()) !== '';
     }
 }

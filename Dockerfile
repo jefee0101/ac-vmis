@@ -29,6 +29,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libzip-dev \
         libpq-dev \
+        poppler-utils \
+        tesseract-ocr \
         unzip \
     && docker-php-ext-install pdo_mysql pdo_pgsql zip bcmath \
     && a2enmod rewrite \
