@@ -747,8 +747,8 @@ onBeforeUnmount(() => {
         <!-- Header -->
         <div class="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <div v-if="props.teams.length" class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                    <div v-if="props.teams.length > 1" class="flex items-center gap-2">
+                <div v-if="props.teams.length > 1" class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                    <div class="flex items-center gap-2">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team</span>
                         <select
                             v-model.number="selectedTeamId"
@@ -760,7 +760,6 @@ onBeforeUnmount(() => {
                             </option>
                         </select>
                     </div>
-                    <span v-else-if="selectedTeam" class="text-slate-500">Team: {{ selectedTeam.team_name }}</span>
                 </div>
             </div>
 

@@ -79,7 +79,7 @@ class WellnessMonitoringController extends Controller
             $attendanceRows = ScheduleAttendance::query()
                 ->with('student')
                 ->where('schedule_id', $selectedScheduleId)
-                ->whereIn('status', ['present', 'late', 'excused'])
+                ->whereIn('status', ['present', 'late'])
                 ->get();
 
             $wellnessByStudent = WellnessLog::query()
@@ -155,10 +155,10 @@ class WellnessMonitoringController extends Controller
         $attended = ScheduleAttendance::query()
             ->where('schedule_id', $schedule->id)
             ->where('student_id', (int) $validated['student_id'])
-            ->whereIn('status', ['present', 'late', 'excused'])
+            ->whereIn('status', ['present', 'late'])
             ->exists();
 
-        abort_unless($attended, 422, 'Only attended athletes can be logged for wellness.');
+        abort_unless($attended, 422, 'Only present or late athletes can be logged for wellness.');
 
         $wellness = WellnessLog::updateOrCreate(
             [
