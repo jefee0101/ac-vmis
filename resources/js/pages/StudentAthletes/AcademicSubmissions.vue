@@ -97,6 +97,11 @@ const submitError = ref('')
 const isSubmitting = ref(false)
 const uploadProgress = ref(0)
 const isScanning = ref(false)
+const processingSubmission = ref<{
+    periodLabel: string
+    fileName: string
+    startedAt: string
+} | null>(null)
 const toast = ref<{ tone: ToastTone; message: string } | null>(null)
 let toastTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -200,6 +205,10 @@ function openSubmissionModal(periodId: number) {
 function closeSubmissionModal() {
     if (isSubmitting.value) return
 
+    resetSubmissionModal()
+}
+
+function resetSubmissionModal() {
     isSubmissionModalOpen.value = false
     activePeriodId.value = null
     notes.value = ''
@@ -237,6 +246,10 @@ function submit() {
         return
     }
 
+    const submissionPeriodLabel = `${selectedPeriod.value.school_year} - ${termLabel(selectedPeriod.value.term)}`
+    const submissionFileName = file.value.name
+    const submissionPeriodId = selectedPeriod.value.id
+
     const fd = new FormData()
     fd.append('academic_period_id', String(selectedPeriod.value.id))
     fd.append('document_type', 'grade_report')
@@ -247,6 +260,12 @@ function submit() {
         forceFormData: true,
         preserveScroll: true,
         onStart: () => {
+            processingSubmission.value = {
+                periodLabel: submissionPeriodLabel,
+                fileName: submissionFileName,
+                startedAt: new Date().toISOString(),
+            }
+            resetSubmissionModal()
             isSubmitting.value = true
             isScanning.value = true
             uploadProgress.value = 0
@@ -254,14 +273,14 @@ function submit() {
         onProgress: (event) => {
             uploadProgress.value = Math.round(event?.percentage ?? 0)
         },
-        onSuccess: () => {
-            closeSubmissionModal()
-        },
         onError: (errors) => {
+            processingSubmission.value = null
             const firstError = Object.values(errors || {})[0]
             submitError.value = Array.isArray(firstError)
                 ? String(firstError[0])
                 : String(firstError || 'Unable to submit your academic document.')
+            activePeriodId.value = submissionPeriodId
+            isSubmissionModalOpen.value = true
         },
         onFinish: () => {
             isSubmitting.value = false
@@ -349,9 +368,6 @@ function selectedResultLabel(row: Submission | null) {
         : row.ocr?.interpretation?.label || 'Pending Review'
 }
 
-function printAcademicSummary() {
-    window.open('/AcademicSubmissions/print', '_blank')
-}
 </script>
 
 <template>
@@ -379,13 +395,6 @@ function printAcademicSummary() {
                         : 'Submit your latest grade report through the guided scan flow.' }}
                 </p>
             </div>
-            <button
-                type="button"
-                @click="printAcademicSummary"
-                class="rounded-lg border border-[#034485]/40 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-                Print
-            </button>
         </div>
 
         <div v-if="!student" class="rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600">
@@ -457,50 +466,107 @@ function printAcademicSummary() {
                     </div>
                 </div>
 
-                <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                    <p class="text-xs text-slate-500">Latest Evaluation</p>
-                    <div class="mt-2 flex items-baseline gap-2">
-                        <p class="text-2xl font-semibold text-[#1f2937]">{{ latestEvaluated?.evaluation?.gpa ?? latestSubmission?.ocr?.parsed_summary?.gwa ?? '-' }}</p>
-                        <span class="text-xs text-slate-500">GPA / Average</span>
+                <div class="rounded-3xl border border-[#034485]/35 bg-white p-4 lg:col-span-2">
+                    <template v-if="latestSubmission">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="space-y-2">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-xs text-slate-500">Latest Scan Result</span>
+                                    <span class="rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="statusPill(latestSubmission).class">
+                                        {{ statusPill(latestSubmission).label }}
+                                    </span>
+                                </div>
+                                <h2 class="text-lg font-semibold text-slate-900">{{ latestSubmission.period_label || 'Submitted period' }}</h2>
+                                <p class="text-sm text-slate-600">
+                                    {{ latestSubmission.ocr?.validation?.summary || latestSubmission.evaluation?.remarks || 'Your uploaded document has been scanned and saved to your academic record.' }}
+                                </p>
+                            </div>
+                            <a
+                                v-if="latestSubmission.file_url"
+                                :href="latestSubmission.file_url"
+                                target="_blank"
+                                class="inline-flex items-center rounded-full border border-[#034485]/30 bg-white px-4 py-2 text-xs font-semibold text-[#034485] hover:bg-[#034485]/5"
+                            >
+                                View submitted file
+                            </a>
+                        </div>
+
+                        <div class="mt-4 grid gap-3 md:grid-cols-3">
+                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
+                                <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(latestSubmission) }}</p>
+                            </div>
+                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
+                                <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(latestSubmission) }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ latestSubmission.ocr?.interpretation?.value_label || 'Average' }}</p>
+                            </div>
+                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
+                                <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr?.validation?.status)">
+                                    {{ validationLabel(latestSubmission.ocr?.validation?.status) }}
+                                </span>
+                                <p class="mt-2 text-xs text-slate-500">Processed: {{ formatDateTime(latestSubmission.ocr?.processed_at || latestSubmission.uploaded_at) }}</p>
+                            </div>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <p class="text-xs text-slate-500">Latest Scan Result</p>
+                        <p class="mt-2 text-sm text-slate-600">No scanned academic submission is available yet. Upload your first document during an active period to see the result here.</p>
+                    </template>
+                </div>
+            </section>
+
+            <section
+                v-if="processingSubmission && !resultSubmission"
+                class="rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+            >
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="rounded-full bg-[#034485] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white">
+                                Processing Submission
+                            </span>
+                            <span class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700">
+                                Scanning
+                            </span>
+                        </div>
+                        <h2 class="text-lg font-semibold text-slate-900">{{ processingSubmission.periodLabel }}</h2>
+                        <p class="text-sm text-slate-600">
+                            Your upload has been received. Please wait while the system scans the document and interprets the grade result.
+                        </p>
                     </div>
-                    <div class="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                        <span>Status:</span>
-                        <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="evaluationPill(latestEvaluated?.evaluation?.status ?? latestSubmission?.ocr?.interpretation?.status)">
-                            {{ selectedResultLabel(latestEvaluated ?? latestSubmission) }}
-                        </span>
+                    <div class="rounded-3xl border border-white/70 bg-white/90 px-4 py-3 text-right">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">File</p>
+                        <p class="mt-1 text-sm font-semibold text-slate-900">{{ processingSubmission.fileName }}</p>
                     </div>
-                    <div class="text-xs text-slate-500">Evaluated: {{ formatDateTime(latestEvaluated?.evaluation?.evaluated_at || latestSubmission?.ocr?.processed_at) }}</div>
-                    <div class="text-xs text-slate-500">Period: {{ latestEvaluated?.period_label || latestSubmission?.period_label || '-' }}</div>
                 </div>
 
-                <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
-                    <p class="text-xs text-slate-500">Submission State</p>
-                    <div class="mt-2 text-sm font-semibold text-slate-900">
-                        {{ hasActiveWindow ? 'Current active period' : 'No active submission window' }}
+                <div class="mt-4 grid gap-3 md:grid-cols-3">
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage</p>
+                        <div class="mt-3 flex items-center gap-3">
+                            <Spinner class="h-5 w-5 text-sky-700" />
+                            <p class="text-sm font-semibold text-slate-900">Scanning document...</p>
+                        </div>
                     </div>
-                    <div class="mt-2 space-y-2 text-xs text-slate-500">
-                        <div>
-                            <span class="font-semibold text-slate-700">Access status:</span>
-                            {{ hasEligibleAll ? 'Restored' : (submissionHoldStatus || 'Limited') }}
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Upload progress</p>
+                        <p class="mt-2 text-3xl font-bold text-slate-900">{{ uploadProgress }}%</p>
+                        <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
+                            <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="{ width: `${uploadProgress}%` }" />
                         </div>
-                        <div v-if="hasActiveWindow && !hasSubmittedAll">
-                            Upload is still required before your record can move to eligibility review.
-                        </div>
-                        <div v-else-if="hasActiveWindow && !hasEligibleAll">
-                            Your submission is on record. Teams, schedules, and wellness remain locked until the period is marked eligible.
-                        </div>
-                        <div v-else-if="hasActiveWindow">
-                            Your current academic period has been cleared as eligible.
-                        </div>
-                        <div v-else>
-                            Wait for the next administrator announcement to submit a new period record.
-                        </div>
+                    </div>
+                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Started</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-900">{{ formatDateTime(processingSubmission.startedAt) }}</p>
+                        <p class="mt-2 text-xs text-slate-500">This panel will be replaced automatically once processing is complete.</p>
                     </div>
                 </div>
             </section>
 
             <section
-                v-if="resultSubmission"
+                v-else-if="resultSubmission"
                 class="rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
             >
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

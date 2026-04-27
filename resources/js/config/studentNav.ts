@@ -15,6 +15,6 @@ export const studentPrimaryNav: StudentNavItem[] = [
 ]
 
 export const studentSecondaryNav: StudentNavItem[] = [
-  { key: 'profile', label: 'Profile', route: '/account/profile', icon: 'user' },
+  { key: 'help', label: 'Help & Support', route: '/account/help', icon: 'help' },
   { key: 'settings', label: 'Settings', route: '/account/settings', icon: 'settings' },
 ]

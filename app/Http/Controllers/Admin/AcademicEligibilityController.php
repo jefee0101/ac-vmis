@@ -193,7 +193,13 @@ class AcademicEligibilityController extends Controller
             ->exists();
 
         if ($hasDocs || $hasEvaluations) {
-            abort(422, 'This period already has submissions or evaluations.');
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'message' => 'This period already has submissions or evaluations.',
+                ], 422);
+            }
+
+            return back()->with('error', 'This period already has submissions or evaluations.');
         }
 
         $period->delete();
