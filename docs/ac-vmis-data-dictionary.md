@@ -420,7 +420,6 @@ Legacy development tables such as `account_approvals`, `announcements`, `schedul
 | `role` | `varchar(255)` | Not null | Stores the access role assigned to the user. |
 | `account_state` | `enum('active','deactivated')` | Not null; default `'active'` | Indicates whether the user account is active or deactivated. |
 | `avatar` | `varchar(255)` | Nullable | Stores the file location of the user's profile image. |
-| `remember_token` | `varchar(100)` | Nullable | Stores the persistent authentication token for session recall. |
 | `created_at` | `timestamp` | Nullable | Timestamp indicating when the record was created. |
 | `updated_at` | `timestamp` | Nullable | Timestamp indicating when the record was last updated. |
 

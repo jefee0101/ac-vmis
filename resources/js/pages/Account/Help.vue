@@ -210,6 +210,10 @@ const helpContent = computed<HelpContent>(() => {
 function toggleFaq(index: number) {
   activeFaq.value = activeFaq.value === index ? null : index
 }
+
+function cardMotion(order: number) {
+  return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -217,7 +221,7 @@ function toggleFaq(index: number) {
 
   <AccountShell active="help">
     <div class="space-y-6">
-      <section class="support-hero overflow-hidden rounded-3xl border border-[#034485]/25 bg-white px-6 py-6 shadow-[0_24px_60px_-36px_rgba(3,68,133,0.45)]">
+      <section class="account-card support-hero overflow-hidden rounded-3xl border border-[#034485]/25 bg-white px-6 py-6 shadow-[0_24px_60px_-36px_rgba(3,68,133,0.45)]" :style="cardMotion(1)">
         <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="max-w-2xl space-y-3">
             <div class="flex flex-wrap items-center gap-3">
@@ -245,7 +249,7 @@ function toggleFaq(index: number) {
       </section>
 
       <section class="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
-        <div class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+        <div class="account-card rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(2)">
           <div class="flex flex-col gap-1">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">{{ helpContent.topTaskLabel }}</p>
             <h3 class="text-lg font-semibold text-slate-900">Quick Access Tasks</h3>
@@ -253,7 +257,7 @@ function toggleFaq(index: number) {
           </div>
 
           <div class="mt-5 grid gap-3 md:grid-cols-2">
-            <article v-for="task in helpContent.tasks" :key="task.title" class="task-card rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <article v-for="(task, index) in helpContent.tasks" :key="task.title" class="account-card task-card rounded-2xl border border-slate-200 bg-slate-50/70 p-4" :style="cardMotion(3 + index)">
               <div class="flex h-full flex-col">
                 <p class="text-sm font-semibold text-slate-900">{{ task.title }}</p>
                 <p class="mt-2 text-sm leading-6 text-slate-600">{{ task.description }}</p>
@@ -266,7 +270,7 @@ function toggleFaq(index: number) {
         </div>
 
         <aside class="space-y-5">
-          <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+          <section class="account-card rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(7)">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Issue Reporting</p>
             <h3 class="mt-1 text-lg font-semibold text-slate-900">Information to Include</h3>
             <div class="mt-4 space-y-3">
@@ -277,15 +281,15 @@ function toggleFaq(index: number) {
             </div>
           </section>
 
-          <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+          <section class="account-card rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(8)">
             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Response Guide</p>
             <h3 class="mt-1 text-lg font-semibold text-slate-900">Support Expectations</h3>
             <div class="mt-4 grid gap-3">
-              <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="account-card rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" :style="cardMotion(9)">
                 <p class="text-sm font-semibold text-slate-900">Best channel</p>
                 <p class="mt-1 text-sm text-slate-600">Use email for account, process, and data-record concerns.</p>
               </div>
-              <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div class="account-card rounded-xl border border-slate-200 bg-slate-50 px-4 py-3" :style="cardMotion(10)">
                 <p class="text-sm font-semibold text-slate-900">Urgent issues</p>
                 <p class="mt-1 text-sm text-slate-600">Call the office for urgent issues affecting attendance processing or account access.</p>
               </div>
@@ -294,7 +298,7 @@ function toggleFaq(index: number) {
         </aside>
       </section>
 
-      <section class="rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]">
+      <section class="account-card rounded-2xl border border-[#034485]/20 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(11)">
         <div class="flex flex-col gap-1">
           <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#034485]">Role-Specific Questions</p>
           <h3 class="text-lg font-semibold text-slate-900">Common questions for {{ helpContent.roleLabel }}</h3>
@@ -305,8 +309,9 @@ function toggleFaq(index: number) {
           <article
             v-for="(faq, index) in helpContent.faqs"
             :key="faq.question"
-            class="faq-card overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70"
+            class="account-card faq-card overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70"
             :class="{ 'faq-card--active': activeFaq === index }"
+            :style="cardMotion(12 + index)"
           >
             <button type="button" class="faq-trigger" @click="toggleFaq(index)">
               <span class="text-left text-sm font-semibold text-slate-900">{{ faq.question }}</span>
@@ -340,6 +345,26 @@ function toggleFaq(index: number) {
 
 .settings-muted {
   color: #64748b;
+}
+
+.account-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: account-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 60ms);
+  will-change: transform, opacity;
+}
+
+@keyframes account-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .support-hero {
@@ -555,5 +580,13 @@ function toggleFaq(index: number) {
 .faq-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

@@ -531,7 +531,6 @@ html:not(.theme-dark) .register-page .field:focus {
     box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.18) !important;
 }
 
-html:not(.theme-dark) .login-page .remember-row,
 html:not(.theme-dark) .login-page .register-note,
 html:not(.theme-dark) .register-page .login-note {
     color: var(--blue-light-text-muted) !important;
@@ -546,10 +545,6 @@ html:not(.theme-dark) .login-page .footer-link:hover,
 html:not(.theme-dark) .register-page .footer-link:hover,
 html:not(.theme-dark) .public-page .footer-link:hover {
     color: var(--blue-light-primary) !important;
-}
-
-html:not(.theme-dark) .login-page .remember-checkbox {
-    accent-color: var(--blue-light-primary) !important;
 }
 
 html:not(.theme-dark) .status-card {
@@ -731,7 +726,6 @@ html.theme-dark .register-page .field:focus {
     box-shadow: 0 0 0 2px rgba(147, 197, 253, 0.2) !important;
 }
 
-html.theme-dark .login-page .remember-row,
 html.theme-dark .login-page .register-note,
 html.theme-dark .register-page .login-note {
     color: var(--blue-dark-text-muted) !important;
@@ -746,10 +740,6 @@ html.theme-dark .login-page .footer-link:hover,
 html.theme-dark .register-page .footer-link:hover,
 html.theme-dark .public-page .footer-link:hover {
     color: var(--blue-dark-accent) !important;
-}
-
-html.theme-dark .login-page .remember-checkbox {
-    accent-color: var(--blue-dark-accent-strong) !important;
 }
 
 html.theme-dark .status-card {

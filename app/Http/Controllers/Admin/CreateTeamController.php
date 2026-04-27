@@ -481,7 +481,7 @@ class CreateTeamController extends Controller
 
     public function roster(Team $team): JsonResponse
     {
-        $team->load(['players.student:id,user_id,student_id_number']);
+        $team->load(['players.student:id,user_id,student_id_number,height,weight']);
         return response()->json([
             'team_id' => $team->id,
             'players' => $team->players
@@ -490,6 +490,8 @@ class CreateTeamController extends Controller
                     'student_id' => $player->student_id,
                     'name' => trim(($player->student->first_name ?? '') . ' ' . ($player->student->last_name ?? '')),
                     'student_id_number' => $player->student->student_id_number ?? null,
+                    'height' => $player->student->height ?? null,
+                    'weight' => $player->student->weight ?? null,
                     'jersey_number' => $player->jersey_number,
                     'athlete_position' => $player->athlete_position,
                 ])

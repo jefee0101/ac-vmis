@@ -9,7 +9,6 @@ import Spinner from '@/components/ui/spinner/Spinner.vue';
 
 const email = ref('');
 const password = ref('');
-const remember = ref(false);
 const page = usePage();
 const error = ref(String((page.props as any)?.errors?.message ?? (page.props as any)?.flash?.error ?? ''));
 const fieldErrors = reactive({
@@ -70,7 +69,6 @@ function login() {
         {
             email: email.value,
             password: password.value,
-            remember: remember.value,
         },
         {
             onStart: () => {
@@ -171,11 +169,6 @@ function login() {
                                 </div>
                                 <FieldError id="login-password-error" :message="fieldErrors.password" />
                             </div>
-
-                            <label class="remember-row">
-                                <input v-model="remember" type="checkbox" class="remember-checkbox" />
-                                <span>Remember me</span>
-                            </label>
 
                             <button type="button" class="forgot-link" @click="toForgotPassword" :disabled="isSubmitting">
                                 Forgot your password?
@@ -290,18 +283,6 @@ function login() {
     outline: none;
     border-color: rgba(3, 68, 133, 0.45);
     box-shadow: 0 0 0 2px rgba(3, 68, 133, 0.15);
-}
-
-.remember-row {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.9rem;
-}
-
-.remember-checkbox {
-    accent-color: #ffffff;
 }
 
 .forgot-link {

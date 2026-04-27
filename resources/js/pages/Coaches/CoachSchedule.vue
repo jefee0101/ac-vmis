@@ -5,7 +5,6 @@ import { VueCal } from 'vue-cal'
 
 import ConfirmDialog from '@/components/ui/dialog/ConfirmDialog.vue'
 import { supportedSports, useSportColors } from '@/composables/useSportColors'
-import { useUserTimezone } from '@/composables/useUserTimezone'
 import CoachDashboard from '@/pages/Coaches/CoachDashboard.vue'
 import 'vue-cal/style'
 
@@ -80,7 +79,7 @@ const form = ref({
 const canManage = computed(() => selectedTeamId.value !== null)
 const ownerSchedules = computed(() => props.schedules.filter((item: any) => item.is_owner))
 const { sportColor, sportTextColor } = useSportColors()
-const { timezone } = useUserTimezone()
+const APP_TIMEZONE = 'Asia/Manila'
 const deleteDialogOpen = ref(false)
 const pendingDeleteId = ref<number | null>(null)
 const sportsLegend = computed(() =>
@@ -143,7 +142,7 @@ function formatPHT(dt: string | Date | null, withDate = true) {
     const d = typeof dt === 'string' ? new Date(dt) : dt
 
     return d.toLocaleString('en-PH', {
-        timeZone: timezone,
+        timeZone: APP_TIMEZONE,
         month: withDate ? 'short' : undefined,
         day: withDate ? 'numeric' : undefined,
         year: withDate ? 'numeric' : undefined,
@@ -157,7 +156,7 @@ function formatPHTime(dt: string | Date | null) {
     const d = typeof dt === 'string' ? new Date(dt) : dt
 
     return d.toLocaleTimeString('en-PH', {
-        timeZone: timezone,
+        timeZone: APP_TIMEZONE,
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,

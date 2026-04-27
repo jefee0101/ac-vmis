@@ -28,7 +28,6 @@ const props = defineProps<{
     notify_wellness_injury_threshold: boolean
     wellness_injury_threshold_level: number
     theme_preference: 'system' | 'light' | 'dark'
-    timezone: string
   }
   scope: {
     notifications: string[]
@@ -78,7 +77,6 @@ const form = useForm({
   notify_wellness_injury_threshold: Boolean(props.settings?.notify_wellness_injury_threshold ?? true),
   wellness_injury_threshold_level: Number(props.settings?.wellness_injury_threshold_level ?? 3),
   theme_preference: normalizedTheme(props.settings?.theme_preference) as 'light' | 'dark',
-  timezone: props.settings?.timezone ?? 'Asia/Manila',
 })
 
 watch(
@@ -99,6 +97,10 @@ function submitSettings() {
     },
   })
 }
+
+function cardMotion(order: number) {
+  return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -106,7 +108,7 @@ function submitSettings() {
 
   <AccountShell active="preferences">
       <form @submit.prevent="submitSettings" class="space-y-4">
-        <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
+        <section class="account-card rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(1)">
           <h2 class="section-title">
           <svg class="h-4 w-4 text-[#1f2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <circle cx="12" cy="12" r="3" />
@@ -143,7 +145,7 @@ function submitSettings() {
         </div>
         </section>
 
-      <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
+      <section class="account-card rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(2)">
         <h2 class="section-title">Workspace Navigation</h2>
         <div class="mt-3 grid gap-2">
           <div
@@ -159,16 +161,6 @@ function submitSettings() {
           </div>
         </div>
       </section>
-
-      <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
-        <h2 class="section-title">Timezone</h2>
-        <div class="mt-3 grid gap-3">
-          <div>
-            <label class="settings-label text-slate-500 text-sm">Timezone</label>
-            <input v-model="form.timezone" type="text" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </div>
-        </div>
-        </section>
 
         <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <button type="submit" class="rounded-lg bg-[#1f2937] px-4 py-2 text-white font-semibold hover:bg-[#334155] transition" :disabled="form.processing">
@@ -192,6 +184,26 @@ function submitSettings() {
 .settings-muted,
 .settings-label {
   color: #64748b;
+}
+
+.account-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: account-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 70ms);
+  will-change: transform, opacity;
+}
+
+@keyframes account-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .theme-option {
@@ -237,6 +249,14 @@ function submitSettings() {
 .nav-move:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 </style>

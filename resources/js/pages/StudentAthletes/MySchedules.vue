@@ -4,7 +4,6 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { VueCal } from 'vue-cal'
 
 import { useSportColors } from '@/composables/useSportColors'
-import { useUserTimezone } from '@/composables/useUserTimezone'
 import StudentAthleteDashboard from '@/pages/StudentAthletes/StudentAthleteDashboard.vue'
 import 'vue-cal/style'
 
@@ -27,7 +26,7 @@ const props = defineProps<{
 }>()
 
 const { sportColor, sportTextColor, sportLabel } = useSportColors()
-const { timezone } = useUserTimezone()
+const APP_TIMEZONE = 'Asia/Manila'
 
 const selectedScheduleId = ref<number | null>(null)
 const selectedTeamId = ref<number | null>(props.selectedTeamId ?? null)
@@ -109,7 +108,7 @@ function formatPHT(dt: string | Date | null) {
     const d = typeof dt === 'string' ? new Date(dt) : dt
 
     return d.toLocaleString('en-PH', {
-        timeZone: timezone,
+        timeZone: APP_TIMEZONE,
         month: 'short',
         day: 'numeric',
         year: 'numeric',
@@ -197,10 +196,14 @@ function stripeColors(sport: any) {
         lighter: mixWithWhite(base, 0.5),
     }
 }
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="schedule-page-view space-y-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">My Schedule</h1>
@@ -222,7 +225,7 @@ function stripeColors(sport: any) {
             </div>
         </div>
 
-        <div v-if="accessLocked" class="rounded-xl border border-[#034485]/30 bg-[#034485]/5 p-6 text-slate-700">
+        <div v-if="accessLocked" class="page-card rounded-xl border border-[#034485]/30 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(1)">
             <h2 class="text-sm font-semibold text-slate-800">Schedule Access Paused</h2>
             <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Schedule access is paused during the academic submission window.' }}</p>
             <div class="mt-3 text-xs text-slate-600">
@@ -262,22 +265,22 @@ function stripeColors(sport: any) {
                 <span class="text-slate-500">{{ team.team_name }}</span>
             </div>
 
-            <div v-if="!team" class="rounded-xl border border-[#034485]/35 bg-white p-6 text-slate-600">You are not assigned to a team yet.</div>
+            <div v-if="!team" class="page-card rounded-xl border border-[#034485]/35 bg-white p-6 text-slate-600" :style="cardMotion(2)">You are not assigned to a team yet.</div>
 
             <div v-else class="space-y-4">
                 <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(3)">
                         <p class="text-xs text-slate-500">Next session</p>
                         <p v-if="nextSchedule" class="mt-1 text-sm font-semibold text-slate-900">{{ nextSchedule.title }}</p>
                         <p v-if="nextSchedule" class="text-xs text-slate-500">{{ formatPHT(nextSchedule.start) }}</p>
                         <p v-else class="mt-1 text-sm text-slate-500">No upcoming sessions have been scheduled.</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(4)">
                         <p class="text-xs text-slate-500">Upcoming sessions</p>
                         <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ upcomingSchedules.length }}</p>
                         <p class="text-xs text-slate-500">Visible to your team</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(5)">
                         <p class="text-xs text-slate-500">Attendance recorded</p>
                         <p class="mt-1 text-2xl font-semibold text-emerald-700">{{ recordedAttendanceCount }}</p>
                         <p class="text-xs text-slate-500">Schedules with posted status</p>
@@ -285,7 +288,7 @@ function stripeColors(sport: any) {
                 </section>
 
                 <div class="grid grid-cols-1 gap-4 xl:grid-cols-5">
-                    <section v-if="showCalendar" class="rounded-xl border border-[#034485]/35 bg-white p-4 xl:col-span-3">
+                    <section v-if="showCalendar" class="page-card rounded-xl border border-[#034485]/35 bg-white p-4 xl:col-span-3" :style="cardMotion(6)">
                         <p class="mb-3 text-xs text-slate-500">Tip: Click a schedule on the calendar to focus it on the right panel.</p>
 
                         <VueCal
@@ -304,7 +307,8 @@ function stripeColors(sport: any) {
                     </section>
 
                     <aside
-                        class="max-h-[650px] overflow-y-auto rounded-xl border border-[#034485]/35 bg-white p-4"
+                        class="page-card max-h-[650px] overflow-y-auto rounded-xl border border-[#034485]/35 bg-white p-4"
+                        :style="cardMotion(7)"
                         :class="showCalendar ? 'xl:col-span-2' : 'xl:col-span-5'"
                     >
                         <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -319,9 +323,10 @@ function stripeColors(sport: any) {
 
                         <div v-else class="space-y-3">
                             <div
-                                v-for="item in upcomingSchedules"
+                                v-for="(item, index) in upcomingSchedules"
                                 :key="item.id"
-                                class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                :style="cardMotion(8 + index)"
                                 :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                             >
                                 <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
@@ -366,9 +371,10 @@ function stripeColors(sport: any) {
                             <div v-if="completedSchedules.length === 0" class="text-sm text-slate-500">No completed sessions are available at this time.</div>
                             <div v-else class="space-y-3">
                                 <div
-                                    v-for="item in completedSchedules"
+                                    v-for="(item, index) in completedSchedules"
                                     :key="item.id"
-                                    class="student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                    class="page-card student-schedule-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4 transition"
+                                    :style="cardMotion(20 + index)"
                                     :class="item.id === selectedScheduleId ? 'border-[#034485] bg-[#034485]/5' : ''"
                                 >
                                     <div class="pointer-events-none absolute right-3 top-1/2 flex h-[88%] -translate-y-1/2 rotate-6 gap-1 opacity-20" aria-hidden="true">
@@ -412,8 +418,36 @@ function stripeColors(sport: any) {
 </template>
 
 <style scoped>
+.schedule-page-view .page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: student-page-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 55ms);
+    will-change: transform, opacity;
+}
+
+@keyframes student-page-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 :deep(.vuecal__event.student-schedule--focused) {
     outline: 2px solid #034485;
     outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .schedule-page-view .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
 }
 </style>

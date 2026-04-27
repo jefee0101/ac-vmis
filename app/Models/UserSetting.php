@@ -21,7 +21,6 @@ class UserSetting extends Model
         'notify_wellness_injury_threshold',
         'wellness_injury_threshold_level',
         'theme_preference',
-        'timezone',
     ];
 
     protected function casts(): array

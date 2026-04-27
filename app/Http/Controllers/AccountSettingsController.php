@@ -214,7 +214,6 @@ class AccountSettingsController extends Controller
             'notify_wellness_injury_threshold' => ['nullable', 'boolean'],
             'wellness_injury_threshold_level' => ['required', 'integer', 'between:1,5'],
             'theme_preference' => ['required', 'in:light,dark,blue'],
-            'timezone' => ['required', 'string', 'max:60'],
         ]);
 
         UserSetting::updateOrCreate(
@@ -230,7 +229,6 @@ class AccountSettingsController extends Controller
                 'notify_wellness_injury_threshold' => (bool) ($validated['notify_wellness_injury_threshold'] ?? false),
                 'wellness_injury_threshold_level' => (int) $validated['wellness_injury_threshold_level'],
                 'theme_preference' => $validated['theme_preference'],
-                'timezone' => $validated['timezone'],
             ]
         );
 
@@ -473,7 +471,6 @@ class AccountSettingsController extends Controller
                 'notify_wellness_injury_threshold' => true,
                 'wellness_injury_threshold_level' => 3,
                 'theme_preference' => 'light',
-                'timezone' => 'Asia/Manila',
             ]
         );
 
@@ -489,7 +486,6 @@ class AccountSettingsController extends Controller
                 'notify_wellness_injury_threshold' => (bool) $settings->notify_wellness_injury_threshold,
                 'wellness_injury_threshold_level' => (int) $settings->wellness_injury_threshold_level,
                 'theme_preference' => $this->normalizeThemePreference($settings->theme_preference),
-                'timezone' => $settings->timezone,
             ],
             'scope' => $this->settingsScopeForRole((string) $user->role),
             'compliance' => $this->buildCompliance($user),

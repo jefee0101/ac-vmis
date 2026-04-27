@@ -74,6 +74,10 @@ onBeforeUnmount(() => {
     }
 });
 
+function cardMotion(order: number) {
+    return { '--card-order': String(order) };
+}
+
 function submitPassword() {
     passwordForm.put('/account/password', {
         preserveScroll: true,
@@ -126,11 +130,11 @@ function confirmDelete() {
             </div>
         </transition>
 
-        <div v-if="mustChangePassword" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div v-if="mustChangePassword" class="account-card rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800" :style="cardMotion(1)">
             Password update required. Set a new password to continue using AC-VMIS.
         </div>
 
-        <form id="settings-account" @submit.prevent="submitPassword" class="space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5">
+        <form id="settings-account" @submit.prevent="submitPassword" class="account-card space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(mustChangePassword ? 2 : 1)">
             <h2 class="section-title">
                 <svg class="h-4 w-4 text-[#1f2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -278,7 +282,8 @@ function confirmDelete() {
             v-if="!mustChangePassword"
             id="settings-email"
             @submit.prevent="submitEmail"
-            class="space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5"
+            class="account-card space-y-3 rounded-2xl border border-[#034485]/40 bg-white p-5"
+            :style="cardMotion(2)"
         >
             <h2 class="section-title">Account Email</h2>
             <p class="settings-muted text-xs text-slate-500">Update the email address tied to your account.</p>
@@ -298,7 +303,7 @@ function confirmDelete() {
             </div>
         </form>
 
-        <section v-if="!mustChangePassword" class="space-y-3 rounded-2xl border border-red-200 bg-red-50 p-5">
+        <section v-if="!mustChangePassword" class="account-card space-y-3 rounded-2xl border border-red-200 bg-red-50 p-5" :style="cardMotion(3)">
             <h2 class="section-title text-red-700">Delete Account</h2>
             <p class="text-xs text-red-700">This action will deactivate your access immediately.</p>
             <button
@@ -328,6 +333,26 @@ function confirmDelete() {
     color: #64748b;
 }
 
+.account-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: account-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 70ms);
+    will-change: transform, opacity;
+}
+
+@keyframes account-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
 .toast-fade-enter-active,
 .toast-fade-leave-active {
     transition: opacity 0.2s ease, transform 0.2s ease;
@@ -337,6 +362,14 @@ function confirmDelete() {
 .toast-fade-leave-to {
     opacity: 0;
     transform: translateY(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .account-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
 }
 
 </style>

@@ -14,14 +14,10 @@ class LoginController extends Controller
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
-            'remember' => 'nullable|boolean',
         ]);
 
-        $remember = (bool) ($credentials['remember'] ?? false);
-        unset($credentials['remember']);
-
         // Attempt login
-        if (!Auth::attempt($credentials, $remember)) {
+        if (!Auth::attempt($credentials)) {
             return back()->withErrors([
                 'message' => 'Invalid email or password.',
             ]);

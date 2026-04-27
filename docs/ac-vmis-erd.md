@@ -22,7 +22,6 @@ erDiagram
         varchar role
         enum account_state
         varchar avatar
-        varchar remember_token
         timestamp created_at
         timestamp updated_at
     }

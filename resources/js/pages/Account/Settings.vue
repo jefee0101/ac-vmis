@@ -60,11 +60,11 @@ const quickLinks = computed(() => {
         <article
           v-for="item in quickLinks"
           :key="item.href"
-          class="rounded-2xl border border-[#034485]/14 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-38px_rgba(3,68,133,0.35)]"
+          class="rounded-2xl border border-[#034485]/14 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)] transition hover:border-slate-200 hover:bg-slate-50/60"
         >
           <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
           <p class="mt-2 text-sm leading-6 text-slate-600">{{ item.description }}</p>
-          <Link :href="item.href" class="mt-4 inline-flex rounded-full bg-[#034485]/8 px-3 py-2 text-xs font-bold text-[#034485] transition hover:bg-[#034485]/12">
+          <Link :href="item.href" class="mt-4 inline-flex rounded-full bg-[#034485]/8 px-3 py-2 text-xs font-bold text-[#034485] transition hover:bg-slate-200/70">
             {{ item.cta }}
           </Link>
         </article>

@@ -118,6 +118,14 @@ function formatArchivedAt(value: string | null | undefined) {
     })
 }
 
+function formatMeasure(value: string | number | null | undefined, unit: string) {
+    if (value === null || value === undefined) return '-'
+    const text = String(value).trim()
+    if (!text) return '-'
+    if (/[a-zA-Z]/.test(text)) return text
+    return `${text} ${unit}`
+}
+
 function printRoster(teamId: number) {
     window.open(`/teams/${teamId}/print`, '_blank')
 }
@@ -262,9 +270,16 @@ function confirmRestore() {
 
                     <div v-if="expandedTeamIds.includes(team.id)" class="mt-3 rounded-md border border-slate-200 bg-white p-2">
                         <p v-if="rosterLoading[team.id]" class="text-xs text-slate-500">Loading roster...</p>
-                        <ul v-else-if="(rosterCache[team.id] || []).length" class="space-y-1 text-xs text-slate-700">
+                        <ul v-else-if="(rosterCache[team.id] || []).length" class="space-y-2 text-xs text-slate-700">
                             <li v-for="player in rosterCache[team.id]" :key="player.id">
-                                {{ player.name }} <span class="text-slate-500">({{ player.student_id_number || 'No ID' }})</span>
+                                <p class="font-medium text-slate-800">
+                                    {{ player.name }} <span class="font-normal text-slate-500">({{ player.student_id_number || 'No ID' }})</span>
+                                </p>
+                                <p class="mt-0.5 text-[11px] text-slate-500">
+                                    Height: <span class="font-medium text-slate-700">{{ formatMeasure(player.height, 'cm') }}</span>
+                                    <span class="mx-1.5 text-slate-300">|</span>
+                                    Weight: <span class="font-medium text-slate-700">{{ formatMeasure(player.weight, 'kg') }}</span>
+                                </p>
                             </li>
                         </ul>
                         <p v-else class="text-xs text-slate-500">No players assigned.</p>

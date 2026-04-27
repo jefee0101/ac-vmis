@@ -27,7 +27,6 @@ const props = defineProps<{
     notify_wellness_injury_threshold: boolean
     wellness_injury_threshold_level: number
     theme_preference: 'system' | 'light' | 'dark'
-    timezone: string
   }
   scope: {
     notifications: string[]
@@ -88,7 +87,6 @@ const form = useForm({
   notify_wellness_injury_threshold: Boolean(props.settings?.notify_wellness_injury_threshold ?? true),
   wellness_injury_threshold_level: Number(props.settings?.wellness_injury_threshold_level ?? 3),
   theme_preference: (props.settings?.theme_preference ?? 'light') as 'light' | 'dark',
-  timezone: props.settings?.timezone ?? 'Asia/Manila',
 })
 
 function submitSettings() {
@@ -101,6 +99,10 @@ function submitSettings() {
     },
   })
 }
+
+function cardMotion(order: number) {
+  return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -108,7 +110,7 @@ function submitSettings() {
 
   <AccountShell active="notifications">
       <form @submit.prevent="submitSettings" class="space-y-4">
-        <section class="rounded-2xl border border-[#034485]/40 bg-white p-5">
+        <section class="account-card rounded-2xl border border-[#034485]/40 bg-white p-5" :style="cardMotion(1)">
         <h2 class="section-title">
           <svg class="h-4 w-4 text-[#1f2937]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -119,7 +121,7 @@ function submitSettings() {
         <p class="settings-muted mt-1 text-xs text-slate-500">Choose how and when you want to be alerted.</p>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-2">
-          <div class="rounded-xl border border-[#034485]/30 bg-slate-50 p-4">
+          <div class="account-card rounded-xl border border-[#034485]/30 bg-slate-50 p-4" :style="cardMotion(2)">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p class="settings-kicker text-xs font-semibold uppercase tracking-wide text-slate-500">Email Notifications</p>
@@ -210,6 +212,26 @@ function submitSettings() {
   color: #64748b;
 }
 
+.account-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: account-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 70ms);
+  will-change: transform, opacity;
+}
+
+@keyframes account-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .toggle-row {
   display: flex;
   align-items: flex-start;
@@ -285,5 +307,13 @@ function submitSettings() {
 
 .switch--sm input:checked + .slider::before {
   transform: translateX(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

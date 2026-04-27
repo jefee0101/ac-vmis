@@ -183,6 +183,24 @@ watch(
     { immediate: true }
 )
 
+watch(
+    () => props.resultSubmissionId,
+    (submissionId, previousId) => {
+        if (!submissionId || submissionId === previousId) return
+
+        const row = sortedSubmissions.value.find((item) => item.id === submissionId)
+        if (!row) return
+
+        const isProcessed = row.ocr?.validation?.status === 'valid'
+        showToast(
+            isProcessed
+                ? 'Academic submission processed successfully.'
+                : 'Unable to fully process document. Please review or resubmit.',
+            isProcessed ? 'success' : 'error'
+        )
+    }
+)
+
 onBeforeUnmount(() => {
     if (previewUrl.value) {
         URL.revokeObjectURL(previewUrl.value)
@@ -224,6 +242,7 @@ function handleFileChange(event: Event) {
 
 function removeFile() {
     file.value = null
+    showToast('Selected file removed.', 'success')
 }
 
 function submit() {
@@ -269,6 +288,7 @@ function submit() {
             isSubmitting.value = true
             isScanning.value = true
             uploadProgress.value = 0
+            showToast('Uploading academic document...', 'success')
         },
         onProgress: (event) => {
             uploadProgress.value = Math.round(event?.percentage ?? 0)
@@ -281,6 +301,7 @@ function submit() {
                 : String(firstError || 'Unable to submit your academic document.')
             activePeriodId.value = submissionPeriodId
             isSubmissionModalOpen.value = true
+            showToast('Unable to submit your document.', 'error')
         },
         onFinish: () => {
             isSubmitting.value = false
@@ -368,12 +389,16 @@ function selectedResultLabel(row: Submission | null) {
         : row.ocr?.interpretation?.label || 'Pending Review'
 }
 
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
+
 </script>
 
 <template>
     <Head title="Academic Submissions" />
 
-    <div class="space-y-5">
+    <div class="academics-page-view space-y-5">
         <transition name="toast-fade">
             <div
                 v-if="toast"
@@ -397,14 +422,15 @@ function selectedResultLabel(row: Submission | null) {
             </div>
         </div>
 
-        <div v-if="!student" class="rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600">
+        <div v-if="!student" class="page-card rounded-lg border border-[#034485]/35 bg-white p-4 text-slate-600" :style="cardMotion(1)">
             Student profile not found.
         </div>
 
         <template v-else>
             <section
                 v-if="isAcademicallyRestricted"
-                class="overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] shadow-sm"
+                class="page-card overflow-hidden rounded-[28px] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.98),rgba(255,255,255,0.96))] shadow-sm"
+                :style="cardMotion(2)"
             >
                 <div class="grid gap-4 px-4 py-5 sm:px-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,0.9fr)] lg:items-center">
                     <div class="flex items-start gap-3">
@@ -429,7 +455,7 @@ function selectedResultLabel(row: Submission | null) {
                         </div>
                     </div>
 
-                    <div class="rounded-3xl border border-amber-200/80 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-amber-200/80 bg-white/90 p-4" :style="cardMotion(3)">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Current evaluation</p>
                         <div class="mt-3 space-y-2 text-sm text-slate-600">
                             <div class="flex items-center justify-between gap-3">
@@ -456,7 +482,7 @@ function selectedResultLabel(row: Submission | null) {
             </section>
 
             <section class="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                <div class="rounded-3xl border border-[#034485]/35 bg-white p-4">
+                <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(4)">
                     <p class="text-xs text-slate-500">Student</p>
                     <p class="mt-1 text-lg font-semibold text-slate-900">{{ student.name }}</p>
                     <div class="mt-2 grid gap-1 text-xs text-slate-500">
@@ -466,7 +492,7 @@ function selectedResultLabel(row: Submission | null) {
                     </div>
                 </div>
 
-                <div class="rounded-3xl border border-[#034485]/35 bg-white p-4 lg:col-span-2">
+                <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 lg:col-span-2" :style="cardMotion(5)">
                     <template v-if="latestSubmission">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="space-y-2">
@@ -492,16 +518,16 @@ function selectedResultLabel(row: Submission | null) {
                         </div>
 
                         <div class="mt-4 grid gap-3 md:grid-cols-3">
-                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                            <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(6)">
                                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
                                 <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(latestSubmission) }}</p>
                             </div>
-                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                            <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(7)">
                                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
                                 <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(latestSubmission) }}</p>
                                 <p class="mt-1 text-xs text-slate-500">{{ latestSubmission.ocr?.interpretation?.value_label || 'Average' }}</p>
                             </div>
-                            <div class="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
+                            <div class="page-card rounded-3xl border border-slate-200 bg-slate-50/60 p-4" :style="cardMotion(8)">
                                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
                                 <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(latestSubmission.ocr?.validation?.status)">
                                     {{ validationLabel(latestSubmission.ocr?.validation?.status) }}
@@ -519,7 +545,8 @@ function selectedResultLabel(row: Submission | null) {
 
             <section
                 v-if="processingSubmission && !resultSubmission"
-                class="rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+                class="page-card rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+                :style="cardMotion(9)"
             >
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div class="space-y-2">
@@ -536,28 +563,28 @@ function selectedResultLabel(row: Submission | null) {
                             Your upload has been received. Please wait while the system scans the document and interprets the grade result.
                         </p>
                     </div>
-                    <div class="rounded-3xl border border-white/70 bg-white/90 px-4 py-3 text-right">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 px-4 py-3 text-right" :style="cardMotion(10)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">File</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ processingSubmission.fileName }}</p>
                     </div>
                 </div>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-3">
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(11)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage</p>
                         <div class="mt-3 flex items-center gap-3">
                             <Spinner class="h-5 w-5 text-sky-700" />
                             <p class="text-sm font-semibold text-slate-900">Scanning document...</p>
                         </div>
                     </div>
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(12)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Upload progress</p>
                         <p class="mt-2 text-3xl font-bold text-slate-900">{{ uploadProgress }}%</p>
                         <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
                             <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="{ width: `${uploadProgress}%` }" />
                         </div>
                     </div>
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(13)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Started</p>
                         <p class="mt-2 text-sm font-semibold text-slate-900">{{ formatDateTime(processingSubmission.startedAt) }}</p>
                         <p class="mt-2 text-xs text-slate-500">This panel will be replaced automatically once processing is complete.</p>
@@ -567,7 +594,8 @@ function selectedResultLabel(row: Submission | null) {
 
             <section
                 v-else-if="resultSubmission"
-                class="rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+                class="page-card rounded-[28px] border border-[#034485]/20 bg-[linear-gradient(135deg,rgba(3,68,133,0.08),rgba(255,255,255,0.98))] p-5 shadow-sm"
+                :style="cardMotion(14)"
             >
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div class="space-y-2">
@@ -595,16 +623,16 @@ function selectedResultLabel(row: Submission | null) {
                 </div>
 
                 <div class="mt-4 grid gap-3 md:grid-cols-3">
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(15)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Extracted GPA / Average</p>
                         <p class="mt-2 text-3xl font-bold text-slate-900">{{ selectedResultValue(resultSubmission) }}</p>
                     </div>
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(16)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">System interpretation</p>
                         <p class="mt-2 text-lg font-semibold text-slate-900">{{ selectedResultLabel(resultSubmission) }}</p>
                         <p class="mt-1 text-xs text-slate-500">{{ resultSubmission.ocr?.interpretation?.value_label || 'Grade value' }}</p>
                     </div>
-                    <div class="rounded-3xl border border-white/70 bg-white/90 p-4">
+                    <div class="page-card rounded-3xl border border-white/70 bg-white/90 p-4" :style="cardMotion(17)">
                         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Processing status</p>
                         <span class="mt-2 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold" :class="validationPill(resultSubmission.ocr?.validation?.status)">
                             {{ validationLabel(resultSubmission.ocr?.validation?.status) }}
@@ -614,7 +642,7 @@ function selectedResultLabel(row: Submission | null) {
                 </div>
             </section>
 
-            <section class="rounded-[28px] border border-[#034485]/25 bg-white p-5 shadow-sm">
+            <section class="page-card rounded-[28px] border border-[#034485]/25 bg-white p-5 shadow-sm" :style="cardMotion(18)">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-800">Submission Window</h2>
@@ -629,12 +657,13 @@ function selectedResultLabel(row: Submission | null) {
 
                 <div v-else class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                     <button
-                        v-for="period in openPeriods"
+                        v-for="(period, index) in openPeriods"
                         :key="period.id"
                         type="button"
                         :disabled="period.can_submit === false || Boolean(period.is_eligible)"
                         @click="openSubmissionModal(period.id)"
-                        class="group rounded-[24px] border p-4 text-left transition"
+                        class="page-card group rounded-[24px] border p-4 text-left transition"
+                        :style="cardMotion(19 + index)"
                         :class="period.can_submit === false || period.is_eligible
                             ? 'cursor-not-allowed border-emerald-200 bg-emerald-50/80 opacity-85'
                             : 'border-[#034485]/20 bg-[linear-gradient(135deg,#034485,#0b5cab)] text-white hover:-translate-y-0.5 hover:shadow-lg'"
@@ -668,7 +697,8 @@ function selectedResultLabel(row: Submission | null) {
 
                 <div
                     v-if="hasActiveWindow"
-                    class="mt-4 rounded-2xl border border-[#034485]/15 bg-[#034485]/5 px-4 py-3 text-xs text-slate-600"
+                    class="page-card mt-4 rounded-2xl border border-[#034485]/15 bg-[#034485]/5 px-4 py-3 text-xs text-slate-600"
+                    :style="cardMotion(30)"
                 >
                     <span class="font-semibold text-slate-700">Current status:</span>
                     <span class="ml-2 rounded-full bg-[#034485] px-2 py-0.5 text-[10px] font-semibold text-white">
@@ -687,7 +717,7 @@ function selectedResultLabel(row: Submission | null) {
             </section>
 
             <section v-if="displayedSubmissions.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
-                <div v-for="row in displayedSubmissions" :key="row.id" class="rounded-2xl border border-[#034485]/20 bg-white p-4 shadow-sm">
+                <div v-for="(row, index) in displayedSubmissions" :key="row.id" class="page-card rounded-2xl border border-[#034485]/20 bg-white p-4 shadow-sm" :style="cardMotion(31 + index)">
                     <div class="flex items-center justify-between gap-2">
                         <div>
                             <p class="text-sm font-semibold text-slate-900">{{ row.period_label || 'Unknown period' }}</p>
@@ -714,7 +744,7 @@ function selectedResultLabel(row: Submission | null) {
                 </div>
             </section>
 
-            <div v-else class="rounded-xl border border-[#034485]/35 bg-white p-6 text-center text-slate-500">
+            <div v-else class="page-card rounded-xl border border-[#034485]/35 bg-white p-6 text-center text-slate-500" :style="cardMotion(31)">
                 No submissions are available at this time.
             </div>
 
@@ -937,5 +967,33 @@ function selectedResultLabel(row: Submission | null) {
 .modal-fade-leave-to {
     opacity: 0;
     transform: translateY(-8px);
+}
+
+.academics-page-view .page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: student-page-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 55ms);
+    will-change: transform, opacity;
+}
+
+@keyframes student-page-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .academics-page-view .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
 }
 </style>

@@ -71,9 +71,9 @@ const form = useForm({
 const emergencyRelationshipOptions = ['Parent', 'Guardian', 'Sibling', 'Grandparent', 'Relative', 'Spouse', 'Other']
 
 const saved = ref(false)
-const requestUpdateOpen = ref(false)
 const avatarPreview = ref<string | null>(null)
 const avatarInput = ref<HTMLInputElement | null>(null)
+const toast = ref<{ tone: 'success' | 'error'; message: string } | null>(null)
 
 const cropModalOpen = ref(false)
 const cropSourceUrl = ref<string | null>(null)
@@ -90,6 +90,8 @@ let dragStartX = 0
 let dragStartY = 0
 let dragOriginX = 0
 let dragOriginY = 0
+let savedTimer: ReturnType<typeof setTimeout> | null = null
+let toastTimer: ReturnType<typeof setTimeout> | null = null
 
 const maxCropScale = computed(() => Math.max(cropMinScale.value * 4, cropMinScale.value + 1))
 
@@ -104,6 +106,13 @@ const avatarUrl = computed(() => {
   if (path.startsWith('http://') || path.startsWith('https://')) return path
   if (path.startsWith('/storage/')) return path
   return `/storage/${path}`
+})
+
+const roleLabel = computed(() => {
+  if (role.value === 'student-athlete' || role.value === 'student') return 'Student-Athlete'
+  if (role.value === 'coach') return 'Coach'
+  if (role.value === 'admin') return 'Administrator'
+  return role.value || 'User'
 })
 
 function displayValue(value: string | number | null | undefined) {
@@ -129,6 +138,37 @@ const studentDetails = computed(() => {
     { label: 'Weight', value: student.weight },
   ]
 })
+
+function clearSavedTimer() {
+  if (!savedTimer) return
+  clearTimeout(savedTimer)
+  savedTimer = null
+}
+
+function clearToastTimer() {
+  if (!toastTimer) return
+  clearTimeout(toastTimer)
+  toastTimer = null
+}
+
+function showToast(message: string, tone: 'success' | 'error') {
+  clearToastTimer()
+  toast.value = { message, tone }
+  toastTimer = setTimeout(() => {
+    toast.value = null
+    toastTimer = null
+  }, 2800)
+}
+
+function firstErrorMessage() {
+  const errorEntry = Object.values(form.errors).find((value) => typeof value === 'string' && value.trim().length > 0)
+
+  return errorEntry ?? 'Unable to update profile.'
+}
+
+function cardMotion(order: number) {
+  return { '--card-order': String(order) }
+}
 
 
 function revokeUrl(value: string | null) {
@@ -286,14 +326,20 @@ async function applyCroppedAvatar() {
 
 function submit() {
   saved.value = false
+  clearSavedTimer()
   form.put('/account/profile', {
     forceFormData: true,
     preserveScroll: true,
     onSuccess: () => {
       saved.value = true
-      setTimeout(() => {
+      showToast('Profile updated successfully.', 'success')
+      savedTimer = setTimeout(() => {
         saved.value = false
+        savedTimer = null
       }, 2200)
+    },
+    onError: () => {
+      showToast(firstErrorMessage(), 'error')
     },
   })
 }
@@ -302,6 +348,8 @@ onBeforeUnmount(() => {
   revokeUrl(avatarPreview.value)
   revokeUrl(cropSourceUrl.value)
   removeDragListeners()
+  clearSavedTimer()
+  clearToastTimer()
 })
 </script>
 
@@ -309,121 +357,141 @@ onBeforeUnmount(() => {
   <Head title="My Profile" />
 
   <AccountShell active="profile">
-    <section class="rounded-2xl border border-[#034485]/45 bg-gradient-to-br from-white via-white to-slate-50/60 p-6">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-900">Profile</h1>
-          <p class="text-sm text-slate-600">Manage your account identity and role-specific information.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
-            {{ role === 'admin' ? 'Administrator' : role }}
-          </span>
-        </div>
+    <transition name="toast-fade">
+      <div
+        v-if="toast"
+        class="fixed right-4 top-4 z-[70] w-full max-w-sm rounded-2xl border px-4 py-3 shadow-xl backdrop-blur"
+        :class="
+          toast.tone === 'success'
+            ? 'border-emerald-200 bg-emerald-50/95 text-emerald-800 shadow-slate-900/15'
+            : 'border-rose-200 bg-rose-50/95 text-rose-800 shadow-slate-900/15'
+        "
+      >
+        <p class="text-sm font-semibold">{{ toast.message }}</p>
       </div>
-    </section>
+    </transition>
 
-    <form @submit.prevent="submit" class="space-y-4">
-          <section class="rounded-2xl border border-[#034485]/45 bg-white p-5">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <img :src="avatarUrl" alt="Avatar" class="h-20 w-20 rounded-full object-cover border border-[#034485]/45" />
-              <div class="flex-1">
-                <p class="text-sm font-medium text-slate-700">Profile Photo</p>
-                <p class="text-xs text-slate-500">JPG, PNG, or WebP up to 2MB. Crop works on mobile and desktop.</p>
+    <form @submit.prevent="submit" class="space-y-5">
+      <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(1)">
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_260px] lg:items-center">
+          <div class="min-w-0">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Profile</p>
+            <h1 class="mt-1 text-2xl font-bold text-slate-900">{{ user?.name || 'My Profile' }}</h1>
+            <p class="mt-2 max-w-2xl text-sm text-slate-600">Update your direct-contact and emergency information here. Official student record values are shown below for reference.</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="rounded-full border border-[#034485]/15 bg-[#034485]/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[#034485]">
+                {{ roleLabel }}
+              </span>
+              <span v-if="profile.student?.student_id_number" class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                ID {{ profile.student.student_id_number }}
+              </span>
+            </div>
+          </div>
+
+          <div class="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+            <div class="flex items-center gap-4">
+              <img :src="avatarUrl" alt="Avatar" class="h-20 w-20 rounded-[20px] border border-slate-200 object-cover shadow-sm" />
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-slate-900">Profile Photo</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500">JPG, PNG, or WebP up to 2MB. Crop before saving for the best fit.</p>
                 <input ref="avatarInput" type="file" accept="image/png,image/jpeg,image/webp" @change="onAvatarChange" class="hidden" />
-                <button type="button" class="mt-2 rounded-md border border-[#034485]/45 px-3 py-1.5 text-sm hover:bg-slate-50" @click="triggerAvatarPicker">
+                <button type="button" class="mt-3 inline-flex rounded-full border border-[#034485]/25 bg-white px-4 py-2 text-sm font-semibold text-[#034485] transition hover:bg-[#034485]/5" @click="triggerAvatarPicker">
                   Choose Photo
                 </button>
               </div>
             </div>
-            <p v-if="form.errors.avatar" class="mt-1 text-xs text-red-600">{{ form.errors.avatar }}</p>
-          </section>
-
-          <section class="rounded-2xl border border-[#034485]/45 bg-white p-5 grid gap-4 md:grid-cols-2">
-            <div class="md:col-span-2">
-              <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Full Name</label>
-              <input v-model="form.name" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" required />
-              <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
-            </div>
-
-            <template v-if="role !== 'admin'">
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone</label>
-                <input v-model="form.phone_number" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-                <p v-if="form.errors.phone_number" class="mt-1 text-xs text-red-600">{{ form.errors.phone_number }}</p>
-              </div>
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</label>
-                <input v-model="form.home_address" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-                <p v-if="form.errors.home_address" class="mt-1 text-xs text-red-600">{{ form.errors.home_address }}</p>
-              </div>
-            </template>
-
-            <template v-if="role === 'student' || role === 'student-athlete'">
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Name</label>
-                <input v-model="form.emergency_contact_name" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-                <p v-if="form.errors.emergency_contact_name" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_name }}</p>
-              </div>
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Relationship</label>
-                <select v-model="form.emergency_contact_relationship" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm">
-                  <option value="">Select relationship</option>
-                  <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
-                </select>
-                <p v-if="form.errors.emergency_contact_relationship" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_relationship }}</p>
-              </div>
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Phone</label>
-                <input v-model="form.emergency_contact_phone" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-                <p v-if="form.errors.emergency_contact_phone" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_phone }}</p>
-              </div>
-            </template>
-
-            <template v-if="role === 'coach'">
-              <div>
-                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Date of Birth</label>
-            <input v-model="form.date_of_birth" type="date" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-            <p v-if="form.errors.date_of_birth" class="mt-1 text-xs text-red-600">{{ form.errors.date_of_birth }}</p>
+            <p v-if="form.errors.avatar" class="mt-3 text-xs text-red-600">{{ form.errors.avatar }}</p>
           </div>
-          <div>
-            <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
-            <input v-model="form.gender" type="text" class="mt-1 w-full rounded-xl border border-[#034485]/45 px-3 py-2 text-sm" />
-            <p v-if="form.errors.gender" class="mt-1 text-xs text-red-600">{{ form.errors.gender }}</p>
-          </div>
-        </template>
+        </div>
       </section>
 
-      <section v-if="(role === 'student' || role === 'student-athlete') && profile.student" class="rounded-2xl border border-[#034485]/45 bg-white p-5">
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <div class="space-y-5">
+          <section class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(2)">
+            <div class="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Editable Information</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Personal Details</h2>
+              </div>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="md:col-span-2">
+                <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Full Name</label>
+                <input v-model="form.name" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" required />
+                <p v-if="form.errors.name" class="mt-1 text-xs text-red-600">{{ form.errors.name }}</p>
+              </div>
+
+              <template v-if="role !== 'admin'">
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone</label>
+                  <input v-model="form.phone_number" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.phone_number" class="mt-1 text-xs text-red-600">{{ form.errors.phone_number }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Address</label>
+                  <input v-model="form.home_address" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.home_address" class="mt-1 text-xs text-red-600">{{ form.errors.home_address }}</p>
+                </div>
+              </template>
+
+              <template v-if="role === 'student' || role === 'student-athlete'">
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Name</label>
+                  <input v-model="form.emergency_contact_name" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.emergency_contact_name" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_name }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Relationship</label>
+                  <select v-model="form.emergency_contact_relationship" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10">
+                    <option value="">Select relationship</option>
+                    <option v-for="option in emergencyRelationshipOptions" :key="option" :value="option">{{ option }}</option>
+                  </select>
+                  <p v-if="form.errors.emergency_contact_relationship" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_relationship }}</p>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Emergency Contact Phone</label>
+                  <input v-model="form.emergency_contact_phone" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.emergency_contact_phone" class="mt-1 text-xs text-red-600">{{ form.errors.emergency_contact_phone }}</p>
+                </div>
+              </template>
+
+              <template v-if="role === 'coach'">
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Date of Birth</label>
+                  <input v-model="form.date_of_birth" type="date" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.date_of_birth" class="mt-1 text-xs text-red-600">{{ form.errors.date_of_birth }}</p>
+                </div>
+                <div>
+                  <label class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gender</label>
+                  <input v-model="form.gender" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-[#034485]/35 focus:bg-white focus:ring-2 focus:ring-[#034485]/10" />
+                  <p v-if="form.errors.gender" class="mt-1 text-xs text-red-600">{{ form.errors.gender }}</p>
+                </div>
+              </template>
+            </div>
+          </section>
+      </div>
+
+      <section v-if="(role === 'student' || role === 'student-athlete') && profile.student" class="account-card rounded-[24px] border border-[#034485]/16 bg-white p-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.45)]" :style="cardMotion(3)">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 class="text-base font-semibold text-slate-900">Student Details</h2>
-            <p class="text-xs text-slate-500">These details are pulled from your student record. Contact an admin to update.</p>
+            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#034485]">Read-Only Student Record</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900">Institutional Details</h2>
+            <p class="mt-1 max-w-3xl text-sm text-slate-500">These values come from your official student-athlete record and are shown here for quick reference.</p>
           </div>
-          <button
-            type="button"
-            class="mt-2 inline-flex items-center justify-center rounded-md border border-[#034485]/45 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-[#034485]/70 sm:mt-0"
-            @click="requestUpdateOpen = !requestUpdateOpen"
-          >
-            Request Update
-          </button>
         </div>
-        <div v-if="requestUpdateOpen" class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          To update student record details, contact your athletics admin or registrar and include your student ID number.
-        </div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-for="item in studentDetails" :key="item.label" class="rounded-xl border border-[#034485]/30 bg-slate-50 p-3">
-            <p class="text-xs uppercase tracking-wide text-slate-500">{{ item.label }}</p>
-            <p class="mt-1 text-sm font-semibold text-slate-900">{{ displayValue(item.value) }}</p>
+
+        <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div v-for="item in studentDetails" :key="item.label" class="rounded-2xl border border-slate-200 bg-slate-50/75 p-4">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{ item.label }}</p>
+            <p class="mt-2 text-sm font-semibold leading-6 text-slate-900">{{ displayValue(item.value) }}</p>
           </div>
         </div>
       </section>
 
       <div class="flex flex-wrap items-center gap-3">
-        <button type="submit" class="rounded-lg bg-[#1f2937] px-4 py-2 text-white font-semibold hover:bg-[#334155] transition" :disabled="form.processing">
+        <button type="submit" class="rounded-full bg-[#1f2937] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#334155]" :disabled="form.processing">
           {{ form.processing ? 'Saving...' : 'Save Profile' }}
         </button>
-        <p v-if="saved" class="text-sm text-green-700">Profile updated.</p>
       </div>
     </form>
 
@@ -532,6 +600,45 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   pointer-events: none;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.2);
+}
+
+.account-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: account-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 70ms);
+  will-change: transform, opacity;
+}
+
+@keyframes account-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 </style>

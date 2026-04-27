@@ -175,10 +175,22 @@ function statusTone(status?: string | null) {
     if (status === 'suspended') return 'bg-red-100 text-red-700'
     return 'bg-emerald-100 text-emerald-700'
 }
+
+function formatMeasure(value?: string | number | null, unit?: string) {
+    if (value === null || value === undefined) return '-'
+    const text = String(value).trim()
+    if (!text) return '-'
+    if (!unit || /[a-zA-Z]/.test(text)) return text
+    return `${text} ${unit}`
+}
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="team-page-view space-y-6">
         <div v-if="props.teams.length" class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
             <div v-if="props.teams.length > 1" class="flex items-center gap-2">
                 <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Team</span>
@@ -195,14 +207,14 @@ function statusTone(status?: string | null) {
         </div>
 
         <!-- No team assigned -->
-        <div v-if="!showTeam" class="bg-white rounded-3xl p-6 border border-[#034485]/35">
+        <div v-if="!showTeam" class="page-card bg-white rounded-3xl p-6 border border-[#034485]/35" :style="cardMotion(1)">
             <p class="text-slate-600 font-medium">You are not assigned to a team yet.</p>
             <p class="text-sm text-slate-500 mt-1">Once your assignment is confirmed, your team information, schedule, and post-training condition records will appear here.</p>
         </div>
 
         <!-- Team card -->
         <div v-else class="space-y-6">
-            <section class="bg-[#034485] rounded-3xl border border-[#034485]/35 p-6 text-white">
+            <section class="page-card bg-[#034485] rounded-3xl border border-[#034485]/35 p-6 text-white" :style="cardMotion(2)">
                 <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                         <div
@@ -246,7 +258,7 @@ function statusTone(status?: string | null) {
                 </div>
 
                 <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800">
+                    <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800" :style="cardMotion(3)">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Head Coach</p>
                         <p class="text-sm font-semibold text-slate-800 mt-1">
                             {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}
@@ -298,7 +310,7 @@ function statusTone(status?: string | null) {
                             </span>
                         </div>
                     </div>
-                    <div class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800">
+                    <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800" :style="cardMotion(4)">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Assistant Coach</p>
                         <p class="text-sm font-semibold text-slate-800 mt-1">
                             <span v-if="props.team.assistantCoach">
@@ -356,7 +368,7 @@ function statusTone(status?: string | null) {
                 </div>
             </section>
 
-            <section v-if="myMembership" class="bg-white rounded-3xl border border-[#034485]/35 p-6">
+            <section v-if="myMembership" class="page-card bg-white rounded-3xl border border-[#034485]/35 p-6" :style="cardMotion(5)">
 
                 <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Jersey Request</span>
@@ -382,14 +394,14 @@ function statusTone(status?: string | null) {
                 </div>
             </section>
 
-            <section class="bg-white rounded-3xl border border-[#034485]/35 p-6">
+            <section class="page-card bg-white rounded-3xl border border-[#034485]/35 p-6" :style="cardMotion(6)">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg font-semibold text-slate-900">Team Members</h3>
                     <span class="text-sm text-slate-500">{{ totalPlayers }} total</span>
                 </div>
 
                 <div v-if="props.team.players?.length" class="mt-4 space-y-4">
-                    <div v-if="myMembership" class="rounded-2xl border border-[#034485]/35 bg-white p-4">
+                    <div v-if="myMembership" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(7)">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-start gap-3">
                                 <img
@@ -418,7 +430,7 @@ function statusTone(status?: string | null) {
                             </div>
                         </div>
 
-                        <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                        <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600 sm:grid-cols-4">
                             <div>
                                 <span class="text-slate-500">Jersey</span>
                                 <p class="font-semibold text-slate-900">
@@ -433,11 +445,19 @@ function statusTone(status?: string | null) {
                                     <span v-else class="text-red-600">Unassigned</span>
                                 </p>
                             </div>
+                            <div>
+                                <span class="text-slate-500">Height</span>
+                                <p class="font-semibold text-slate-900">{{ formatMeasure(myMembership.student?.height, 'cm') }}</p>
+                            </div>
+                            <div>
+                                <span class="text-slate-500">Weight</span>
+                                <p class="font-semibold text-slate-900">{{ formatMeasure(myMembership.student?.weight, 'kg') }}</p>
+                            </div>
                         </div>
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <article v-for="player in otherPlayers" :key="player.id" class="rounded-2xl border border-[#034485]/35 bg-white p-4">
+                    <article v-for="(player, index) in otherPlayers" :key="player.id" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(8 + index)">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-start gap-3">
                                 <img
@@ -463,7 +483,7 @@ function statusTone(status?: string | null) {
                             </span>
                         </div>
 
-                        <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                        <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600 sm:grid-cols-4">
                             <div>
                                 <span class="text-slate-500">Jersey</span>
                                 <p class="font-semibold text-slate-900">
@@ -477,6 +497,14 @@ function statusTone(status?: string | null) {
                                     <span v-if="player.athlete_position">{{ player.athlete_position }}</span>
                                     <span v-else class="text-red-600">Unassigned</span>
                                 </p>
+                            </div>
+                            <div>
+                                <span class="text-slate-500">Height</span>
+                                <p class="font-semibold text-slate-900">{{ formatMeasure(player.student?.height, 'cm') }}</p>
+                            </div>
+                            <div>
+                                <span class="text-slate-500">Weight</span>
+                                <p class="font-semibold text-slate-900">{{ formatMeasure(player.student?.weight, 'kg') }}</p>
                             </div>
                         </div>
                     </article>
@@ -505,6 +533,8 @@ function statusTone(status?: string | null) {
                                 <p><span class="font-semibold text-slate-900">Jersey:</span> {{ selectedPlayer?.jersey_number || '-' }}</p>
                                 <p><span class="font-semibold text-slate-900">Course/Strand:</span> {{ selectedStudent?.course_or_strand || '-' }}</p>
                                 <p><span class="font-semibold text-slate-900">Academic Level:</span> {{ selectedStudent?.academic_level_label || selectedStudent?.current_grade_level || '-' }}</p>
+                                <p><span class="font-semibold text-slate-900">Height:</span> {{ formatMeasure(selectedStudent?.height, 'cm') }}</p>
+                                <p><span class="font-semibold text-slate-900">Weight:</span> {{ formatMeasure(selectedStudent?.weight, 'kg') }}</p>
                                 <p v-if="selectedStudent?.user?.email" class="sm:col-span-2">
                                     <span class="font-semibold text-slate-900">Email:</span>
                                     <span class="ml-1 inline-flex items-center gap-2">
@@ -570,3 +600,33 @@ function statusTone(status?: string | null) {
         </transition>
     </div>
 </template>
+
+<style scoped>
+.team-page-view .page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: student-page-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 55ms);
+    will-change: transform, opacity;
+}
+
+@keyframes student-page-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .team-page-view .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+</style>

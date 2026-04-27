@@ -67,11 +67,15 @@ const avgFatigue = computed(() => {
 function toggleDetails(id: number) {
     selectedLogId.value = selectedLogId.value === id ? null : id;
 }
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) };
+}
 </script>
 
 <template>
     <Head title="Wellness History" />
-    <div class="space-y-5">
+    <div class="wellness-page-view space-y-5">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
                 <h1 class="text-2xl font-bold text-slate-900">Wellness History</h1>
@@ -88,7 +92,7 @@ function toggleDetails(id: number) {
             </div>
         </div>
 
-        <div v-if="accessLocked" class="rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700">
+        <div v-if="accessLocked" class="page-card rounded-3xl border border-[#034485]/35 bg-[#034485]/5 p-6 text-slate-700" :style="cardMotion(1)">
             <h2 class="text-sm font-semibold text-slate-800">Wellness Access Paused</h2>
             <p class="mt-1 text-sm text-slate-600">{{ lockMessage || 'Wellness access is paused during the academic submission window.' }}</p>
             <div class="mt-3 text-xs text-slate-600">
@@ -106,34 +110,34 @@ function toggleDetails(id: number) {
         </div>
 
         <template v-else>
-            <div v-if="!student" class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-600">Student profile not found.</div>
+            <div v-if="!student" class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-600" :style="cardMotion(2)">Student profile not found.</div>
 
-            <div v-else-if="noTeamAssigned" class="rounded-3xl border border-[#034485]/35 bg-white p-6 text-slate-600">
+            <div v-else-if="noTeamAssigned" class="page-card rounded-3xl border border-[#034485]/35 bg-white p-6 text-slate-600" :style="cardMotion(3)">
                 You are not assigned to a team yet.
             </div>
 
             <template v-else>
                 <section class="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(4)">
                         <p class="text-xs text-slate-500">Total logs</p>
                         <p class="mt-1 text-2xl font-semibold text-[#1f2937]">{{ totalLogs }}</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(5)">
                         <p class="text-xs text-slate-500">Injury flags</p>
                         <p class="mt-1 text-2xl font-semibold text-rose-600">{{ injuryCount }}</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(6)">
                         <p class="text-xs text-slate-500">Avg fatigue</p>
                         <p class="mt-1 text-2xl font-semibold text-slate-900">{{ avgFatigue ?? '-' }}</p>
                     </div>
-                    <div class="rounded-xl border border-[#034485]/35 bg-white p-4">
+                    <div class="page-card rounded-xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(7)">
                         <p class="text-xs text-slate-500">Latest log</p>
                         <p class="mt-1 text-sm font-semibold text-slate-900">{{ latestLog?.log_date || '—' }}</p>
                         <p class="text-xs text-slate-500">{{ latestLog?.schedule_title || 'No records available' }}</p>
                     </div>
                 </section>
 
-                <div class="rounded-full border border-[#034485]/35 bg-white p-2">
+                <div class="page-card rounded-full border border-[#034485]/35 bg-white p-2" :style="cardMotion(8)">
                     <input
                         v-model="search"
                         type="text"
@@ -144,9 +148,10 @@ function toggleDetails(id: number) {
 
                 <section v-if="filteredLogs.length > 0" class="grid grid-cols-1 gap-3 md:hidden">
                     <button
-                        v-for="row in filteredLogs"
+                        v-for="(row, index) in filteredLogs"
                         :key="row.id"
-                        class="rounded-3xl border border-[#034485]/35 bg-white p-4 text-left"
+                        class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-left"
+                        :style="cardMotion(9 + index)"
                         @click="toggleDetails(row.id)"
                     >
                         <div class="flex items-center justify-between gap-2">
@@ -178,10 +183,6 @@ function toggleDetails(id: number) {
                         </div>
                     </button>
                 </section>
-
-                <div v-else-if="filteredLogs.length === 0" class="rounded-3xl border border-[#034485]/35 bg-white p-6 text-center text-slate-500">
-                    No post-training condition records are available at this time.
-                </div>
 
                 <div class="overflow-hidden rounded-3xl border border-[#034485]/35 bg-white">
                     <div class="overflow-x-auto">
@@ -223,3 +224,33 @@ function toggleDetails(id: number) {
         </template>
     </div>
 </template>
+
+<style scoped>
+.wellness-page-view .page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: student-page-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 55ms);
+    will-change: transform, opacity;
+}
+
+@keyframes student-page-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wellness-page-view .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+</style>

@@ -352,7 +352,7 @@ function printTeamRoster() {
                         </span>
                     </div>
 
-                    <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600">
+                    <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-slate-600 sm:grid-cols-4">
                         <div>
                             <span class="text-slate-500">Jersey</span>
                             <p class="font-semibold text-slate-900">
@@ -366,6 +366,14 @@ function printTeamRoster() {
                                 <span v-if="player.athlete_position">{{ player.athlete_position }}</span>
                                 <span v-else class="text-red-600">Unassigned</span>
                             </p>
+                        </div>
+                        <div>
+                            <span class="text-slate-500">Height</span>
+                            <p class="font-semibold text-slate-900">{{ formatMeasure(player.student?.height, 'cm') }}</p>
+                        </div>
+                        <div>
+                            <span class="text-slate-500">Weight</span>
+                            <p class="font-semibold text-slate-900">{{ formatMeasure(player.student?.weight, 'kg') }}</p>
                         </div>
                     </div>
 

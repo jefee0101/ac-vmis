@@ -166,6 +166,13 @@ function goTo(href: string) {
   box-shadow: 0 18px 30px -24px rgba(3, 68, 133, 0.55);
 }
 
+.nav-link--active:hover {
+  transform: none;
+  border-color: rgba(3, 68, 133, 0.18);
+  background: linear-gradient(135deg, #034485 0%, #0a5fb1 100%);
+  color: #ffffff;
+}
+
 .nav-link--active .nav-link__icon {
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
