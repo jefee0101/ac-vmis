@@ -54,6 +54,10 @@ function goTo(route: string) {
   router.get(route)
 }
 
+function cardMotion(order: number) {
+  return { '--card-order': String(order) }
+}
+
 const safeMetrics = computed<Metrics>(() => ({
   attendance_needs_review: props.metrics?.attendance_needs_review ?? 0,
   attendance_in_progress: props.metrics?.attendance_in_progress ?? 0,
@@ -113,7 +117,7 @@ const nextCountdown = computed(() => {
     <section v-else class="space-y-5">
       <Head title="Coach Dashboard" />
 
-      <section class="rounded-2xl border border-[#034485]/30 bg-white p-6">
+      <section class="page-card rounded-2xl border border-[#034485]/30 bg-white p-6" :style="cardMotion(1)">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div class="min-w-0">
             <h1 class="mt-2 text-2xl font-bold text-slate-900">
@@ -151,7 +155,7 @@ const nextCountdown = computed(() => {
         </div>
 
         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr]">
-          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
+          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(2)">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Next Schedule</p>
             <p class="mt-2 text-lg font-semibold text-slate-900">{{ props.nextSchedule?.title ?? 'No upcoming schedule has been recorded' }}</p>
             <p class="text-xs text-slate-500">
@@ -160,12 +164,12 @@ const nextCountdown = computed(() => {
             </p>
             <p v-if="nextCountdown" class="mt-2 text-xs font-semibold text-[#1f2937]">{{ nextCountdown }}</p>
           </div>
-          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
+          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(3)">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Attendance Checks</p>
             <p class="mt-2 text-lg font-semibold text-[#1f2937]">{{ safeMetrics.attendance_needs_review }}</p>
             <p class="text-xs text-slate-500">Completed schedules that still require attendance records.</p>
           </div>
-          <div class="rounded-2xl border border-[#034485]/25 bg-white p-4">
+          <div class="page-card rounded-2xl border border-[#034485]/25 bg-white p-4" :style="cardMotion(4)">
             <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Condition Records Pending</p>
             <p class="mt-2 text-lg font-semibold text-rose-600">{{ safeMetrics.wellness_pending }}</p>
             <p class="text-xs text-slate-500">Sessions that still require post-training condition records.</p>
@@ -173,7 +177,7 @@ const nextCountdown = computed(() => {
         </div>
       </section>
 
-      <section class="rounded-2xl border border-[#034485]/30 bg-white p-5">
+      <section class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(5)">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h2 class="text-sm font-bold uppercase tracking-wide text-slate-600">Primary Actions</h2>
           <span class="text-xs text-slate-500">Primary workflows</span>
@@ -182,7 +186,8 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/schedule')"
-            class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            :style="cardMotion(6)"
           >
             <div class="flex items-start gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
@@ -200,7 +205,8 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/schedule')"
-            class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            :style="cardMotion(7)"
           >
             <div class="flex items-start gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
@@ -221,7 +227,8 @@ const nextCountdown = computed(() => {
           <button
             type="button"
             @click="goTo('/coach/academics')"
-            class="group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            class="page-card group flex h-full min-h-[11rem] flex-col justify-between rounded-2xl border border-[#034485]/25 bg-white p-4 text-left transition hover:border-[#034485]/50 hover:bg-[#f8fbff]"
+            :style="cardMotion(8)"
           >
             <div class="flex items-start gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#034485]/10 text-[#034485]">
@@ -242,46 +249,46 @@ const nextCountdown = computed(() => {
       </section>
 
       <section class="grid gap-4 lg:grid-cols-2">
-        <div class="rounded-2xl border border-[#034485]/30 bg-white p-5">
+        <div class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(9)">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Roster Signals</h3>
             <span class="text-xs text-slate-500">Total: {{ safeMetrics.roster_total }}</span>
           </div>
           <div class="mt-4 grid gap-3 sm:grid-cols-3">
-            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
+            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(10)">
               <p class="text-xs text-slate-500">Injured</p>
               <p class="mt-1 text-lg font-semibold text-rose-600">{{ safeMetrics.roster_injured }}</p>
             </div>
-            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
+            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(11)">
               <p class="text-xs text-slate-500">Missing Positions</p>
               <p class="mt-1 text-lg font-semibold text-amber-600">{{ safeMetrics.roster_missing_positions }}</p>
             </div>
-            <div class="rounded-xl border border-[#034485]/20 bg-white p-3">
+            <div class="page-card rounded-xl border border-[#034485]/20 bg-white p-3" :style="cardMotion(12)">
               <p class="text-xs text-slate-500">Jersey Pending</p>
               <p class="mt-1 text-lg font-semibold text-slate-900">{{ safeMetrics.roster_jersey_pending }}</p>
             </div>
           </div>
         </div>
 
-        <div class="rounded-2xl border border-[#034485]/30 bg-white p-5">
+        <div class="page-card rounded-2xl border border-[#034485]/30 bg-white p-5" :style="cardMotion(13)">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Attendance Snapshot (7 days)</h3>
             <span class="text-xs text-slate-500">Team trend</span>
           </div>
           <div class="mt-4 grid gap-3 sm:grid-cols-2">
-            <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+            <div class="page-card rounded-xl border border-emerald-200 bg-emerald-50 p-3" :style="cardMotion(14)">
               <p class="text-xs text-emerald-700">Present</p>
               <p class="mt-1 text-lg font-semibold text-emerald-800">{{ safeSnapshot.present }}</p>
             </div>
-            <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div class="page-card rounded-xl border border-amber-200 bg-amber-50 p-3" :style="cardMotion(15)">
               <p class="text-xs text-amber-700">Late</p>
               <p class="mt-1 text-lg font-semibold text-amber-800">{{ safeSnapshot.late }}</p>
             </div>
-            <div class="rounded-xl border border-rose-200 bg-rose-50 p-3">
+            <div class="page-card rounded-xl border border-rose-200 bg-rose-50 p-3" :style="cardMotion(16)">
               <p class="text-xs text-rose-700">Absent</p>
               <p class="mt-1 text-lg font-semibold text-rose-800">{{ safeSnapshot.absent }}</p>
             </div>
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div class="page-card rounded-xl border border-slate-200 bg-slate-50 p-3" :style="cardMotion(17)">
               <p class="text-xs text-slate-600">Excused</p>
               <p class="mt-1 text-lg font-semibold text-slate-800">{{ safeSnapshot.excused }}</p>
             </div>
@@ -298,3 +305,33 @@ const nextCountdown = computed(() => {
     </section>  
   </CoachMobileShell>
 </template>
+
+<style scoped>
+.page-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: coach-page-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 45ms);
+  will-change: transform, opacity;
+}
+
+@keyframes coach-page-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+</style>

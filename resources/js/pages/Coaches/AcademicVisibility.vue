@@ -108,6 +108,10 @@ function changePeriod() {
         preserveState: false,
     })
 }
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -115,12 +119,12 @@ function changePeriod() {
 
     <div class="space-y-5">
 
-        <div v-if="!team" class="rounded-xl border border-[#034485]/45 bg-white p-6 text-slate-500">
+        <div v-if="!team" class="page-card rounded-xl border border-[#034485]/45 bg-white p-6 text-slate-500" :style="cardMotion(1)">
             You are not assigned to a team yet.
         </div>
 
         <div v-else class="space-y-4">
-            <section class="rounded-2xl border border-[#034485]/45 bg-[#034485] p-5">
+            <section class="page-card rounded-2xl border border-[#034485]/45 bg-[#034485] p-5" :style="cardMotion(2)">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/80">
@@ -167,26 +171,26 @@ function changePeriod() {
             </section>
 
             <div class="flex flex-wrap gap-3">
-                <div class="stats-pill">
+                <div class="page-card stats-pill" :style="cardMotion(3)">
                     <p class="stats-label">Total Athletes</p>
                     <p class="stats-value text-[#1f2937]">{{ totalRows }}</p>
                 </div>
-                <div class="stats-pill">
+                <div class="page-card stats-pill" :style="cardMotion(4)">
                     <p class="stats-label">Submitted</p>
                     <p class="stats-value text-emerald-600">{{ submittedCount }}</p>
                 </div>
-                <div class="stats-pill">
+                <div class="page-card stats-pill" :style="cardMotion(5)">
                     <p class="stats-label">Pending</p>
                     <p class="stats-value text-rose-600">{{ pendingCount }}</p>
                 </div>
-                <div class="stats-pill">
+                <div class="page-card stats-pill" :style="cardMotion(6)">
                     <p class="stats-label">Average GPA</p>
                     <p class="stats-value text-slate-900">{{ averageGpa ?? '-' }}</p>
                 </div>
             </div>
 
             <div class="space-y-3 lg:hidden">
-                <article v-for="row in rows" :key="row.student_id" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <article v-for="(row, index) in rows" :key="row.student_id" class="page-card rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" :style="cardMotion(7 + index)">
                     <div class="flex items-start justify-between gap-3">
                         <div>
                             <p class="text-base font-semibold text-slate-900">{{ row.student_name }}</p>
@@ -223,12 +227,12 @@ function changePeriod() {
                         <span v-else class="text-xs text-slate-400">No document</span>
                     </div>
                 </article>
-                <div v-if="rows.length === 0" class="rounded-xl border border-slate-200 bg-white px-3 py-8 text-center text-sm text-slate-500">
+                <div v-if="rows.length === 0" class="page-card rounded-xl border border-slate-200 bg-white px-3 py-8 text-center text-sm text-slate-500" :style="cardMotion(7)">
                     No athletes found for this period.
                 </div>
             </div>
 
-            <div class="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white lg:block">
+            <div class="page-card hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white lg:block" :style="cardMotion(7)">
                 <table class="min-w-full text-sm">
                     <thead class="sticky top-0 bg-[#034485] text-white">
                         <tr>
@@ -280,6 +284,26 @@ function changePeriod() {
   min-width: 170px;
 }
 
+.page-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: coach-academics-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 45ms);
+  will-change: transform, opacity;
+}
+
+@keyframes coach-academics-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .stats-label {
   font-size: 0.7rem;
   font-weight: 700;
@@ -292,5 +316,13 @@ function changePeriod() {
   margin-top: 0.35rem;
   font-size: 1.4rem;
   font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

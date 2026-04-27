@@ -56,6 +56,10 @@ function formatScheduleDate(value?: string | null) {
 function openReview(scheduleId: number) {
     router.get(`/coach/wellness/${scheduleId}/review`)
 }
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -70,14 +74,14 @@ function openReview(scheduleId: number) {
             </p>
         </div>
 
-        <div v-if="!team" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        <div v-if="!team" class="page-card rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(1)">
             You are not assigned to a team yet.
         </div>
 
         <div v-else class="space-y-6">
             <section
-                class="rounded-[2rem] border bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]"
-                :style="{ borderColor: teamTone.borderColor }"
+                class="page-card rounded-[2rem] border bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]"
+                :style="[{ borderColor: teamTone.borderColor }, cardMotion(2)]"
             >
                 <div class="space-y-4">
                     <div class="flex flex-wrap items-center gap-2">
@@ -113,15 +117,16 @@ function openReview(scheduleId: number) {
                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{{ schedules.length }}</span>
                 </div>
 
-                <div v-if="schedules.length === 0" class="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
+                <div v-if="schedules.length === 0" class="page-card rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500" :style="cardMotion(3)">
                     No completed practice or game schedules are available yet.
                 </div>
 
                 <div v-else class="space-y-4">
                     <article
-                        v-for="schedule in schedules"
+                        v-for="(schedule, index) in schedules"
                         :key="schedule.id"
-                        class="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4"
+                        class="page-card relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4"
+                        :style="cardMotion(4 + index)"
                     >
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -156,3 +161,33 @@ function openReview(scheduleId: number) {
         </div>
     </div>
 </template>
+
+<style scoped>
+.page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: coach-wellness-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 45ms);
+    will-change: transform, opacity;
+}
+
+@keyframes coach-wellness-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+</style>

@@ -188,6 +188,10 @@ function athleteInitials(name: string) {
 function openAthleteReview(studentId: number) {
     selectedAthleteId.value = studentId
 }
+
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
 </script>
 
 <template>
@@ -205,7 +209,7 @@ function openAthleteReview(studentId: number) {
             </p>
         </div>
 
-        <section class="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]">
+        <section class="page-card rounded-[2rem] border border-slate-200 bg-white p-4 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.45)]" :style="cardMotion(1)">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div class="space-y-3">
                     <div class="flex flex-wrap items-center gap-2">
@@ -252,7 +256,7 @@ function openAthleteReview(studentId: number) {
             </div>
         </section>
 
-        <div v-if="props.athletes.length === 0" class="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500">
+        <div v-if="props.athletes.length === 0" class="page-card rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-10 text-center text-sm text-slate-500" :style="cardMotion(2)">
             No present or late athletes are available for this session.
         </div>
 
@@ -262,12 +266,13 @@ function openAthleteReview(studentId: number) {
                     v-for="row in props.athletes"
                     :key="row.student_id"
                     type="button"
-                    class="rounded-xl border bg-white p-5 text-left shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
+                    class="page-card rounded-xl border bg-white p-5 text-left shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)] transition"
                     :class="selectedAthleteId === row.student_id
                         ? 'border-[#034485] shadow-[0_24px_60px_-42px_rgba(3,68,133,0.35)]'
                         : athleteNeedsAttention(row.student_id)
                             ? 'border-amber-200 shadow-[0_24px_60px_-42px_rgba(245,158,11,0.35)]'
                             : 'border-slate-200'"
+                    :style="cardMotion(3 + props.athletes.findIndex((entry) => entry.student_id === row.student_id))"
                     @click="openAthleteReview(row.student_id)"
                 >
                     <div class="flex flex-wrap items-start justify-between gap-3">
@@ -312,7 +317,8 @@ function openAthleteReview(studentId: number) {
 
             <article
                 v-if="selectedAthlete"
-                class="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)]"
+                class="page-card rounded-xl border border-slate-200 bg-white p-5 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.45)]"
+                :style="cardMotion(4 + props.athletes.length)"
             >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="flex items-start gap-3">
@@ -427,3 +433,33 @@ function openAthleteReview(studentId: number) {
         </div>
     </div>
 </template>
+
+<style scoped>
+.page-card {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    animation: coach-wellness-review-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: calc(var(--card-order, 0) * 45ms);
+    will-change: transform, opacity;
+}
+
+@keyframes coach-wellness-review-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .page-card {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+}
+</style>

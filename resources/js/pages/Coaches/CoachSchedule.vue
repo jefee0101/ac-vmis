@@ -105,6 +105,10 @@ function stripeColors(sport: any) {
     return { base, lighter }
 }
 
+function cardMotion(order: number) {
+    return { '--card-order': String(order) }
+}
+
 let dragPlaceholderObserver: MutationObserver | null = null
 
 function toLocalInput(dt: string | null) {
@@ -805,18 +809,18 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div v-if="!props.teams.length" class="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        <div v-if="!props.teams.length" class="page-card rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500" :style="cardMotion(1)">
             You are not assigned to a team yet.
         </div>
 
         <transition name="view-slide" mode="out-in">
             <div v-if="layout === 'list' && props.teams.length" key="list" class="space-y-6">
-                <div v-if="ownerSchedules.length === 0" class="rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500">
+                <div v-if="ownerSchedules.length === 0" class="page-card rounded-xl border border-slate-200 bg-white py-10 text-center text-sm text-slate-500" :style="cardMotion(2)">
                     No schedules have been created yet.
                 </div>
 
                 <div v-else class="space-y-6">
-                    <div v-for="section in groupedScheduleSections" :key="section.key" class="space-y-3">
+                    <div v-for="(section, sectionIndex) in groupedScheduleSections" :key="section.key" class="space-y-3">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <h3 class="text-sm font-semibold text-slate-900">{{ statusLabel(section.key) }}</h3>
@@ -841,7 +845,7 @@ onBeforeUnmount(() => {
                             No {{ statusLabel(section.key).toLowerCase() }} schedules.
                         </div>
 
-                        <article v-for="item in section.items" :key="item.id" class="relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4">
+                        <article v-for="(item, itemIndex) in section.items" :key="item.id" class="page-card relative overflow-hidden rounded-3xl border border-[#034485]/40 bg-white p-4" :style="cardMotion(3 + sectionIndex * 6 + itemIndex)">
                             <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-[140%] -translate-x-1/2 -translate-y-1/2 -rotate-6 gap-1 opacity-60">
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).base }"></span>
                                 <span class="h-full w-1.5" :style="{ backgroundColor: stripeColors(item.sport).lighter }"></span>
@@ -909,15 +913,15 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div v-else-if="layout === 'calendar' && props.teams.length" key="calendar">
-                <div class="mb-3 flex flex-wrap gap-4 text-xs">
+                <div class="page-card mb-3 flex flex-wrap gap-4 text-xs" :style="cardMotion(3)">
                     <div v-for="sport in sportsLegend" :key="sport.key" class="flex items-center gap-1 text-slate-700">
                         <span class="w-3 h-3 rounded" :style="{ backgroundColor: sport.color }"></span> {{ sport.label }}
                     </div>
                 </div>
-                <p class="mb-3 text-xs text-slate-500">
+                <p class="page-card mb-3 text-xs text-slate-500" :style="cardMotion(4)">
                     Select an open time slot on the calendar to create a schedule.
                 </p>
-                <div ref="calendarContainer" class="flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6">
+                <div ref="calendarContainer" class="page-card flex justify-center rounded-xl border border-slate-200 bg-white p-4 sm:p-6" :style="cardMotion(5)">
                     <VueCal sm style="height: 500px; width: 100%; max-width: 1150px;" :events="calendarEvents"
                         default-view="month" :time="true" :twelve-hour="true" time-format="h:mm {am}" events-on-month-view
                         :editable-events="canManage" :event-create-min-drag="15" @event-create="onCalendarCreate"
@@ -1319,6 +1323,26 @@ onBeforeUnmount(() => {
   transform: translateY(8px);
 }
 
+.page-card {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  animation: coach-schedule-card-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: calc(var(--card-order, 0) * 45ms);
+  will-change: transform, opacity;
+}
+
+@keyframes coach-schedule-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .view-toggle {
   position: relative;
   display: inline-grid;
@@ -1358,5 +1382,13 @@ onBeforeUnmount(() => {
 
 .view-toggle__btn.is-active {
   color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
 </style>

@@ -45,6 +45,7 @@ const props = defineProps<{
     team: any | null
     teams: Array<{ id: number; team_name: string; sport: string }>
     selectedTeamId: number | null
+    currentUserId: number | null
 }>()
 
 const positionDrafts = ref<Record<number, string>>({})
@@ -140,6 +141,11 @@ function initialsFromParts(...parts: Array<string | null | undefined>) {
 
 function coachAvatarUrl(coach?: { user?: { avatar?: string | null } | null } | null) {
     return userAvatarUrl(coach?.user?.avatar ?? null)
+}
+
+function isCurrentCoach(coach?: { user_id?: number | null; user?: { id?: number | null } | null } | null) {
+    const coachUserId = coach?.user_id ?? coach?.user?.id ?? null
+    return coachUserId !== null && props.currentUserId !== null && coachUserId === props.currentUserId
 }
 
 function statusTone(status: PlayerStatus) {
@@ -340,10 +346,6 @@ function clearInjury(player: PlayerRow) {
                             <span class="rounded-full bg-white/15 px-2 py-0.5 text-white">{{ props.team.year ?? 'N/A' }}</span>
                         </div>
                         <h2 class="mt-2 text-2xl font-bold text-white">{{ props.team.team_name }}</h2>
-                        <div class="mt-2 text-sm text-white/90">
-                            <p><span class="font-semibold text-white">Head Coach:</span> {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}</p>
-                            <p><span class="font-semibold text-white">Assistant Coach:</span> {{ props.team.assistantCoach?.first_name }} {{ props.team.assistantCoach?.last_name }}</p>
-                        </div>
                     </div>
 
                     <div class="flex flex-wrap gap-2">
@@ -364,7 +366,15 @@ function clearInjury(player: PlayerRow) {
 
                 <div class="mt-5 grid gap-3 lg:grid-cols-2">
                     <article class="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                        <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Head Coach</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Head Coach</p>
+                            <span
+                                v-if="isCurrentCoach(props.team.coach)"
+                                class="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+                            >
+                                You
+                            </span>
+                        </div>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-sm font-bold text-white">
                                 <img
@@ -387,7 +397,15 @@ function clearInjury(player: PlayerRow) {
                     </article>
 
                     <article class="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-                        <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Assistant Coach</p>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-[11px] font-semibold uppercase tracking-wide text-white/75">Assistant Coach</p>
+                            <span
+                                v-if="isCurrentCoach(props.team.assistantCoach)"
+                                class="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+                            >
+                                You
+                            </span>
+                        </div>
                         <div class="mt-3 flex items-center gap-3">
                             <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-sm font-bold text-white">
                                 <img

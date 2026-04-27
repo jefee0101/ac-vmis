@@ -145,6 +145,15 @@ function userAvatarUrl(path?: string | null) {
     return `/storage/${path}`;
 }
 
+function initialsFromParts(...parts: Array<string | null | undefined>) {
+    return parts
+        .flatMap((part) => String(part ?? '').trim().split(/\s+/))
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('') || 'NA'
+}
+
 function changeTeam() {
     if (!selectedTeamId.value) return
     router.get('/MyTeam', { team_id: selectedTeamId.value }, {
@@ -255,9 +264,25 @@ function cardMotion(order: number) {
                 <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800" :style="cardMotion(3)">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Head Coach</p>
-                        <p class="text-sm font-semibold text-slate-800 mt-1">
-                            {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}
-                        </p>
+                        <div class="mt-3 flex items-center gap-3">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
+                                <img
+                                    v-if="props.team.coach?.user?.avatar"
+                                    :src="userAvatarUrl(props.team.coach.user.avatar)"
+                                    alt="Head coach profile photo"
+                                    class="h-full w-full object-cover"
+                                />
+                                <span v-else>{{ initialsFromParts(props.team.coach?.first_name, props.team.coach?.last_name) }}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-slate-800">
+                                    {{ props.team.coach?.first_name }} {{ props.team.coach?.last_name }}
+                                </p>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    {{ props.team.coach?.email || props.team.coach?.phone_number || 'Contact available in details below' }}
+                                </p>
+                            </div>
+                        </div>
                         <div class="mt-3 space-y-2 text-xs">
                             <div
                                 v-if="props.team.coach?.email"
@@ -307,12 +332,26 @@ function cardMotion(order: number) {
                     </div>
                     <div class="page-card rounded-3xl border border-[#034485]/35 bg-white p-4 text-slate-800" :style="cardMotion(4)">
                         <p class="text-xs uppercase tracking-wide text-slate-500">Assistant Coach</p>
-                        <p class="text-sm font-semibold text-slate-800 mt-1">
-                            <span v-if="props.team.assistantCoach">
-                                {{ props.team.assistantCoach?.first_name }} {{ props.team.assistantCoach?.last_name }}
-                            </span>
-                            <span v-else class="text-slate-400 font-medium">Not assigned</span>
-                        </p>
+                        <div v-if="props.team.assistantCoach" class="mt-3 flex items-center gap-3">
+                            <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
+                                <img
+                                    v-if="props.team.assistantCoach?.user?.avatar"
+                                    :src="userAvatarUrl(props.team.assistantCoach.user.avatar)"
+                                    alt="Assistant coach profile photo"
+                                    class="h-full w-full object-cover"
+                                />
+                                <span v-else>{{ initialsFromParts(props.team.assistantCoach?.first_name, props.team.assistantCoach?.last_name) }}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-semibold text-slate-800">
+                                    {{ props.team.assistantCoach?.first_name }} {{ props.team.assistantCoach?.last_name }}
+                                </p>
+                                <p class="mt-1 text-xs text-slate-500">
+                                    {{ props.team.assistantCoach?.email || props.team.assistantCoach?.phone_number || 'Contact available in details below' }}
+                                </p>
+                            </div>
+                        </div>
+                        <p v-else class="mt-3 text-sm font-medium text-slate-400">Not assigned</p>
                         <div v-if="props.team.assistantCoach" class="mt-3 space-y-2 text-xs">
                             <div
                                 v-if="props.team.assistantCoach?.email"
@@ -396,21 +435,24 @@ function cardMotion(order: number) {
                 </div>
 
                 <div v-if="props.team.players?.length" class="mt-4 space-y-4">
-                    <div v-if="myMembership" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(7)">
+                    <div v-if="myMembership" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4 shadow-sm" :style="cardMotion(7)">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="flex items-start gap-3">
-                                <img
-                                    :src="userAvatarUrl(myMembership.student?.user?.avatar)"
-                                    alt="Student avatar"
-                                    class="h-10 w-10 rounded-full border border-[#034485]/30 object-cover"
-                                />
-                                <div>
+                            <div class="flex min-w-0 items-start gap-3">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
+                                    <img
+                                        v-if="myMembership.student?.user?.avatar"
+                                        :src="userAvatarUrl(myMembership.student.user.avatar)"
+                                        alt="Student profile photo"
+                                        class="h-full w-full object-cover"
+                                    />
+                                    <span v-else>{{ initialsFromParts(myMembership.student?.first_name, myMembership.student?.last_name) }}</span>
+                                </div>
+                                <div class="min-w-0">
                                     <p class="text-base font-semibold text-slate-900">{{ myMembership.student?.first_name }} {{ myMembership.student?.last_name }}</p>
                                     <p class="text-xs text-slate-500">{{ myMembership.student?.student_id_number || '-' }}</p>
-                                    <!-- contact shown in View Details -->
                                     <button
                                         type="button"
-                                        class="mt-1 inline-flex rounded-full border border-[#034485] px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                        class="mt-2 inline-flex rounded-full border border-[#034485] px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
                                         @click="openDetails(myMembership)"
                                     >
                                         View Details
@@ -452,21 +494,24 @@ function cardMotion(order: number) {
                     </div>
 
                     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    <article v-for="(player, index) in otherPlayers" :key="player.id" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4" :style="cardMotion(8 + index)">
+                    <article v-for="(player, index) in otherPlayers" :key="player.id" class="page-card rounded-2xl border border-[#034485]/35 bg-white p-4 shadow-sm" :style="cardMotion(8 + index)">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="flex items-start gap-3">
-                                <img
-                                    :src="userAvatarUrl(player.student?.user?.avatar)"
-                                    alt="Student avatar"
-                                    class="h-10 w-10 rounded-full border border-[#034485]/30 object-cover"
-                                />
-                                <div>
+                            <div class="flex min-w-0 items-start gap-3">
+                                <div class="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 text-sm font-bold text-slate-700">
+                                    <img
+                                        v-if="player.student?.user?.avatar"
+                                        :src="userAvatarUrl(player.student.user.avatar)"
+                                        alt="Student profile photo"
+                                        class="h-full w-full object-cover"
+                                    />
+                                    <span v-else>{{ initialsFromParts(player.student?.first_name, player.student?.last_name) }}</span>
+                                </div>
+                                <div class="min-w-0">
                                     <p class="text-base font-semibold text-slate-900">{{ player.student?.first_name }} {{ player.student?.last_name }}</p>
                                     <p class="text-xs text-slate-500">{{ player.student?.student_id_number || '-' }}</p>
-                                    <!-- contact shown in View Details -->
                                     <button
                                         type="button"
-                                        class="mt-1 inline-flex rounded-full border border-[#034485] px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
+                                        class="mt-2 inline-flex rounded-full border border-[#034485] px-2.5 py-1 text-[11px] font-semibold text-[#034485] hover:bg-[#034485]/10"
                                         @click="openDetails(player)"
                                     >
                                         View Details

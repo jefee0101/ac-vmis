@@ -33,6 +33,7 @@ class CoachTeamController extends Controller
                 'team' => null,
                 'teams' => [],
                 'selectedTeamId' => null,
+                'currentUserId' => request()->user()?->id,
             ]);
         }
 
@@ -51,6 +52,7 @@ class CoachTeamController extends Controller
                 'team' => null,
                 'teams' => [],
                 'selectedTeamId' => null,
+                'currentUserId' => request()->user()?->id,
             ]);
         }
 
@@ -114,6 +116,7 @@ class CoachTeamController extends Controller
                 ];
             })->values(),
             'selectedTeamId' => $selectedTeamId,
+            'currentUserId' => request()->user()?->id,
         ]);
     }
 
