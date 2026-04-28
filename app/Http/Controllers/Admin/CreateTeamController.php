@@ -508,6 +508,196 @@ class CreateTeamController extends Controller
         ]);
     }
 
+    public function showRosterPage(Team $team)
+    {
+        $this->teamPlayerStatuses->syncAll();
+
+        $team->load([
+            'sport:id,name',
+            'coach.user',
+            'assistantCoach.user',
+            'headCoachAssignment',
+            'assistantCoachAssignment',
+            'players.student.user',
+        ]);
+
+        $payload = $this->buildFormPayload($team);
+
+        return Inertia::render('Admin/TeamRoster', [
+            'team' => [
+                'id' => $team->id,
+                'team_name' => $team->team_name,
+                'team_avatar' => $team->team_avatar,
+                'sport' => $team->sport ? [
+                    'id' => $team->sport->id,
+                    'name' => $team->sport->name,
+                ] : null,
+                'year' => $team->year,
+                'description' => $team->description,
+                'coach' => $team->coach ? [
+                    'id' => $team->coach->id,
+                    'user_id' => $team->coach->user_id,
+                    'name' => $this->resolveCoachDisplayName($team->coach),
+                    'email' => $team->coach->user?->email,
+                    'avatar' => $team->coach->user?->avatar,
+                    'coach_status' => $team->coach->coach_status,
+                ] : null,
+                'assistantCoach' => $team->assistantCoach ? [
+                    'id' => $team->assistantCoach->id,
+                    'user_id' => $team->assistantCoach->user_id,
+                    'name' => $this->resolveCoachDisplayName($team->assistantCoach),
+                    'email' => $team->assistantCoach->user?->email,
+                    'avatar' => $team->assistantCoach->user?->avatar,
+                    'coach_status' => $team->assistantCoach->coach_status,
+                ] : null,
+                'players' => $team->players
+                    ->sortBy(fn ($player) => strtolower(($player->student?->last_name ?? '') . ' ' . ($player->student?->first_name ?? '')))
+                    ->values()
+                    ->map(fn (TeamPlayer $player) => [
+                        'id' => $player->id,
+                        'student_id' => $player->student_id,
+                        'name' => $this->resolveStudentDisplayName($player->student),
+                        'student_id_number' => $player->student?->student_id_number,
+                        'academic_level_label' => $player->student?->academic_level_label,
+                        'course_or_strand' => $player->student?->course_or_strand,
+                        'email' => $player->student?->user?->email,
+                        'avatar' => $player->student?->user?->avatar,
+                        'height' => $player->student?->height,
+                        'weight' => $player->student?->weight,
+                        'jersey_number' => $player->jersey_number,
+                        'athlete_position' => $player->athlete_position,
+                        'player_status' => $player->player_status ?? TeamPlayer::STATUS_ACTIVE,
+                        'manual_inactive' => (bool) $player->manual_inactive,
+                    ]),
+            ],
+            'coaches' => $payload['coaches'],
+            'players' => $payload['players'],
+            'readOnly' => auth()->user()?->role !== 'admin',
+        ]);
+    }
+
+    public function updateRosterMembership(Request $request, Team $team)
+    {
+        $this->authorizeMutation();
+
+        $validated = $request->validate([
+            'coach_id' => 'required|exists:coaches,id',
+            'assistant_coach_id' => 'nullable|exists:coaches,id|different:coach_id',
+            'player_ids' => 'nullable|array',
+            'player_ids.*' => 'integer|exists:students,id',
+        ]);
+
+        $playerIds = collect($validated['player_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $maxPlayers = $this->maxPlayersForSport((int) $team->sport_id);
+        if ($playerIds->count() > $maxPlayers) {
+            throw ValidationException::withMessages([
+                'player_ids' => "Selected players exceed the max allowed for this sport ({$maxPlayers}).",
+            ]);
+        }
+
+        $oldCoachId = (int) $team->coach_id;
+        $oldAssistantCoachId = $team->assistant_coach_id ? (int) $team->assistant_coach_id : null;
+        $existingPlayerIds = TeamPlayer::where('team_id', $team->id)
+            ->pluck('student_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $newCoachId = (int) $validated['coach_id'];
+        $newAssistantCoachId = $validated['assistant_coach_id'] ? (int) $validated['assistant_coach_id'] : null;
+
+        $this->validateCoachAssignmentConflicts($newCoachId, $newAssistantCoachId, $team->id);
+        $this->validatePlayerConflicts($playerIds, $team->id);
+
+        DB::transaction(function () use ($team, $playerIds, $newCoachId, $newAssistantCoachId) {
+            $team->syncStaffAssignments($newCoachId, $newAssistantCoachId, auth()->id());
+
+            TeamPlayer::where('team_id', $team->id)
+                ->whereNotIn('student_id', $playerIds->all())
+                ->delete();
+
+            $existingIds = TeamPlayer::where('team_id', $team->id)
+                ->pluck('student_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $missingIds = $playerIds->diff($existingIds)->all();
+            foreach ($missingIds as $studentId) {
+                TeamPlayer::create([
+                    'team_id' => $team->id,
+                    'student_id' => $studentId,
+                    'jersey_number' => null,
+                    'athlete_position' => null,
+                ]);
+            }
+        });
+
+        $addedPlayerIds = array_values(array_diff($playerIds->all(), $existingPlayerIds));
+        $removedPlayerIds = array_values(array_diff($existingPlayerIds, $playerIds->all()));
+
+        $team->refresh()->load('sport');
+
+        if ($oldCoachId !== $newCoachId) {
+            $this->notifyTeamAssignmentRemoved($team, $oldCoachId, 'head coach');
+            $this->notifyTeamAssignmentAdded($team, $newCoachId, 'head coach');
+        }
+
+        if ($oldAssistantCoachId !== $newAssistantCoachId) {
+            $this->notifyTeamAssignmentRemoved($team, $oldAssistantCoachId, 'assistant coach');
+            $this->notifyTeamAssignmentAdded($team, $newAssistantCoachId, 'assistant coach');
+        }
+
+        $this->logRosterMembershipChanges($team, $addedPlayerIds, 'roster_added_to_team');
+        $this->logRosterMembershipChanges($team, $removedPlayerIds, 'roster_removed_from_team');
+        $this->notifyPlayersAdded($team, $addedPlayerIds);
+        $this->notifyPlayersRemoved($team, $removedPlayerIds);
+        collect($addedPlayerIds)->each(fn ($studentId) => $this->teamPlayerStatuses->syncStudent((int) $studentId));
+
+        return back()->with('success', 'Team roster updated successfully.');
+    }
+
+    public function updatePlayerDetails(Request $request, TeamPlayer $teamPlayer)
+    {
+        $this->authorizeMutation();
+
+        $validated = $request->validate([
+            'athlete_position' => 'nullable|string|max:100',
+            'jersey_number' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('team_players', 'jersey_number')
+                    ->where(fn ($query) => $query->where('team_id', $teamPlayer->team_id))
+                    ->ignore($teamPlayer->id),
+            ],
+        ]);
+
+        $teamPlayer->loadMissing(['team', 'student.user']);
+
+        $position = trim((string) ($validated['athlete_position'] ?? ''));
+        $jerseyNumber = trim((string) ($validated['jersey_number'] ?? ''));
+
+        $teamPlayer->update([
+            'athlete_position' => $position === '' ? null : $position,
+            'jersey_number' => $jerseyNumber === '' ? null : $jerseyNumber,
+        ]);
+
+        $studentUserId = (int) ($teamPlayer->student?->user_id ?? 0);
+        if ($studentUserId > 0) {
+            AccountActionLog::create([
+                'user_id' => $studentUserId,
+                'admin_id' => auth()->id(),
+                'action' => 'roster_details_updated',
+                'remarks' => "Roster details updated for {$teamPlayer->student?->full_name} in {$teamPlayer->team?->team_name}.",
+            ]);
+        }
+
+        return back()->with('success', 'Player details updated.');
+    }
+
     public function printRoster(Team $team)
     {
         $team->load([

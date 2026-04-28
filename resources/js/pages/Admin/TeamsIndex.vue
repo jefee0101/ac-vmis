@@ -79,12 +79,9 @@ const activeFilterCount = computed(() => {
 
 const unreadRequestCount = computed(() => props.teamChangeRequests.filter((req) => !req.is_read).length)
 
-const expandedTeamIds = ref<number[]>([])
-const rosterCache = ref<Record<number, any[]>>({})
-const rosterLoading = ref<Record<number, boolean>>({})
 const teamActionDialogOpen = ref(false)
 const pendingTeamAction = ref<{ type: 'archive' | 'reactivate'; team: TeamRow } | null>(null)
-const { sportColor } = useSportColors()
+const { sportColor, sportTextColor, sportLabel } = useSportColors()
 
 const seasonSnapshots = computed(() => {
     const buckets: Record<string, TeamRow[]> = {}
@@ -122,27 +119,6 @@ const seasonSnapshots = computed(() => {
         })
 })
 
-function hexToRgba(hex: string, alpha: number) {
-    const sanitized = hex.replace('#', '')
-    const normalized = sanitized.length === 3
-        ? sanitized.split('').map((c) => `${c}${c}`).join('')
-        : sanitized
-    const int = Number.parseInt(normalized, 16)
-    if (Number.isNaN(int)) return `rgba(15, 23, 42, ${alpha})`
-    const r = (int >> 16) & 255
-    const g = (int >> 8) & 255
-    const b = int & 255
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-function teamCardStyle(team: TeamRow) {
-    const color = sportColor(team.sport?.name ?? team.sport?.id ?? '')
-    return {
-        borderColor: color,
-        backgroundColor: hexToRgba(color, 0.08),
-    }
-}
-
 function fullName(person: any): string {
     const first = person?.first_name ?? ''
     const last = person?.last_name ?? ''
@@ -168,22 +144,6 @@ function issueToneClass(count: number) {
     if (count > 2) return 'bg-red-100 text-red-700'
     if (count > 0) return 'bg-amber-100 text-amber-700'
     return 'bg-emerald-100 text-emerald-700'
-}
-
-function playerStatusTone(status: string | null | undefined) {
-    const value = String(status ?? 'active').toLowerCase()
-    if (value === 'inactive') return 'bg-slate-200 text-slate-700'
-    if (value === 'injured') return 'bg-amber-100 text-amber-700'
-    if (value === 'suspended') return 'bg-red-100 text-red-700'
-    return 'bg-emerald-100 text-emerald-700'
-}
-
-function formatMeasure(value: string | number | null | undefined, unit: string) {
-    if (value === null || value === undefined) return '-'
-    const text = String(value).trim()
-    if (!text) return '-'
-    if (/[a-zA-Z]/.test(text)) return text
-    return `${text} ${unit}`
 }
 
 function buildQuery(extra: Record<string, any> = {}) {
@@ -228,12 +188,8 @@ function goToArchivedTeams() {
     router.get('/teams/archived')
 }
 
-function goToEditTeam(teamId: number) {
-    router.get(`/teams/${teamId}/edit`)
-}
-
-function printRoster(teamId: number) {
-    window.open(`/teams/${teamId}/print`, '_blank')
+function goToRosterPage(teamId: number) {
+    router.get(`/teams/${teamId}/view-roster`)
 }
 
 function goToTeamSchedules(teamId: number) {
@@ -241,33 +197,6 @@ function goToTeamSchedules(teamId: number) {
         tab: 'calendar',
         team_id: teamId,
     })
-}
-
-async function toggleTeamExpanded(teamId: number) {
-    if (expandedTeamIds.value.includes(teamId)) {
-        expandedTeamIds.value = expandedTeamIds.value.filter((id) => id !== teamId)
-        return
-    }
-
-    expandedTeamIds.value.push(teamId)
-    if (rosterCache.value[teamId]) return
-
-    rosterLoading.value = { ...rosterLoading.value, [teamId]: true }
-    try {
-        const response = await fetch(`/teams/${teamId}/roster`, { credentials: 'same-origin' })
-        const data = await response.json()
-        rosterCache.value = {
-            ...rosterCache.value,
-            [teamId]: data.players ?? [],
-        }
-    } catch {
-        rosterCache.value = {
-            ...rosterCache.value,
-            [teamId]: [],
-        }
-    } finally {
-        rosterLoading.value = { ...rosterLoading.value, [teamId]: false }
-    }
 }
 
 function archiveTeam(team: TeamRow) {
@@ -348,28 +277,6 @@ function searchTeamFromRequest(teamName: string) {
     filters.search = teamName
     showFilters.value = false
     reload()
-}
-
-function deactivatePlayer(teamPlayerId: number) {
-    router.post(`/teams/team-players/${teamPlayerId}/deactivate`, {}, {
-        preserveScroll: true,
-        onError: () => {
-            showAppToast('Unable to mark the player inactive.', 'error', {
-                summary: 'Roster Status',
-            })
-        },
-    })
-}
-
-function reactivatePlayer(teamPlayerId: number) {
-    router.post(`/teams/team-players/${teamPlayerId}/reactivate`, {}, {
-        preserveScroll: true,
-        onError: () => {
-            showAppToast('Unable to reactivate the player.', 'error', {
-                summary: 'Roster Status',
-            })
-        },
-    })
 }
 
 function formatTimestamp(value: string | null) {
@@ -594,20 +501,25 @@ function formatTimestamp(value: string | null) {
                         <article
                             v-for="team in season.teams"
                             :key="team.id"
-                            class="rounded-xl border p-4"
-                            :style="teamCardStyle(team)"
+                            class="rounded-3xl bg-[#034485] p-5 text-white shadow-[0_24px_60px_-34px_rgba(3,68,133,0.5)]"
                         >
-                            <div class="mb-2 flex items-start justify-end">
+                            <div class="mb-3 flex items-start justify-between gap-3">
+                                <span
+                                    class="inline-flex rounded-full px-3 py-1 text-[11px] font-semibold"
+                                    :style="{ backgroundColor: sportColor(team.sport?.name ?? ''), color: sportTextColor(team.sport?.name ?? '') }"
+                                >
+                                    {{ sportLabel(team.sport?.name ?? '') }}
+                                </span>
                                 <p v-if="team.is_archived" class="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">Archived</p>
                             </div>
 
                             <div class="flex items-start gap-3">
-                                <img :src="teamAvatarUrl(team.team_avatar)" alt="Team Avatar" class="h-12 w-12 rounded-md object-cover" />
+                                <img :src="teamAvatarUrl(team.team_avatar)" alt="Team Avatar" class="h-14 w-14 rounded-2xl border border-white/20 bg-white/10 object-cover" />
                                 <div class="min-w-0 flex-1">
-                                    <p class="truncate text-base font-semibold text-slate-900">{{ team.team_name }}</p>
-                                    <p class="text-xs text-slate-600">{{ team.sport?.name || 'No sport' }}</p>
-                                    <p class="text-xs text-slate-500">Head: {{ fullName(team.coach) }}</p>
-                                    <p class="text-xs text-slate-500">Assistant: {{ fullName(team.assistantCoach) }}</p>
+                                    <p class="truncate text-xl font-semibold text-white">{{ team.team_name }}</p>
+                                    <p class="mt-1 text-sm text-white/80">{{ team.sport?.name || 'No sport' }}</p>
+                                    <p class="mt-2 text-sm text-white/85">Head: {{ fullName(team.coach) }}</p>
+                                    <p class="text-sm text-white/70">Assistant: {{ fullName(team.assistantCoach) }}</p>
                                 </div>
                             </div>
 
@@ -626,17 +538,27 @@ function formatTimestamp(value: string | null) {
                                 </span>
                             </div>
 
-                            <p class="mt-2 text-xs text-slate-600">Players: {{ team.players_count }} / {{ team.max_players }}</p>
+                            <p class="mt-3 text-sm text-white/80">Players: {{ team.players_count }} / {{ team.max_players }}</p>
 
                             <div class="mt-3 flex flex-wrap gap-2">
-                                <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="goToEditTeam(team.id)">Edit</button>
-                                <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="toggleTeamExpanded(team.id)">View Roster</button>
-                                <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="goToTeamSchedules(team.id)">Schedules</button>
-                                <button type="button" class="rounded-md border border-slate-300 px-2 py-1 text-xs" @click="printRoster(team.id)">Print Roster</button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-white/25 bg-white px-3 py-1.5 text-xs font-semibold text-[#034485] hover:bg-white/90"
+                                    @click="goToRosterPage(team.id)"
+                                >
+                                    View Roster
+                                </button>
+                                <button
+                                    type="button"
+                                    class="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/15"
+                                    @click="goToTeamSchedules(team.id)"
+                                >
+                                    Schedules
+                                </button>
                                 <button
                                     v-if="!readOnly && !team.is_archived"
                                     type="button"
-                                    class="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-700"
+                                    class="rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700"
                                     @click="archiveTeam(team)"
                                 >
                                     Archive
@@ -644,58 +566,11 @@ function formatTimestamp(value: string | null) {
                                 <button
                                     v-else-if="!readOnly && team.is_archived"
                                     type="button"
-                                    class="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+                                    class="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700"
                                     @click="reactivateTeam(team)"
                                 >
                                     Reactivate
                                 </button>
-                            </div>
-
-                            <div v-if="expandedTeamIds.includes(team.id)" class="mt-3 rounded-md border border-slate-200 bg-slate-50 p-2">
-                                <p v-if="rosterLoading[team.id]" class="text-xs text-slate-500">Loading roster...</p>
-                                <ul v-else-if="(rosterCache[team.id] || []).length" class="space-y-2 text-xs text-slate-700">
-                                    <li v-for="player in rosterCache[team.id]" :key="player.id">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
-                                                <p class="font-medium text-slate-800">
-                                                    {{ player.name }} <span class="font-normal text-slate-500">({{ player.student_id_number || 'No ID' }})</span>
-                                                </p>
-                                                <p class="mt-0.5 text-[11px] text-slate-500">
-                                                    Height: <span class="font-medium text-slate-700">{{ formatMeasure(player.height, 'cm') }}</span>
-                                                    <span class="mx-1.5 text-slate-300">|</span>
-                                                    Weight: <span class="font-medium text-slate-700">{{ formatMeasure(player.weight, 'kg') }}</span>
-                                                </p>
-                                                <p class="mt-0.5 text-[11px] text-slate-500">
-                                                    Position: <span class="font-medium text-slate-700">{{ player.athlete_position || 'Unassigned' }}</span>
-                                                    <span class="mx-1.5 text-slate-300">|</span>
-                                                    Jersey: <span class="font-medium text-slate-700">{{ player.jersey_number || 'Pending' }}</span>
-                                                </p>
-                                            </div>
-                                            <div class="flex shrink-0 flex-col items-end gap-2">
-                                                <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold" :class="playerStatusTone(player.player_status)">
-                                                    {{ String(player.player_status || 'active').toUpperCase() }}
-                                                </span>
-                                                <button
-                                                    v-if="!readOnly && player.player_status !== 'inactive'"
-                                                    type="button"
-                                                    class="rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-700"
-                                                    @click="deactivatePlayer(player.id)"
-                                                >
-                                                    Mark Inactive
-                                                </button>
-                                                <button
-                                                    v-else-if="!readOnly"
-                                                    type="button"
-                                                    class="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700"
-                                                    @click="reactivatePlayer(player.id)"
-                                                >
-                                                    Reactivate
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
-                                <p v-else class="text-xs text-slate-500">No players assigned.</p>
                             </div>
                         </article>
                     </div>

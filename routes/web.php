@@ -195,6 +195,10 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.edit');
     Route::put('/teams/{team}', [CreateTeamController::class, 'update'])
         ->name('admin.teams.update');
+    Route::get('/teams/{team}/view-roster', [CreateTeamController::class, 'showRosterPage'])
+        ->name('admin.teams.roster.page');
+    Route::put('/teams/{team}/view-roster', [CreateTeamController::class, 'updateRosterMembership'])
+        ->name('admin.teams.roster.membership');
     Route::get('/teams/{team}/roster', [CreateTeamController::class, 'roster'])
         ->name('admin.teams.roster');
     Route::get('/teams/{team}/print', [CreateTeamController::class, 'printRoster'])
@@ -207,6 +211,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('admin.teams.players.deactivate');
     Route::post('/teams/team-players/{teamPlayer}/reactivate', [CreateTeamController::class, 'reactivatePlayer'])
         ->name('admin.teams.players.reactivate');
+    Route::put('/teams/team-players/{teamPlayer}/details', [CreateTeamController::class, 'updatePlayerDetails'])
+        ->name('admin.teams.players.details');
     Route::post('/teams/requests/{announcement}/approve', [CreateTeamController::class, 'approveRequest'])
         ->name('admin.teams.requests.approve');
     Route::post('/teams/requests/{announcement}/reject', [CreateTeamController::class, 'rejectRequest'])
