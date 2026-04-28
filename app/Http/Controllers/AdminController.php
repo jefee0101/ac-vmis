@@ -422,10 +422,31 @@ class AdminController extends Controller
             ->whereHas('student', fn ($query) => $query->where('approval_status', $status));
 
         if ($search !== '') {
-            $baseQuery->where(function ($query) use ($search) {
-                $query->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+            $terms = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [$search];
+
+            $baseQuery->where(function ($query) use ($terms, $search) {
+                $query->where(function ($nameQuery) use ($terms) {
+                    foreach ($terms as $term) {
+                        $nameQuery->where(function ($termQuery) use ($term) {
+                            $termQuery->where('first_name', 'like', "%{$term}%")
+                                ->orWhere('middle_name', 'like', "%{$term}%")
+                                ->orWhere('last_name', 'like', "%{$term}%")
+                                ->orWhere('email', 'like', "%{$term}%")
+                                ->orWhereHas('student', function ($studentQuery) use ($term) {
+                                    $studentQuery->where('student_id_number', 'like', "%{$term}%")
+                                        ->orWhere('course_or_strand', 'like', "%{$term}%");
+                                })
+                                ->orWhereHas('coach', function ($coachQuery) use ($term) {
+                                    $coachQuery->where('phone_number', 'like', "%{$term}%")
+                                        ->orWhere('first_name', 'like', "%{$term}%")
+                                        ->orWhere('middle_name', 'like', "%{$term}%")
+                                        ->orWhere('last_name', 'like', "%{$term}%");
+                                });
+                        });
+                    }
+                })
+                ->orWhereRaw("TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(last_name, ''))) like ?", ["%{$search}%"])
+                ->orWhereRaw("TRIM(CONCAT(COALESCE(first_name, ''), ' ', COALESCE(middle_name, ''), ' ', COALESCE(last_name, ''))) like ?", ["%{$search}%"]);
             });
         }
 

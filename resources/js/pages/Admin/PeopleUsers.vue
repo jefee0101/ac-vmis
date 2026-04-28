@@ -804,7 +804,7 @@ watch(
                 <input
                     v-model="search"
                     type="text"
-                    placeholder="Search by name or email"
+                    placeholder="Search by full name, email, student ID, or course"
                     class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 transition outline-none focus:border-[#1f2937] focus:ring-2 focus:ring-[#1f2937]/20 lg:col-span-6"
                 />
 
@@ -855,14 +855,15 @@ watch(
         >
             <div :key="statusFilter" class="overflow-hidden rounded-xl border border-[#034485]/45 bg-white">
                 <div v-if="users.data.length" class="grid gap-0 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-                    <div class="border-b border-slate-200 xl:border-r xl:border-b-0">
+                    <div class="flex h-full min-h-full flex-col border-b border-slate-200 bg-slate-50/45 xl:border-r xl:border-b-0">
                         <div class="border-b border-slate-200 bg-slate-50 px-4 py-3">
                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">User Directory</p>
                             <p class="mt-1 text-sm text-slate-600">
                                 {{ isDeactivatedView ? 'Review deactivated accounts and restore access without leaving the page.' : 'Review active accounts efficiently and open full profiles within the page.' }}
                             </p>
                         </div>
-                        <div class="max-h-[calc(100vh-24rem)] overflow-y-auto">
+                        <div class="flex-1 bg-white">
+                            <div class="max-h-[calc(100vh-24rem)] min-h-[24rem] overflow-y-auto">
                             <button
                                 v-for="user in users.data"
                                 :key="user.id"
@@ -919,6 +920,7 @@ watch(
                                     </div>
                                 </div>
                             </button>
+                            </div>
                         </div>
                     </div>
 
